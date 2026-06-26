@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "buses": {
+    "bgm": 0.25,
+    "sfx": 0.5,
+    "ui": 0.5,
+    "voice": 1
+  },
+  "tracks": {
+    "bgm.battle": {
+      "source": "/assets/Ashen%20Banner.mp3",
+      "bus": "bgm",
+      "volume": 0.9,
+      "loop": true,
+      "preload": "auto",
+      "fadeInMs": 1200
+    },
+    "sfx.magic-attack": {
+      "source": "/assets/audio/fireball.mp3",
+      "bus": "sfx",
+      "volume": 0.78,
+      "preload": "auto"
+    },
+    "sfx.weakness-activated": {
+      "source": "/assets/audio/weakness-activated.mp3",
+      "bus": "sfx",
+      "volume": 0.78,
+      "preload": "auto"
+    },
+    "sfx.card-pickup-confirm": {
+      "source": "/assets/audio/card-pickup-confirm.mp3",
+      "bus": "ui",
+      "volume": 0.82,
+      "preload": "auto"
+    },
+    "sfx.deck-touch": {
+      "source": "/assets/audio/deck-touch.mp3",
+      "bus": "ui",
+      "volume": 0.9,
+      "preload": "auto"
+    },
+    "sfx.physical-hit": {
+      "source": "/assets/audio/physical-hit.mp3",
+      "bus": "sfx",
+      "volume": 1,
+      "preload": "auto"
+    },
+    "sfx.shield-block": {
+      "source": "/assets/audio/shield-block.mp3",
+      "bus": "sfx",
+      "volume": 1,
+      "preload": "auto"
+    },
+    "sfx.burning-trigger": {
+      "source": "/assets/audio/burning-trigger.mp3",
+      "bus": "sfx",
+      "volume": 0.76,
+      "preload": "auto"
+    },
+    "sfx.magic-impact": {
+      "source": "/assets/audio/magic-impact.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.magic-counter": {
+      "source": "/assets/audio/magic-counter.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.character-defeated": {
+      "source": "/assets/audio/character-defeated.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.shield-deploy": {
+      "source": "/assets/audio/shield-deploy.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.shield-reinforce": {
+      "source": "/assets/audio/shield-reinforce.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.shield-break": {
+      "source": "/assets/audio/shield-break.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.aftershock-axe": {
+      "source": "/assets/audio/aftershock-axe.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.interposing-shield": {
+      "source": "/assets/audio/interposing-shield.mp3",
+      "bus": "sfx", "volume": 1, "preload": "auto"
+    },
+    "sfx.attack-confirm": {
+      "source": "/assets/audio/attack-confirm.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.preview-cancel": {
+      "source": "/assets/audio/preview-cancel.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.shield-command": {
+      "source": "/assets/audio/shield-command.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.language-toggle": {
+      "source": "/assets/audio/language-toggle.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.audio-toggle": {
+      "source": "/assets/audio/audio-toggle.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.panel-toggle": {
+      "source": "/assets/audio/panel-toggle.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.copy-confirm": {
+      "source": "/assets/audio/copy-confirm.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.deck-shuffle": {
+      "source": "/assets/audio/deck-shuffle.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.card-deal": {
+      "source": "/assets/audio/card-deal.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.card-place": {
+      "source": "/assets/audio/card-place.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.ap-spend": {
+      "source": "/assets/audio/ap-spend.mp3",
+      "bus": "ui", "volume": 1, "preload": "auto"
+    },
+    "sfx.match-start": { "source": "/assets/audio/match-start.mp3", "bus": "ui", "volume": 0.76, "preload": "auto" },
+    "sfx.rematch-confirm": { "source": "/assets/audio/rematch-confirm.mp3", "bus": "ui", "volume": 0.72, "preload": "auto" },
+    "sfx.turn-change": { "source": "/assets/audio/turn-change.mp3", "bus": "ui", "volume": 0.72, "preload": "auto" },
+    "sfx.invalid-action": { "source": "/assets/audio/invalid-action.mp3", "bus": "ui", "volume": 0.7, "preload": "auto" },
+    "sfx.target-lock": { "source": "/assets/audio/target-lock.mp3", "bus": "ui", "volume": 0.68, "preload": "auto" },
+    "sfx.no-damage": { "source": "/assets/audio/no-damage.mp3", "bus": "sfx", "volume": 0.72, "preload": "auto" },
+    "sfx.absolute-damage": { "source": "/assets/audio/absolute-damage.mp3", "bus": "sfx", "volume": 0.86, "preload": "auto" },
+    "sfx.skill-damage": { "source": "/assets/audio/skill-damage.mp3", "bus": "sfx", "volume": 0.72, "preload": "auto" },
+    "sfx.hp-loss": { "source": "/assets/audio/hp-loss.mp3", "bus": "sfx", "volume": 0.48, "preload": "auto" },
+    "sfx.shield-block-magic": { "source": "/assets/audio/shield-block-magic.mp3", "bus": "sfx", "volume": 0.74, "preload": "auto" },
+    "sfx.shield-hit": { "source": "/assets/audio/shield-hit.mp3", "bus": "sfx", "volume": 0.58, "preload": "auto" },
+    "sfx.shield-expire": { "source": "/assets/audio/shield-expire.mp3", "bus": "sfx", "volume": 0.62, "preload": "auto" },
+    "sfx.complacency-applied": { "source": "/assets/audio/complacency-applied.mp3", "bus": "sfx", "volume": 0.62, "preload": "auto" },
+    "sfx.complacency-consumed": { "source": "/assets/audio/complacency-consumed.mp3", "bus": "sfx", "volume": 0.58, "preload": "auto" },
+    "sfx.guard-collateral": { "source": "/assets/audio/guard-collateral.mp3", "bus": "sfx", "volume": 0.74, "preload": "auto" },
+    "sfx.weakness-pending": { "source": "/assets/audio/weakness-pending.mp3", "bus": "sfx", "volume": 0.64, "preload": "auto" },
+    "sfx.weakness-failed": { "source": "/assets/audio/weakness-failed.mp3", "bus": "sfx", "volume": 0.58, "preload": "auto" },
+    "sfx.sowing": { "source": "/assets/audio/sowing.mp3", "bus": "sfx", "volume": 0.64, "preload": "auto" },
+    "sfx.harvest-activated": { "source": "/assets/audio/harvest-activated.mp3", "bus": "sfx", "volume": 0.68, "preload": "auto" },
+    "sfx.blessing-heal": { "source": "/assets/audio/blessing-heal.mp3", "bus": "sfx", "volume": 0.60, "preload": "auto" },
+    "sfx.foresight-proc": { "source": "/assets/audio/foresight-proc.mp3", "bus": "sfx", "volume": 0.66, "preload": "auto" },
+    "sfx.magic-bonus": { "source": "/assets/audio/magic-bonus.mp3", "bus": "sfx", "volume": 0.62, "preload": "auto" },
+    "sfx.beast-rage": { "source": "/assets/audio/beast-rage.mp3", "bus": "sfx", "volume": 0.84, "preload": "auto" },
+    "sfx.buff-applied": { "source": "/assets/audio/buff-applied.mp3", "bus": "sfx", "volume": 0.55, "preload": "auto" },
+    "sfx.debuff-applied": { "source": "/assets/audio/debuff-applied.mp3", "bus": "sfx", "volume": 0.55, "preload": "auto" },
+    "sfx.status-expired": { "source": "/assets/audio/status-expired.mp3", "bus": "sfx", "volume": 0.48, "preload": "auto" },
+    "sfx.beauty-and-beast-chase": { "source": "/assets/audio/beauty-and-beast-chase.mp3", "bus": "sfx", "volume": 0.86, "preload": "auto" },
+    "sfx.room-created": { "source": "/assets/audio/room-created.mp3", "bus": "ui", "volume": 0.65, "preload": "auto" },
+    "sfx.room-joined": { "source": "/assets/audio/room-joined.mp3", "bus": "ui", "volume": 0.65, "preload": "auto" },
+    "sfx.opponent-joined": { "source": "/assets/audio/opponent-joined.mp3", "bus": "ui", "volume": 0.72, "preload": "auto" },
+    "sfx.network-error": { "source": "/assets/audio/network-error.mp3", "bus": "ui", "volume": 0.68, "preload": "auto" },
+    "sfx.victory-sting": { "source": "/assets/audio/victory-sting.mp3", "bus": "sfx", "volume": 0.9, "preload": "auto" },
+    "sfx.defeat-sting": { "source": "/assets/audio/defeat-sting.mp3", "bus": "sfx", "volume": 0.78, "preload": "auto" },
+    "sfx.draw-sting": { "source": "/assets/audio/draw-sting.mp3", "bus": "sfx", "volume": 0.76, "preload": "auto" },
+    "sfx.result-panel": { "source": "/assets/audio/result-panel.mp3", "bus": "ui", "volume": 0.58, "preload": "auto" }
+  },
+  "events": {
+    "game.start": ["bgm.battle"],
+    "game.restart": ["bgm.battle", "sfx.rematch-confirm"],
+    "game.match-start": ["sfx.match-start"],
+    "ui.card-select": ["sfx.card-pickup-confirm"],
+    "ui.turn-end": ["sfx.card-pickup-confirm"],
+    "ui.deck-touch": ["sfx.deck-shuffle"],
+    "combat.magic-active": ["sfx.magic-attack"],
+    "combat.physical-hit": ["sfx.physical-hit"],
+    "combat.shield-block": ["sfx.shield-block"],
+    "status.weakness-activated": ["sfx.weakness-activated"],
+    "status.burning-applied": ["sfx.burning-trigger"],
+    "status.burning-tick": ["sfx.burning-trigger"],
+    "ui.attack-confirm": ["sfx.attack-confirm"],
+    "ui.preview-cancel": ["sfx.preview-cancel"],
+    "ui.shield-command": ["sfx.shield-command"],
+    "ui.language-toggle": ["sfx.language-toggle"],
+    "ui.audio-toggle": ["sfx.audio-toggle"],
+    "ui.panel-toggle": ["sfx.panel-toggle"],
+    "online.link-copied": ["sfx.copy-confirm"],
+    "ui.shuffle": ["sfx.deck-touch"],
+    "ui.deal": ["sfx.card-deal"],
+    "ui.card-place": ["sfx.card-place"],
+    "ui.ap-spend": ["sfx.ap-spend"],
+    "combat.magic-impact": ["sfx.magic-impact"],
+    "combat.magic-counter": ["sfx.magic-counter"],
+    "combat.character-defeated": ["sfx.character-defeated"],
+    "shield.deploy": ["sfx.shield-deploy"],
+    "shield.reinforce": ["sfx.shield-reinforce"],
+    "shield.break": ["sfx.shield-break"],
+    "skill.aftershock-axe": ["sfx.aftershock-axe"],
+    "skill.guard-trigger": ["sfx.interposing-shield"],
+    "turn.change": ["sfx.turn-change"],
+    "ui.invalid-action": ["sfx.invalid-action"],
+    "combat.target-lock": ["sfx.target-lock"],
+    "combat.no-damage": ["sfx.no-damage"],
+    "combat.absolute-damage": ["sfx.absolute-damage"],
+    "combat.skill-damage": ["sfx.skill-damage"],
+    "combat.hp-loss": ["sfx.hp-loss"],
+    "combat.shield-block-magic": ["sfx.shield-block-magic"],
+    "shield.hit": ["sfx.shield-hit"],
+    "shield.expire": ["sfx.shield-expire"],
+    "status.complacency-applied": ["sfx.complacency-applied"],
+    "status.complacency-consumed": ["sfx.complacency-consumed"],
+    "skill.guard-collateral": ["sfx.guard-collateral"],
+    "status.weakness-pending": ["sfx.weakness-pending"],
+    "skill.weakness-failed": ["sfx.weakness-failed"],
+    "status.sowing": ["sfx.sowing"],
+    "status.harvest-activated": ["sfx.harvest-activated"],
+    "status.blessing-heal": ["sfx.blessing-heal"],
+    "status.foresight-proc": ["sfx.foresight-proc"],
+    "status.magic-bonus": ["sfx.magic-bonus"],
+    "status.beast-rage": ["sfx.beast-rage"],
+    "status.buff-applied": ["sfx.buff-applied"],
+    "status.debuff-applied": ["sfx.debuff-applied"],
+    "status.expired": ["sfx.status-expired"],
+    "skill.predatory-instinct": ["sfx.beauty-and-beast-chase"],
+    "online.room-created": ["sfx.room-created"],
+    "online.room-joined": ["sfx.room-joined"],
+    "online.opponent-joined": ["sfx.opponent-joined"],
+    "online.request-failed": ["sfx.network-error"],
+    "game.victory": ["sfx.victory-sting"],
+    "game.defeat": ["sfx.defeat-sting"],
+    "game.draw": ["sfx.draw-sting"],
+    "game.result-panel": ["sfx.result-panel"]
+  }
+}

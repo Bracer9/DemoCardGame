@@ -1,0 +1,300 @@
+{
+  "ui": {
+    "titleScreen": "タイトル画面",
+    "startTagline": "運命は、八枚のカードに。",
+    "localPlay": "ローカル対戦",
+    "localPlayHint": "1台のPCで交互にプレイ",
+    "onlinePlay": "オンライン対戦",
+    "onlinePlayHint": "招待リンクで友達とプレイ",
+    "backToModes": "← モード選択へ",
+    "playerNameLabel": "プレイヤー名",
+    "playerNamePlaceholder": "名前（任意）",
+    "createRoom": "ルームを作成",
+    "joinRoom": "ルームに参加",
+    "waitingPlayer": "もう一人のプレイヤーを待っています",
+    "copyLink": "リンクをコピー",
+    "startMatch": "対局を開始",
+    "dealDeck": "山札に触れてカードを配る",
+    "dealShuffle": "山札に触れて配札を始める",
+    "dealTouch": "山札に触れてカードを配る",
+    "dealTouchOnline": "どちらか一人が山札に触れてください",
+    "dealDealing": "運命を配っています",
+    "activeNow": "行動中",
+    "selectCard": "攻撃するカードを選択",
+    "selectTarget": "ドラッグ、またはクリックで対象を指定",
+    "turnEnd": "ターン終了",
+    "combatForecast": "戦闘予測",
+    "damageDealt": "与えるダメージ",
+    "counterTaken": "受ける反撃",
+    "eventPhysical": "物理攻撃",
+    "eventMagical": "魔法攻撃",
+    "eventCounter": "反撃",
+    "eventSkill": "スキル発動",
+    "eventStatus": "状態効果",
+    "eventHeal": "HP回復",
+    "eventShield": "共有シールド",
+    "eventDeath": "戦闘不能",
+    "executeAttack": "攻撃実行",
+    "apUsage": "攻撃命令に使用",
+    "battleLog": "戦況ログ",
+    "rematch": "再戦する",
+    "close": "閉じる",
+    "audio": "音声",
+    "muted": "ミュート",
+    "audioSettings": "音声設定",
+    "bgmControl": "背景音楽",
+    "sfxControl": "効果音",
+    "languageButton": "中文",
+    "languageAria": "中国語に切り替える",
+    "newGame": "新しい対戦",
+    "opponent": "相手側",
+    "activeSide": "行動側",
+    "sharedShieldEnemy": "相手の共有シールド",
+    "sharedShieldAlly": "味方の共有シールド",
+    "actionPanel": "行動パネル",
+    "defenseFormation": "防御陣形",
+    "reinforceFormation": "陣形を強化",
+    "deployed": "展開済み",
+    "noEffects": "現在有効な状態はありません。",
+    "unitDossier": "キャラクター詳細",
+    "liveEffects": "現在の効果",
+    "effects": "バフ / デバフ",
+    "always": "常時",
+    "shieldLead": "1段階目は共有シールドを得ます。現在まだ共有シールドが残っている時だけ、2段階目で残量に追加し、全員にデバフ「油断」を付与します。",
+    "shieldFirst": "一層シールド",
+    "shieldFirstBody": "2 APで共有シールド2。反撃ダメージへのペナルティはありません。",
+    "shieldSecond": "二層シールド",
+    "shieldSecondBody": "現在まだ共有シールドが残っていれば、追加1 APで盾値+2。油断（次の反撃ダメージ-1）を付与。",
+    "shieldNote1": "共有シールドは残量の分だけ正数ダメージを吸収します。",
+    "shieldNote2": "共有シールドが残っている状態で2段階目を使った時だけ、油断が各キャラクターに付与され、反撃後にそのキャラクターから消えます。",
+    "shieldNote3": "共有シールドが先に壊れても、油断は発動または次の自分のターンまで残ります。",
+    "shieldNote4": "共有シールドがこのターン中に0になった場合、次の防御指令は2段階目ではなく、もう一度1段階目になります。",
+    "shieldCurrent": "現在の共有シールド：{value}",
+    "shieldNone": "現在シールドなし",
+    "currentSelected": "{name}を選択中",
+    "selectUpperEnemy": "上側の敵へドラッグ、またはクリック",
+    "cannotAct": "このカードは現在行動できません。",
+    "selectAttackerFirst": "先に攻撃するキャラクターを選んでください。",
+    "communicationError": "通信エラー",
+    "drawCopy": "両者が同時に倒れました。",
+    "victoryCopy": "{name}の勝利。",
+    "buff": "バフ",
+    "debuff": "デバフ",
+    "aura": "オーラ",
+    "waitingSeat": "待機中…",
+    "host": "主催者",
+    "guest": "参加者",
+    "playerJoinedHost": "プレイヤー2が参加しました。対局を開始できます。",
+    "joinedWaitingHost": "参加しました。主催者の開始を待っています。",
+    "inviteCopied": "招待リンクをコピーしました。",
+    "hostOnlyRestart": "再戦を開始できるのは主催者だけです。"
+  },
+  "players": {
+    "player.1": "プレイヤー1",
+    "player.2": "プレイヤー2"
+  },
+  "characters": {
+    "peasant": "農民",
+    "princess": "姫",
+    "mage": "魔法使い",
+    "oracle": "占い師",
+    "knight": "騎士",
+    "druid": "ドルイド",
+    "barbarian": "バーバリアン",
+    "monster": "モンスター"
+  },
+  "damageTypes": {
+    "Physical": "物理",
+    "Magical": "魔法",
+    "Absolute": "絶対"
+  },
+  "skillKinds": {
+    "Active": "アクティブ",
+    "Passive": "パッシブ"
+  },
+  "skills": {
+    "saints-prayer": {
+      "name": "聖女の祈り",
+      "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。",
+      "card": "味方全員を毎ターン1回復。最大HP+2まで。"
+    },
+    "stargazers-aegis": {
+      "name": "星読みの加護",
+      "description": "味方全員に予見を付与。物理25%／魔法50%で被ダメージ-1。さらに星読みの魔力を付与し、魔法攻撃と炎上ダメージ+1。",
+      "card": "全員に予見。確率軽減、魔法と炎上+1。"
+    },
+    "spring-harvest": {
+      "name": "春種秋収",
+      "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。",
+      "card": "最初の攻撃で播種。次の自分のターン攻撃+2。"
+    },
+    "searing-mark": {
+      "name": "灼熱の刻印",
+      "description": "攻撃時50%で炎上を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。",
+      "card": "攻撃時50%で炎上。次ターン1魔法ダメージ。"
+    },
+    "weakening-spores": {
+      "name": "衰弱の胞子",
+      "description": "有効打なら100%、無効打なら50%で発動。対象の解除可能な攻撃強化Buffをランダムに1つ即座に解除する。その後、待機衰弱を付与し、対象の次ターン中は主動攻撃ダメージ-2。",
+      "card": "発動時、攻撃強化Buffを1つ解除して衰弱を付与。"
+    },
+    "aftershock-axe": {
+      "name": "戦斧の余波",
+      "description": "主動攻撃で対象に3以上のダメージを与えた時、隣接する敵1体に1物理ダメージ。隣が1体なら確定、2体ならランダム。",
+      "card": "主動攻撃3以上で、隣接敵に1物理ダメージ。"
+    },
+    "predatory-instinct": {
+      "name": "美女と野獣",
+      "description": "姫以外への主動攻撃が0ダメージだった時、3絶対ダメージで追撃。味方の姫が生存中なら4ダメージ。味方の姫が倒れると、野獣の怒りで基礎攻撃+2。",
+      "card": "姫死亡後攻撃+2。非姫へ0時3絶対、姫存命中+1。"
+    },
+    "interposing-shield": {
+      "name": "身代わりの盾",
+      "description": "騎士以外への主動物理攻撃を味方全体で1回だけ1軽減し、騎士が1ダメージを肩代わり。反撃・魔法・スキルには無効。",
+      "card": "騎士以外への主動物理攻撃を1回肩代わり。"
+    }
+  },
+  "statuses": {
+    "burning": {
+      "name": "炎上",
+      "timing": "次の自分のターン開始時",
+      "description": "1魔法ダメージを受けて解除。星読みの加護で+1。"
+    },
+    "weakness-pending": {
+      "name": "衰弱（待機）",
+      "timing": "次の自分のターン",
+      "description": "次の自分のターン中、主動攻撃ダメージ-2。"
+    },
+    "weakness": {
+      "name": "衰弱",
+      "timing": "このターン終了まで",
+      "description": "物理・魔法の主動攻撃ダメージ-2。"
+    },
+    "harvest": {
+      "name": "豊穣",
+      "timing": "このターン終了まで",
+      "description": "攻撃+2。"
+    },
+    "harvest-pending": {
+      "name": "春種",
+      "timing": "次の自分のターン開始時",
+      "description": "次の自分のターンに豊穣を得る。"
+    },
+    "shield-complacency": {
+      "name": "油断",
+      "timing": "反撃後または次の自分のターン",
+      "description": "次の反撃ダメージ-{magnitude}。発動後に解除。"
+    },
+    "blessing": {
+      "name": "聖女の祝福",
+      "timing": "自分のターン開始時",
+      "description": "HPを1回復。最大HP+2まで。"
+    },
+    "foresight": {
+      "name": "予見",
+      "timing": "被ダメージ時",
+      "description": "物理25%／魔法50%でダメージ-1。"
+    },
+    "magic-power": {
+      "name": "星読みの魔力",
+      "timing": "魔法ダメージを与える時",
+      "description": "魔法攻撃と炎上ダメージ+{magnitude}。解除可能な攻撃強化Buff。"
+    },
+    "team-shield": {
+      "name": "共有シールド",
+      "timing": "次の正数ダメージ時",
+      "description": "全隊共有の盾値{magnitude}。残量分だけダメージを吸収。"
+    },
+    "guard": {
+      "name": "守護",
+      "timing": "主動物理攻撃時",
+      "description": "全隊共有1回。騎士以外への主動物理ダメージを1減らし、騎士が1肩代わり。"
+    },
+    "beast-rage": {
+      "name": "野獣の怒り",
+      "timing": "味方の姫が倒れた後",
+      "description": "基礎攻撃+2。主動攻撃と反撃の両方に適用。"
+    },
+    "aftershock-axe": {
+      "name": "戦斧の余波"
+    },
+    "predatory-instinct": {
+      "name": "美女と野獣"
+    }
+  },
+  "messages": {
+    "message.newGame": "新しい対戦を開始しました。",
+    "message.shieldDeployed": "防御陣形を展開しました。",
+    "message.turnEnded": "ターンを終了しました。",
+    "error.roomExists": "このサーバーには既に対局ルームがあります。",
+    "error.roomNotFound": "ルームが見つかりません。",
+    "error.roomFull": "このルームは満員です。",
+    "error.opponentTurn": "今は相手のターンです。",
+    "error.hostOnly": "主催者だけが対戦を開始・再開できます。",
+    "error.waitingPlayer": "プレイヤー2の参加を待ってください。",
+    "error.invalidAuth": "プレイヤー認証が無効です。招待リンクから参加し直してください。",
+    "error.matchNotStarted": "対戦はまだ始まっていません。",
+    "error.characterNotFound": "キャラクターが見つかりません。",
+    "error.matchFinished": "対戦は終了しています。",
+    "error.notActiveCharacter": "行動側のキャラクターではありません。",
+    "error.cannotAttackAlly": "味方は攻撃できません。",
+    "error.defeatedSelection": "戦闘不能のキャラクターは選択できません。",
+    "error.defeatedCharacter": "戦闘不能のキャラクターは行動できません。",
+    "error.alreadyActed": "このキャラクターは行動済みです。",
+    "error.notEnoughAp": "APが足りません。",
+    "error.shieldMaxed": "防御陣形は既に最大です。",
+    "reason.defeated": "戦闘不能",
+    "reason.matchFinished": "対戦終了",
+    "reason.opponentTurn": "相手のターン",
+    "reason.alreadyActed": "行動済み",
+    "reason.notEnoughAp": "AP不足",
+    "reason.harvestActive": "豊穣中は播種できません。",
+    "reason.notFirstAttack": "ターン最初の攻撃ではありません。",
+    "reason.guardConsumed": "守護は使用済みです。",
+    "preview.simultaneous": "攻撃と反撃は同時に発生します。",
+    "preview.counterRule": "反撃は基礎攻撃より1低く、最低1です。",
+    "preview.targetForesight": "対象の予見：{chance}%で被ダメージ-1。",
+    "preview.attackerForesight": "攻撃側の予見：{chance}%で反撃ダメージ-1。",
+    "preview.complacency": "対象の油断：反撃ダメージ-{value}。",
+    "preview.targetShield": "対象側の共有シールド：被ダメージ-{value}。",
+    "preview.attackerShield": "攻撃側の共有シールド：正数の反撃を-{value}。",
+    "preview.guard": "守護が発動し、騎士が1ダメージを肩代わりします。",
+    "preview.skill.harvestActive": "豊穣中は種を蒔けません。",
+    "preview.skill.sowing": "種を蒔き、次の自分のターンに豊穣（攻撃+2）。",
+    "preview.skill.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
+    "preview.skill.burningBoosted": "50%で炎上。星読みの加護により2魔法ダメージ。",
+    "preview.skill.burning": "50%で炎上を付与。",
+    "preview.skill.weaknessGuaranteed": "有効打：100%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.skill.weaknessChance": "無効打：50%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.skill.weaknessVariable": "結果に応じ50%か100%で発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.skill.aftershockGuaranteed": "3以上の攻撃ダメージが確定。隣接する敵へ1物理ダメージ。",
+    "preview.skill.aftershockPossible": "軽減結果次第で攻撃ダメージが3以上なら余波が発動。",
+    "preview.skill.beautyPrincessImmune": "姫には美女と野獣を発動できません。",
+    "preview.skill.beautyGuaranteed": "主動攻撃は0ダメージ。追撃で{amount}絶対ダメージ。",
+    "preview.skill.beautyPossible": "軽減結果が0ダメージなら、追撃で{amount}絶対ダメージ。",
+    "preview.skill.beautyUnavailable": "主動攻撃がダメージを与えるため、追撃は発動しません。",
+    "preview.skill.none": "この攻撃で能動的に発動する効果はありません。",
+    "log.firstPlayer": "{player}が先攻。",
+    "log.firstTurnNoStartEffects": "最初のターンはターン開始効果を発動しません。",
+    "log.collateralDamage": "{effect}：{character}に{amount}ダメージ。",
+    "log.exchange": "{attacker}が{defender}を攻撃：{attackDamage}{attackType}ダメージ／反撃{counterDamage}{counterType}ダメージ。",
+    "log.shieldDeployed": "{player}が防御陣形を展開。共有シールド{shield}。",
+    "log.shieldReinforced": "{player}が防御陣形を強化。共有シールド{shield}、油断-{reduction}。",
+    "log.shieldExpired": "{player}の防御陣形が解除。",
+    "log.turnStart": "ターン{turn}：{player}の行動。",
+    "log.effectDamage": "{effect}：{character}に{amount}{damageType}ダメージ。",
+    "log.defeated": "{character}は戦闘不能。",
+    "log.weaknessActivated": "{character}の衰弱が発動。",
+    "log.harvestActivated": "{character}に豊穣が訪れた。",
+    "log.healed": "{effect}：{character}のHPを{amount}回復。",
+    "log.sowing": "{character}が種を蒔いた。",
+    "log.statusApplied": "{character}に{status}を付与。",
+    "log.attackBuffRemoved": "衰弱の胞子が{character}の{status}を解除。",
+    "log.skillFailed": "{skill}は発動しなかった。",
+    "note.complacencyReduction": "油断：反撃ダメージ-{amount}。",
+    "note.shieldAbsorb": "共有シールドが{amount}ダメージを吸収。",
+    "note.magicBonus": "{effect}：魔法ダメージ+{amount}。",
+    "note.foresightReduction": "予見：{damageType}ダメージ-{amount}。",
+    "note.guardRedirect": "守護：騎士が{amount}ダメージを肩代わり。"
+  }
+}

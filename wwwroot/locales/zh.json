@@ -1,0 +1,300 @@
+{
+  "ui": {
+    "titleScreen": "标题画面",
+    "startTagline": "命运，藏在八张卡牌之中。",
+    "localPlay": "本地对战",
+    "localPlayHint": "在一台电脑上交替游玩",
+    "onlinePlay": "在线对战",
+    "onlinePlayHint": "通过邀请链接与朋友游玩",
+    "backToModes": "← 返回模式选择",
+    "playerNameLabel": "玩家名称",
+    "playerNamePlaceholder": "名字（选填）",
+    "createRoom": "创建房间",
+    "joinRoom": "加入房间",
+    "waitingPlayer": "正在等待另一位玩家",
+    "copyLink": "复制链接",
+    "startMatch": "开始对局",
+    "dealDeck": "触摸牌组开始发牌",
+    "dealShuffle": "触摸牌组开始发牌",
+    "dealTouch": "触摸牌组开始发牌",
+    "dealTouchOnline": "任意一方触摸牌组即可发牌",
+    "dealDealing": "命运正在发牌",
+    "activeNow": "行动中",
+    "selectCard": "选择要进攻的卡牌",
+    "selectTarget": "拖动或点击指定目标",
+    "turnEnd": "结束回合",
+    "combatForecast": "战斗预测",
+    "damageDealt": "造成伤害",
+    "counterTaken": "受到反击",
+    "eventPhysical": "物理攻击",
+    "eventMagical": "魔法攻击",
+    "eventCounter": "反击",
+    "eventSkill": "技能发动",
+    "eventStatus": "状态效果",
+    "eventHeal": "生命恢复",
+    "eventShield": "共有盾",
+    "eventDeath": "无法战斗",
+    "executeAttack": "执行进攻",
+    "apUsage": "用于下达进攻命令",
+    "battleLog": "战况记录",
+    "rematch": "再次对战",
+    "close": "关闭",
+    "audio": "音频",
+    "muted": "静音",
+    "audioSettings": "音频设置",
+    "bgmControl": "背景音乐",
+    "sfxControl": "音效",
+    "languageButton": "日本語",
+    "languageAria": "切换为日语",
+    "newGame": "开始新对战",
+    "opponent": "对手一侧",
+    "activeSide": "行动方",
+    "sharedShieldEnemy": "对手的共有盾",
+    "sharedShieldAlly": "我方共有盾",
+    "actionPanel": "行动面板",
+    "defenseFormation": "防御阵型",
+    "reinforceFormation": "强化阵型",
+    "deployed": "已完全展开",
+    "noEffects": "当前没有生效中的状态。",
+    "unitDossier": "角色档案",
+    "liveEffects": "实时状态",
+    "effects": "增益 / 减益",
+    "always": "常驻",
+    "shieldLead": "第一层获得共有盾；只有当前仍有共有盾时，第二层才会在现有盾值上追加，并赋予减益“有恃无恐”。",
+    "shieldFirst": "一层盾",
+    "shieldFirstBody": "消耗2 AP获得共有盾2；不降低我方反击伤害。",
+    "shieldSecond": "二层盾",
+    "shieldSecondBody": "若当前仍有共有盾，追加1 AP使盾值+2，并赋予有恃无恐：下一次反击伤害-1。",
+    "shieldNote1": "共有盾只负责用剩余盾值吸收受到的正数伤害。",
+    "shieldNote2": "只有在已有共有盾时追加第二层，才会为每名角色分别赋予有恃无恐；反击后从该角色身上解除。",
+    "shieldNote3": "即使共有盾提前破碎，有恃无恐仍会保留到发动或下个己方回合。",
+    "shieldNote4": "如果共有盾在本回合内被打空，下一次防御指令会回到第一层，而不是强化第二层。",
+    "shieldCurrent": "当前共有盾：{value}",
+    "shieldNone": "当前没有护盾",
+    "currentSelected": "已选择{name}",
+    "selectUpperEnemy": "拖向上方敌人，或点击选择",
+    "cannotAct": "这张卡现在无法行动。",
+    "selectAttackerFirst": "请先选择进攻角色。",
+    "communicationError": "通信错误",
+    "drawCopy": "双方同时倒下。",
+    "victoryCopy": "{name}获胜。",
+    "buff": "增益",
+    "debuff": "减益",
+    "aura": "光环",
+    "waitingSeat": "等待中…",
+    "host": "主办方",
+    "guest": "参与者",
+    "playerJoinedHost": "玩家2已加入，可以开始对局。",
+    "joinedWaitingHost": "已加入，等待主办方开始。",
+    "inviteCopied": "邀请链接已复制。",
+    "hostOnlyRestart": "只有主办方可以重新开始。"
+  },
+  "players": {
+    "player.1": "玩家1",
+    "player.2": "玩家2"
+  },
+  "characters": {
+    "peasant": "农民",
+    "princess": "公主",
+    "mage": "魔法师",
+    "oracle": "占卜师",
+    "knight": "骑士",
+    "druid": "德鲁伊",
+    "barbarian": "狂战士",
+    "monster": "怪物"
+  },
+  "damageTypes": {
+    "Physical": "物理",
+    "Magical": "魔法",
+    "Absolute": "绝对"
+  },
+  "skillKinds": {
+    "Active": "主动",
+    "Passive": "被动"
+  },
+  "skills": {
+    "saints-prayer": {
+      "name": "圣女的祈祷",
+      "description": "在场时赋予我方全体祝福。己方回合开始时HP+1，最多超过最大HP 2点。",
+      "card": "每回合为我方全体恢复1 HP，最多超过上限2点。"
+    },
+    "stargazers-aegis": {
+      "name": "星读加护",
+      "description": "赋予全体预见：物理25%／魔法50%概率使伤害-1；并赋予星读魔力，使魔法攻击和燃烧伤害+1。",
+      "card": "赋予全队预见：概率减伤，魔法与燃烧+1。"
+    },
+    "spring-harvest": {
+      "name": "春播秋收",
+      "description": "没有丰收时，若本回合第一个进攻便播种。下个己方回合攻击+2。",
+      "card": "首先进攻进行播种，下个己方回合攻击+2。"
+    },
+    "searing-mark": {
+      "name": "灼热刻印",
+      "description": "进攻时50%赋予燃烧。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
+      "card": "进攻时50%赋予燃烧，下个目标回合造成1魔法伤害。"
+    },
+    "weakening-spores": {
+      "name": "衰弱孢子",
+      "description": "进攻造成伤害时100%、未造成伤害时50%发动：立即随机移除目标一个可驱散的攻击强化Buff，并赋予待生效衰弱。目标下个回合进攻伤害-2。",
+      "card": "发动时消除1个攻击强化Buff，并赋予衰弱。"
+    },
+    "aftershock-axe": {
+      "name": "战斧余波",
+      "description": "主动进攻对目标造成至少3点伤害时，对一个相邻敌人造成1点物理伤害。仅有一个邻居则必定命中。",
+      "card": "主动伤害≥3时，相邻敌人受到1点物理伤害。"
+    },
+    "predatory-instinct": {
+      "name": "美女与野兽",
+      "description": "对公主以外的角色主动进攻未造成伤害时，追击3点绝对伤害；我方公主存活时提高为4点。若我方公主被击败，怪物获得野兽之怒，基础攻击+2。",
+      "card": "公主阵亡后攻击+2；非公主0伤绝对追击。"
+    },
+    "interposing-shield": {
+      "name": "替身之盾",
+      "description": "对骑士以外角色的主动物理进攻，全队共享一次伤害-1，并由骑士代受1点。对反击、魔法和技能无效。",
+      "card": "替骑士以外的我方角色承受一次主动物理伤害。"
+    }
+  },
+  "statuses": {
+    "burning": {
+      "name": "燃烧",
+      "timing": "下个己方回合开始时",
+      "description": "受到1点魔法伤害后解除；星读加护使伤害+1。"
+    },
+    "weakness-pending": {
+      "name": "衰弱（待生效）",
+      "timing": "下个己方回合",
+      "description": "下个己方回合中，进攻伤害-2。"
+    },
+    "weakness": {
+      "name": "衰弱",
+      "timing": "持续到本回合结束",
+      "description": "进攻造成的物理与魔法伤害-2。"
+    },
+    "harvest": {
+      "name": "丰收",
+      "timing": "持续到本回合结束",
+      "description": "攻击+2。"
+    },
+    "harvest-pending": {
+      "name": "春播",
+      "timing": "下个己方回合开始时",
+      "description": "下个己方回合获得丰收。"
+    },
+    "shield-complacency": {
+      "name": "有恃无恐",
+      "timing": "完成一次反击或下个己方回合",
+      "description": "下一次反击伤害-{magnitude}，发动后解除。"
+    },
+    "blessing": {
+      "name": "圣女的祝福",
+      "timing": "己方回合开始时",
+      "description": "恢复1 HP，最多超过最大HP 2点。"
+    },
+    "foresight": {
+      "name": "预见",
+      "timing": "受到伤害时",
+      "description": "物理25%／魔法50%概率使伤害-1。"
+    },
+    "magic-power": {
+      "name": "星读魔力",
+      "timing": "造成魔法伤害时",
+      "description": "魔法攻击和燃烧伤害+{magnitude}。属于可驱散的攻击强化Buff。"
+    },
+    "team-shield": {
+      "name": "共有盾",
+      "timing": "下次受到正数伤害时",
+      "description": "全队共有盾值{magnitude}，用剩余盾值吸收伤害。"
+    },
+    "guard": {
+      "name": "守护",
+      "timing": "主动物理进攻时",
+      "description": "全队共享一次。骑士代替队友承受1点伤害。"
+    },
+    "beast-rage": {
+      "name": "野兽之怒",
+      "timing": "我方公主被击败后",
+      "description": "基础攻击+2，同时影响主动进攻和反击。"
+    },
+    "aftershock-axe": {
+      "name": "战斧余波"
+    },
+    "predatory-instinct": {
+      "name": "美女与野兽"
+    }
+  },
+  "messages": {
+    "message.newGame": "新的对战已开始。",
+    "message.shieldDeployed": "已展开防御阵型。",
+    "message.turnEnded": "回合已结束。",
+    "error.roomExists": "该服务器已经存在对战房间。",
+    "error.roomNotFound": "找不到房间。",
+    "error.roomFull": "该房间已满。",
+    "error.opponentTurn": "现在是对手的回合。",
+    "error.hostOnly": "只有主办方可以开始或重开对战。",
+    "error.waitingPlayer": "请等待玩家2加入。",
+    "error.invalidAuth": "玩家身份已失效，请通过邀请链接重新加入。",
+    "error.matchNotStarted": "对战尚未开始。",
+    "error.characterNotFound": "找不到该角色。",
+    "error.matchFinished": "对战已经结束。",
+    "error.notActiveCharacter": "这不是行动方的角色。",
+    "error.cannotAttackAlly": "不能进攻友方。",
+    "error.defeatedSelection": "不能选择已无法战斗的角色。",
+    "error.defeatedCharacter": "已无法战斗的角色不能行动。",
+    "error.alreadyActed": "该角色本回合已经行动。",
+    "error.notEnoughAp": "AP不足。",
+    "error.shieldMaxed": "防御阵型已经达到最大层数。",
+    "reason.defeated": "已无法战斗",
+    "reason.matchFinished": "对战已结束",
+    "reason.opponentTurn": "对手回合",
+    "reason.alreadyActed": "本回合已经行动",
+    "reason.notEnoughAp": "AP不足",
+    "reason.harvestActive": "丰收回合不能播种。",
+    "reason.notFirstAttack": "并非本回合第一次进攻。",
+    "reason.guardConsumed": "守护已经发动。",
+    "preview.simultaneous": "进攻与反击同时发生。",
+    "preview.counterRule": "反击比基础攻击低1，最低为1。",
+    "preview.targetForesight": "目标的预见：{chance}%概率使受到伤害-1。",
+    "preview.attackerForesight": "进攻方的预见：{chance}%概率使反击伤害-1。",
+    "preview.complacency": "目标的有恃无恐：反击伤害-{value}。",
+    "preview.targetShield": "目标方共有盾：受到伤害-{value}。",
+    "preview.attackerShield": "进攻方共有盾：正数反击伤害-{value}。",
+    "preview.guard": "发动守护，骑士代为承受1点伤害。",
+    "preview.skill.harvestActive": "丰收回合不能播种。",
+    "preview.skill.sowing": "进行播种，下个己方回合获得丰收（攻击+2）。",
+    "preview.skill.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
+    "preview.skill.burningBoosted": "50%赋予燃烧；受星读加护时造成2点魔法伤害。",
+    "preview.skill.burning": "50%赋予燃烧。",
+    "preview.skill.weaknessGuaranteed": "造成伤害：100%发动，随机消除1个攻击强化Buff；下回合进攻伤害-2。",
+    "preview.skill.weaknessChance": "未造成伤害：50%发动，随机消除1个攻击强化Buff；下回合进攻伤害-2。",
+    "preview.skill.weaknessVariable": "根据伤害结果以50%或100%发动：随机消除1个攻击强化Buff；下回合进攻伤害-2。",
+    "preview.skill.aftershockGuaranteed": "确定造成至少3点主动伤害；对相邻敌人造成1点物理伤害。",
+    "preview.skill.aftershockPossible": "根据减伤结果，主动伤害达到3点时发动余波。",
+    "preview.skill.beautyPrincessImmune": "无法对公主发动美女与野兽。",
+    "preview.skill.beautyGuaranteed": "主动进攻确定为0伤害；追击造成{amount}点绝对伤害。",
+    "preview.skill.beautyPossible": "若减伤结果使主动伤害变为0，则追击造成{amount}点绝对伤害。",
+    "preview.skill.beautyUnavailable": "主动进攻会造成伤害，因此不会发动追击。",
+    "preview.skill.none": "这次进攻没有主动触发的效果。",
+    "log.firstPlayer": "{player}先攻。",
+    "log.firstTurnNoStartEffects": "第一回合不发动回合开始效果。",
+    "log.collateralDamage": "{effect}：{character}受到{amount}点伤害。",
+    "log.exchange": "{attacker}进攻{defender}：造成{attackDamage}点{attackType}伤害／受到{counterDamage}点{counterType}反击伤害。",
+    "log.shieldDeployed": "{player}展开防御阵型：共有盾{shield}。",
+    "log.shieldReinforced": "{player}强化防御阵型：共有盾{shield}，有恃无恐-{reduction}。",
+    "log.shieldExpired": "{player}的防御阵型解除。",
+    "log.turnStart": "回合{turn}：{player}行动。",
+    "log.effectDamage": "{effect}：{character}受到{amount}点{damageType}伤害。",
+    "log.defeated": "{character}已无法战斗。",
+    "log.weaknessActivated": "{character}的衰弱开始生效。",
+    "log.harvestActivated": "{character}迎来丰收。",
+    "log.healed": "{effect}：{character}恢复{amount} HP。",
+    "log.sowing": "{character}完成播种。",
+    "log.statusApplied": "{character}被赋予{status}。",
+    "log.attackBuffRemoved": "衰弱孢子抹除了{character}的{status}。",
+    "log.skillFailed": "{skill}未能生效。",
+    "note.complacencyReduction": "有恃无恐：反击伤害-{amount}。",
+    "note.shieldAbsorb": "共有盾吸收{amount}点伤害。",
+    "note.magicBonus": "{effect}：魔法伤害+{amount}。",
+    "note.foresightReduction": "预见：{damageType}伤害-{amount}。",
+    "note.guardRedirect": "守护：骑士代为承受{amount}点伤害。"
+  }
+}

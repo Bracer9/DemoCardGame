@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b090a">
+  <title>Tiny Pixel Fights</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <div id="game-viewport" class="game-viewport">
+    <div id="game-root" class="game-root">
+  <main id="app" class="game-shell">
+    <div class="battlefield-surface" aria-hidden="true"></div>
+    <section id="start-screen" class="start-screen" aria-label="タイトル画面" data-i18n-aria="titleScreen">
+      <button id="language-toggle" class="icon-button language-toggle start-language-toggle" type="button" aria-label="切换为中文">文 <span>中文</span></button>
+      <div class="start-sigil" aria-hidden="true"><span>◆</span></div>
+      <div class="start-title">
+        <span class="start-kicker">A TWO PLAYER MEDIEVAL DUEL</span>
+        <h2>TINY <em>PIXEL</em><br>FIGHTS</h2>
+        <p data-i18n="startTagline">運命は、八枚のカードに。</p>
+      </div>
+      <div id="mode-select" class="mode-select">
+        <button id="start-trigger" class="mode-choice local-choice" type="button">
+          <span>LOCAL DUEL</span><b data-i18n="localPlay">ローカル対戦</b><small data-i18n="localPlayHint">1台のPCで交互にプレイ</small>
+        </button>
+        <button id="open-online" class="mode-choice online-choice" type="button">
+          <span>ONLINE ROOM</span><b data-i18n="onlinePlay">オンライン対戦</b><small data-i18n="onlinePlayHint">招待リンクで友達とプレイ</small>
+        </button>
+      </div>
+      <div id="online-lobby" class="online-lobby" hidden>
+        <button id="lobby-back" class="lobby-back" type="button" data-i18n="backToModes">← モード選択へ</button>
+        <div id="lobby-entry" class="lobby-entry">
+          <label><span data-i18n="playerNameLabel">PLAYER NAME</span><input id="player-name" maxlength="16" placeholder="名前（任意）" data-i18n-placeholder="playerNamePlaceholder"></label>
+          <button id="create-room" class="lobby-primary" type="button" data-i18n="createRoom">ルームを作成</button>
+          <div id="join-fields" class="join-fields">
+            <input id="room-code" maxlength="6" placeholder="ROOM CODE">
+            <button id="join-room" type="button" data-i18n="joinRoom">ルームに参加</button>
+          </div>
+        </div>
+        <div id="lobby-waiting" class="lobby-waiting" hidden>
+          <span id="lobby-role">PLAYER 1 / HOST</span>
+          <strong id="lobby-status" data-i18n="waitingPlayer">もう一人のプレイヤーを待っています</strong>
+          <div id="join-link-row" class="join-link-row"><input id="join-link" readonly><button id="copy-link" type="button" data-i18n="copyLink">COPY LINK</button></div>
+          <div id="lobby-players" class="lobby-players"></div>
+          <button id="start-match" class="lobby-primary" type="button" disabled data-i18n="startMatch">対局を開始</button>
+        </div>
+      </div>
+      <div class="start-footer"><span>GAME DESIGN PROTOTYPE</span><span>LOCAL + ONLINE / 2 PLAYERS</span></div>
+    </section>
+
+    <section id="deal-sequence" class="deal-sequence" aria-hidden="true">
+      <button id="deal-deck" class="shuffle-deck" type="button" aria-label="山札に触れてカードを配る" data-i18n-aria="dealDeck">
+        <i></i><i></i><i></i><b>TPF</b>
+      </button>
+      <div class="gloved-hand" aria-hidden="true"><span>☞</span></div>
+      <div class="deal-caption"><span id="deal-status">SHUFFLING</span><strong>運命を配る</strong></div>
+    </section>
+
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-kicker">MEDIEVAL DUEL / 02 PLAYERS</span>
+        <h1>TINY <em>PIXEL</em> FIGHTS</h1>
+      </div>
+      <div class="hud-cluster" aria-label="対戦情報">
+        <div class="turn-readout">
+          <span class="hud-label">TURN</span>
+          <strong id="turn-number">01</strong>
+        </div>
+        <div class="round-readout">
+          <span class="hud-label">ROUND</span>
+          <strong id="round-number">01</strong>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div id="audio-menu" class="audio-menu">
+          <button id="sound-toggle" class="icon-button sound-toggle" type="button" aria-label="音声設定" aria-expanded="false" aria-controls="audio-panel">♪ <span>AUDIO</span></button>
+          <div id="audio-panel" class="audio-panel" role="menu" aria-hidden="true">
+            <header class="audio-panel-header">
+              <span>AUDIO CONTROL</span>
+              <strong data-i18n="audioSettings">音声設定</strong>
+            </header>
+            <div class="audio-control-row" data-audio-control="bgm">
+              <div class="audio-control-label">
+                <strong>BGM</strong>
+                <small data-i18n="bgmControl">背景音楽</small>
+              </div>
+              <button id="bgm-toggle" class="audio-switch" type="button" aria-pressed="true">ON</button>
+              <input id="bgm-volume" class="audio-slider" type="range" min="0" max="100" value="100" aria-label="BGM volume">
+              <output id="bgm-volume-value" class="audio-volume-value">100%</output>
+            </div>
+            <div class="audio-control-row" data-audio-control="sfx">
+              <div class="audio-control-label">
+                <strong>SFX</strong>
+                <small data-i18n="sfxControl">効果音</small>
+              </div>
+              <button id="sfx-toggle" class="audio-switch" type="button" aria-pressed="true">ON</button>
+              <input id="sfx-volume" class="audio-slider" type="range" min="0" max="100" value="100" aria-label="SFX volume">
+              <output id="sfx-volume-value" class="audio-volume-value">100%</output>
+            </div>
+            <div class="audio-control-row" data-audio-control="voice">
+              <div class="audio-control-label">
+                <strong>VOICE</strong>
+                <small>CHARACTER VOICE</small>
+              </div>
+              <button id="voice-toggle" class="audio-switch" type="button" aria-pressed="true">ON</button>
+              <input id="voice-volume" class="audio-slider" type="range" min="0" max="100" value="100" aria-label="Voice volume">
+              <output id="voice-volume-value" class="audio-volume-value">100%</output>
+            </div>
+          </div>
+        </div>
+        <button id="new-game" class="icon-button" type="button" aria-label="新しい対戦">↻ <span>NEW</span></button>
+      </div>
+    </header>
+
+    <section id="opponent-zone" class="player-zone opponent-zone" aria-label="相手側">
+      <div class="zone-heading">
+        <span class="zone-index">ENEMY</span>
+        <h2 id="opponent-name">プレイヤー</h2>
+        <span id="opponent-shield" class="team-shield-badge" aria-label="相手の共有シールド"></span>
+      </div>
+      <div id="opponent-cards" class="card-row"></div>
+      <i id="opponent-shield-dome" class="persistent-team-shield" aria-hidden="true"></i>
+    </section>
+
+    <section class="command-deck" aria-label="行動パネル">
+      <div class="command-left">
+        <span class="active-marker">ACTIVE</span>
+        <div>
+          <small data-i18n="activeNow">行動中</small>
+          <strong id="active-player">プレイヤー</strong>
+        </div>
+      </div>
+
+      <button id="deploy-shield" class="shield-command" type="button" aria-label="1 APで共有シールド1を展開">
+        <span>2 AP / SHIELD 2</span><b>防御陣形</b>
+      </button>
+
+      <div id="instruction" class="instruction">
+        <span class="instruction-icon">◆</span>
+        <div><strong data-i18n="selectCard">攻撃するカードを選択</strong><small data-i18n="selectTarget">ドラッグ、またはクリックで対象を指定</small></div>
+      </div>
+
+      <button id="end-turn" class="end-turn" type="button"><span>TURN END</span><b data-i18n="turnEnd">ターン終了</b></button>
+    </section>
+
+    <section id="active-zone" class="player-zone active-zone" aria-label="行動側">
+      <div id="active-cards" class="card-row"></div>
+      <i id="active-shield-dome" class="persistent-team-shield" aria-hidden="true"></i>
+      <div class="zone-heading bottom-heading">
+        <span class="zone-index">YOU</span>
+        <h2 id="bottom-name">プレイヤー</h2>
+        <span id="active-shield" class="team-shield-badge" aria-label="味方の共有シールド"></span>
+      </div>
+    </section>
+
+    <aside id="preview-panel" class="preview-panel" aria-live="polite" aria-hidden="true">
+      <div class="preview-header">
+        <span>COMBAT FORECAST</span>
+        <strong data-i18n="combatForecast">戦闘予測</strong>
+      </div>
+      <div class="duel-summary">
+        <div><small>ATTACKER</small><strong id="preview-attacker">—</strong></div>
+        <span class="versus">VS</span>
+        <div><small>DEFENDER</small><strong id="preview-defender">—</strong></div>
+      </div>
+      <div class="damage-grid">
+        <div id="preview-damage" class="forecast-box physical"><small data-i18n="damageDealt">与えるダメージ</small><strong>—</strong></div>
+        <div id="preview-counter" class="forecast-box"><small data-i18n="counterTaken">受ける反撃</small><strong>—</strong></div>
+      </div>
+      <div id="preview-skill" class="preview-skill"></div>
+      <ul id="preview-notes" class="preview-notes"></ul>
+      <button id="confirm-attack" class="confirm-attack" type="button"><span>EXECUTE</span><b data-i18n="executeAttack">攻撃実行</b></button>
+    </aside>
+
+    <aside id="character-inspector" class="character-inspector" aria-hidden="true"></aside>
+    <aside id="status-inspector" class="status-inspector" aria-hidden="true"></aside>
+    <aside id="shield-inspector" class="shield-inspector" aria-hidden="true"></aside>
+
+    <aside id="action-point-hud" class="action-point-hud ap-panel" aria-label="行動ポイント">
+      <div class="ap-title"><span>TACTICAL RESOURCE</span><strong>ACTION POINT</strong></div>
+      <div class="ap-value"><b id="ap-current">4</b><span>/</span><small id="ap-maximum">4</small></div>
+      <div id="ap-pips" class="ap-pips ap-slot-area"></div>
+      <p data-i18n="apUsage">攻撃命令に使用</p>
+    </aside>
+
+    <aside class="battle-log-shell">
+      <button id="toggle-log" class="log-tab" type="button"><b data-i18n="battleLog">戦況ログ</b> <span>⌃</span></button>
+      <div id="battle-log" class="battle-log"></div>
+    </aside>
+
+    <div id="turn-curtain" class="turn-curtain" aria-hidden="true">
+      <span>NEXT TURN</span><strong id="curtain-player"></strong>
+    </div>
+    <svg id="attack-drag-arrow" class="attack-drag-arrow" aria-hidden="true">
+      <defs>
+        <marker id="attack-arrow-head" markerWidth="20" markerHeight="16" refX="18" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M1,1 L18,8 L1,15 L5,8 Z"></path>
+        </marker>
+      </defs>
+      <path class="arrow-shadow"></path>
+      <path class="arrow-core" marker-end="url(#attack-arrow-head)"></path>
+      <circle class="arrow-origin" r="8"></circle>
+    </svg>
+    <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+    <div id="toast" class="toast" role="status"></div>
+    <div id="game-over" class="game-over" aria-hidden="true">
+      <div class="game-over-card">
+        <span>BATTLE RESULT</span><h2 id="result-title">VICTORY</h2><p id="result-copy"></p>
+        <button id="play-again" class="confirm-attack" type="button" data-i18n="rematch">再戦する</button>
+      </div>
+    </div>
+  </main>
+    </div>
+    <div class="orientation-warning" aria-hidden="true">
+      <strong>TINY PIXEL FIGHTS</strong>
+      <span>横屏でプレイしてください / 请横屏游玩</span>
+    </div>
+  </div>
+  <script src="/i18n.js" defer></script>
+  <script src="/audio.js" defer></script>
+  <script src="/voice.js" defer></script>
+  <script src="/ui-assets.js?v=2" defer></script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

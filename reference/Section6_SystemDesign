@@ -1,0 +1,711 @@
+## 目录
+
+> 后续将按课程编号持续更新。
+> 
+
+---
+
+## 
+
+# 66. Systems Thinking and Game Systems
+
+## 核心概念
+
+系统无处不在。游戏本身也是由多个相互连接的子系统组成的系统。
+
+Donella Meadows将系统定义为：
+
+> 一组以特定结构相互连接，并共同产生某种行为、功能或目的的要素。
+> 
+
+对游戏设计而言，最重要的是：
+
+> **每个系统都必须有明确的功能或目的。**
+> 
+
+没有实际作用的系统只会增加复杂度，无法形成有意义的体验。
+
+---
+
+## 系统思维是什么
+
+传统分析常把复杂事物拆成独立部件；系统思维除了研究各部分，还关注：
+
+- 部分之间如何连接
+- 一个行为如何影响其他行为
+- 结果如何反过来影响原因
+- 系统整体最终产生什么行为
+
+其中最重要的概念是：
+
+- Feedback：反馈
+- Loop：循环
+- Interconnection：相互连接
+
+只理解单个部件，不理解循环，就很难解释系统为何产生当前结果。
+
+---
+
+## 游戏系统的基本结构
+
+一个游戏系统通常包括：
+
+1. **Elements：要素**
+    
+    角色、资源、建筑、状态、道具等。
+    
+2. **Connections：连接关系**
+    
+    伤害规则、经济关系、环境互动、AI反应等。
+    
+3. **Function / Purpose：功能或目的**
+    
+    系统希望为玩家创造的体验。
+    
+
+设计系统时不能只问：
+
+> 这个机制怎样运作？
+> 
+
+还要问：
+
+> 它为什么存在？它如何服务游戏目标和核心体验？
+> 
+
+---
+
+## 自组织与涌现
+
+复杂系统常具有：
+
+### Self-organization：自组织
+
+系统中的多个要素会在没有设计师直接控制的情况下形成新的结构或状态。
+
+### Emergence：涌现
+
+多个简单规则相互作用后，产生设计师没有直接编写的复杂结果。
+
+这也是Systemic Game（系统性游戏）的核心魅力。
+
+---
+
+## 案例
+
+### SimCity
+
+社区价值受到多个系统共同影响：
+
+- 地理位置
+- 工业区距离
+- 污染
+- 垃圾
+- 交通
+- 公共服务
+
+单个规则并不复杂，但相互连接后形成复杂的城市发展。
+
+### The Sims
+
+在经济系统之外，还加入：
+
+- 人际关系
+- 情绪
+- 需求
+- 社交行为
+
+多个系统共同产生不同角色故事。
+
+### Dwarf Fortress
+
+猫因酒精中毒死亡的事件来自多个独立规则：
+
+- 矮人喝酒并洒出啤酒
+- 猫靠近矮人
+- 猫会被环境弄脏
+- 猫会舔毛清洁
+- 酒精对猫有毒
+
+游戏没有直接写入“猫喝到啤酒死亡”的固定事件，而是由规则互动自然产生。
+
+---
+
+## 系统性游戏设计
+
+系统性游戏并不是单纯加入更多机制，而是：
+
+- 机制之间存在明确连接
+- 玩家行动会产生连锁反应
+- 同一问题可以出现多种解决方法
+- 系统能生成意料之外但逻辑合理的结果
+
+复杂度本身不是目标。
+
+> 真正的目标是通过相互连接的规则，创造丰富而有意义的Gameplay。
+> 
+
+---
+
+## 关键原则
+
+- 所有系统都应服务明确目的
+- 不要孤立分析单个机制
+- 重点关注反馈与循环
+- 简单规则的组合可以产生复杂结果
+- 涌现结果应能从规则中解释
+- 系统越复杂，越需要持续Playtest
+- 理解系统之间的连接，就是理解Gameplay
+
+---
+
+## 检查表
+
+- [ ]  每个系统都有明确目的
+- [ ]  系统服务于Game Pillars和核心体验
+- [ ]  已识别系统中的主要要素
+- [ ]  已明确要素之间的连接
+- [ ]  已分析关键反馈循环
+- [ ]  玩家行动会影响其他系统
+- [ ]  系统能产生多种合理结果
+- [ ]  复杂度没有超过实际价值
+- [ ]  涌现行为已经通过Playtest观察
+
+下面是第67节精简版。
+
+# 67. Simple, Complicated and Complex Game Systems
+
+## 核心概念
+
+所有游戏都有系统，但并非所有游戏都能产生**系统性与涌现式玩法**。
+
+可以从两个角度分析系统：
+
+1. 系统部件之间的连接程度
+2. 系统处于“秩序—混沌”光谱中的位置
+
+---
+
+## 一、按连接程度分类
+
+### 1. Simple System：简单系统
+
+系统呈线性关系，几乎不与其他部分连接。
+
+例如：
+
+- 击败敌人获得金币
+- 但金币没有任何用途
+
+这种系统虽然能运作，却没有形成有意义的循环。
+
+---
+
+### 2. Complicated System：繁杂系统
+
+特点是：
+
+> **部件很多，但彼此连接不深。**
+> 
+
+例如传统线性关卡：
+
+```
+完成关卡1 → 进入关卡2 → 进入关卡3
+```
+
+完成前一关通常不会改变已经完成的内容，也不会明显影响其他系统。
+
+这类设计可以拥有大量内容，但较难产生涌现玩法。
+
+> 繁杂不等于复杂：内容多，不代表系统关系深。
+> 
+
+---
+
+### 3. Complex System：复杂系统
+
+多个相互连接的系统会彼此影响，并形成循环。
+
+复杂系统不一定难以理解。它通常由**简单规则的组合**产生复杂行为。
+
+### RPG成长循环
+
+```
+击败敌人
+↓
+获得经验与金币
+↓
+提升等级、技能和装备
+↓
+能够击败更强敌人
+↓
+获得更多经验与金币
+```
+
+每个系统都会反馈到其他系统中。
+
+### 《博德之门3》箱子翻墙
+
+玩家可以利用：
+
+- 物体可以堆叠
+- 角色可以站在物体上
+- 角色可以跳跃或传送到可见地点
+
+这些规则原本各自服务不同目的，但组合后产生了“堆箱子翻墙”的涌现玩法。
+
+---
+
+## 二、秩序与混沌的光谱
+
+```
+秩序 → 周期 → 涌现 → 混沌
+```
+
+### Ordered System：有序系统
+
+结果完全可预测。
+
+例如时钟按照固定规律运行。
+
+### Periodic System：周期系统
+
+事件会重复发生，但时间或强度可能略有变化。
+
+例如《Wartales》中队伍经过一定活动后需要休息。具体时间会受战斗、奔跑等行为影响，但休息最终一定会发生。
+
+### Emergent System：涌现系统
+
+多个规则组合后产生未被直接设计的结果。
+
+例如：
+
+- 堆箱子翻墙
+- 玩家发现特殊技能组合
+- 形成新的战术或玩法
+
+### Chaotic System：混沌系统
+
+结果高度不可预测，玩家难以控制或推断。
+
+例如单次抛硬币的结果。
+
+游戏通常不应完全有序，也不应完全混沌，而应在两者之间保留：
+
+- 可理解的规则
+- 可预测的基础
+- 足够的意外与变化
+
+---
+
+## Meta的产生
+
+在MOBA或策略游戏中，玩家会持续研究角色、装备和技能组合，并找出当前最有效的策略，这就是 **Meta**。
+
+Meta能够产生，是因为：
+
+- 系统之间存在大量连接
+- 玩家可以组合不同能力
+- 某项调整会影响其他系统
+- 玩家不断探索系统边界
+
+Meta也是复杂系统产生涌现行为的表现。
+
+---
+
+## 关键原则
+
+- 系统数量多不代表系统复杂
+- 真正的复杂度来自系统之间的连接
+- 简单规则可以产生复杂行为
+- 规则限制越严格，涌现空间通常越小
+- 好的复杂系统可以“易学难精”
+- 系统应兼具可理解性与一定不可预测性
+- 涌现玩法不是预设事件，而是规则互动的结果
+
+---
+
+## 检查表
+
+- [ ]  各系统之间存在有意义的连接
+- [ ]  玩家获得的资源能够反馈到其他系统
+- [ ]  游戏不是只有单向内容推进
+- [ ]  简单规则可以组合产生不同结果
+- [ ]  玩家能够尝试多种解决方案
+- [ ]  系统没有因规则过严而失去涌现空间
+- [ ]  系统结果仍然能够被玩家理解
+- [ ]  随机性没有让游戏陷入纯粹混沌
+- [ ]  已通过Playtest观察意外策略与Meta
+
+下面是第68～69节合并精简版。
+
+# 68–69. System Depth and Basic System Components
+
+## 一、Wide System与Deep System
+
+### Wide System：宽而浅的系统
+
+包含很多内容或功能，但彼此连接较弱。
+
+特点：
+
+- 内容数量多
+- 容易快速理解
+- 各部分对其他系统影响有限
+- 可能出现“为了有内容而加内容”的问题
+
+例如，游戏有大量武器，但不同武器并不会影响Build、经济、敌人应对或其他机制。
+
+### Deep System：深度系统
+
+系统具有多层关系，并与其他系统广泛连接。
+
+特点：
+
+- 需要玩家持续互动才能逐步理解
+- 一个选择会影响多个系统
+- 能产生策略、组合和涌现行为
+- 内容数量不一定多，但使用方式丰富
+
+例如，深度经济系统可能同时影响：
+
+- 建造
+- 装备
+- 角色成长
+- 资源分配
+- 战略选择
+
+> 宽度强调“有多少东西”，深度强调“这些东西能产生多少有意义的互动”。
+> 
+
+---
+
+## 二、系统的基础组成
+
+### 1. Source：来源
+
+资源进入系统的位置。
+
+例如：
+
+- 击败敌人生成金币
+- 完成任务获得经验
+- 建筑定期生产木材
+
+图示：**向上的三角形**
+
+---
+
+### 2. Stock：存量
+
+储存资源的位置，通常对应玩家当前拥有的数量。
+
+例如：
+
+- 金币
+- 木材
+- HP
+- 经验值
+
+存量可以分为：
+
+- **可消费资源**：金币、材料
+- **累计型资源**：经验值达到阈值后自动升级
+
+图示：**圆形**
+
+---
+
+### 3. Sink：去向／消耗点
+
+资源离开当前系统的位置。
+
+例如：
+
+- 购买装备消耗金币
+- 建造房屋消耗木材
+- 施放技能消耗魔力
+
+资源可以：
+
+- 被彻底删除
+- 成为另一个系统的Source
+
+图示：**向下的三角形**
+
+---
+
+## 三、高级组成
+
+### 4. Converter：转换器
+
+消耗一种或多种资源，生成新的资源。
+
+例如：
+
+```
+生肉 + 燃料 → 熟食
+废石 → 金属 → 机械零件
+```
+
+原始资源会被消耗。
+
+常见于：
+
+- Crafting
+- 生产链
+- 加工建筑
+- 合成系统
+
+图示：**向右三角形加横线**
+
+---
+
+### 5. Trader：交易者
+
+双方交换资源，资源不会凭空消失，而是转移到另一方。
+
+例如：
+
+- 玩家用金币购买商人物品
+- 玩家把装备卖给商人
+- 商人资金有限，必须通过交易恢复
+
+Trader系统容易产生：
+
+- 价格策略
+- 资源循环
+- 商人库存变化
+- 经济失衡或不公平感
+
+图示：**两个相反方向的三角形加横线**
+
+---
+
+## 四、Connections：连接
+
+系统组件通过箭头连接。
+
+箭头必须说明：
+
+- 资源从哪里流向哪里
+- 是增加还是减少
+- 必要时标注具体数值或条件
+
+推荐使用单向箭头：
+
+```
+击败敌人 → +金币 → 金币库存 → -金币 → 购买装备
+```
+
+不要用一个双向箭头表达整个循环，应拆成多个单向关系，使反馈循环更清楚。
+
+---
+
+## 简单示例
+
+```
+敌人
+  ↓ 击败
+金币Source
+  ↓ +10
+金币Stock
+  ↓ -100
+商店Trader
+  ↓
+装备
+```
+
+金币由战斗产生，储存在玩家账户中，最后通过商店交易转化为装备。
+
+---
+
+## 关键原则
+
+- 内容多不代表系统有深度
+- 深度来自系统之间的连接与层次
+- 每种资源都应明确Source、Stock和Sink
+- Converter会消耗原资源并生成新资源
+- Trader让资源在不同参与者之间转移
+- 箭头方向必须清楚
+- 使用“+”“-”说明资源变化
+- 系统图应帮助发现循环、堵塞和失衡
+
+---
+
+## 检查表
+
+- [ ]  系统是单纯增加内容，还是产生了实际深度
+- [ ]  每种资源都有明确Source
+- [ ]  每种资源有储存它的Stock
+- [ ]  每种资源有合理的Sink
+- [ ]  转换系统明确标注输入与输出
+- [ ]  交易系统明确双方获得和失去什么
+- [ ]  箭头方向正确
+- [ ]  增加和减少关系已经标注
+- [ ]  系统组件之间形成有意义的循环
+
+# 71. Reinforcing and Balancing Feedback Loops
+
+## 核心概念
+
+反馈循环说明游戏系统中的结果如何反过来影响系统本身。即使只是修改一个小参数，也可能通过循环对整个游戏产生巨大影响。
+
+两种基本反馈循环：
+
+- **Reinforcing Loop：强化循环**
+- **Balancing Loop：平衡循环**
+
+---
+
+## 1. Reinforcing Loop：强化循环
+
+强化循环会不断放大当前趋势，持续增加或减少资源。
+
+### 正向成长示例
+
+```
+击败敌人
+→ 获得经验
+→ 角色变强
+→ 击败更多敌人
+→ 获得更多经验
+```
+
+### 负向衰退示例
+
+《Monopoly》中：
+
+```
+地产减少
+→ 收入减少
+→ 更难购买地产
+→ 地产继续减少
+```
+
+强化循环会推动系统远离原有状态，因此常用于：
+
+- 角色成长
+- 经济扩张
+- 优势积累
+- 失败加速
+- 决出胜负
+
+> 游戏结束本身通常就是系统被成功推向不可逆状态的结果。
+> 
+
+---
+
+## 2. Balancing Loop：平衡循环
+
+平衡循环会抵消变化，把系统拉回某个稳定范围。
+
+例如：
+
+```
+玩家实力上升
+→ 敌人难度提高
+→ 玩家成长速度受到限制
+```
+
+它常用于：
+
+- 控制领先优势
+- 调节难度
+- 防止资源无限增长
+- 延长比赛悬念
+- 维持目标节奏
+
+---
+
+## 3. 平衡循环的常见问题
+
+### 太弱
+
+- 玩家很容易滚雪球
+- 胜负过早确定
+- 某个Build或策略失控
+
+### 太强
+
+- 玩家努力没有明显效果
+- 游戏长期僵持
+- 成长感消失
+- 系统变得静止和无聊
+
+正确强度只能通过持续Playtest确认。
+
+---
+
+## 4. 如何识别循环
+
+系统图中：
+
+- 强化循环通常由同方向的影响组成
+- 平衡循环中至少存在一个相反方向的影响
+
+设计时应确认：
+
+- 哪些循环在扩大优势
+- 哪些循环在限制优势
+- 循环对玩家有利还是不利
+- 哪些参数可以调整循环强度
+
+---
+
+## 关键原则
+
+- 强化循环推动成长、衰退和胜负
+- 平衡循环维持稳定与节奏
+- 没有强化循环，游戏可能无法结束
+- 没有平衡循环，系统可能迅速失控
+- 平衡循环过强也会破坏乐趣
+- 识别反馈循环，才能知道应调整哪些参数
+- 反馈循环需要通过系统图和Playtest不断验证
+
+---
+
+## 检查表
+
+- [ ]  已识别主要强化循环
+- [ ]  已识别主要平衡循环
+- [ ]  已确认各循环对谁有利
+- [ ]  已检查是否存在滚雪球
+- [ ]  已检查是否存在长期僵局
+- [ ]  已找到可以调节循环强度的参数
+- [ ]  已通过Playtest验证循环效果
+
+72
+
+**Dealing with Complex Systems**
+
+This course is meant to provide you with the essential tools, theories, and techniques needed to succeed as a game designer at a foundational level. I included game systems design because thinking systemically is paramount for a designer to succeed, in my opinion.
+
+With that in mind, this chapter discusses the basics of game system design so that you are not intimidated by game systems design and its terminology. However, game systems design does not stop here. In fact, systems design is one of the most complex and deeper topics in game design. It’s, in some ways, a never-ending search for new and improved systems and the many forms they can take in each new game released to the market.
+
+When your turn comes to deal with systems design, either in your personal projects or at a company, you’ll notice that most of the systems seem messier and more extensive than the ones discussed here and the ones found in elegantly designed games. The reason is that those systems were already refined by the iterative process natural to game design!
+
+When dealing with these complex, messier systems, it will help you to consider the following:
+
+- **Which other games feature similar systems?** — It’s very likely that you’ll find existing games that use a similar set of systems. What are the differences and similarities between these games and the systems you are proposing?
+- **Which real-life system displays similar behaviors?** — Finding inspiration in real-life systems is a tough but very rewarding exercise that can massively improve your game's relatedness with your players. The reason is that players already “know” those systems, even if they don’t think deeply about them. Simulation games are a clear example of real-life systems successfully implemented in video games.
+- **Where are the reinforcing loops?** — Remember, reinforcing loops are the main points of interaction with players. Most of the time, players will use (and abuse) reinforcing loops to increase their power, money, etc. Make them attractive and rewarding for players to use!
+- **Where are the balancing loops?** — Balancing loops are the main points for you as a designer to create a balanced, fair experience for your players. Find the balancing loops and see how you can use them to create better experiences for players. Is your game catered to more casual or hardcore players? Are you creating a game in a fairly known genre, or are you innovating in a relatively unknown one? All of these and more questions will help you determine which kind of balance you need.
+- **Can I create a diagram of this system (or a part of it)?** — Creating a diagram is not only a fun way to spend your evenings (at least it is for me!). Diagrams help you and your team visualize the game system. Sometimes it’s extremely difficult to communicate a system only using words, especially if you’re dealing with conveyor belt systems of resources or basic/advanced components, etc. A diagram is a great way to express the inner workings of a system in a concise, easy-to-digest, and enticing way. You’ll become a better designer by diagramming your systems, and your teammates will have a clearer vision and understanding of the system. It’s a win-win situation, so unless you’re extremely pressed for time, consider making a diagram of the system or a part of it.
+
+73
+
+**6.1.1. & 6.1.2. Find and Create some Feedback loops**
+
+There’s nothing better to understand systems thinking than to put it into practice. **Activities 6.1.1. and 6.1.2.** help you with that. Take all the time you need to complete this activity, as completing them thoughtfully will be critical for completing activity 6.2.
+
+74
+
+**6.2. What other systems can you add?**
+
+Although adding more systems to your game won’t necessarily make them more fun, having too few of them will almost always create a dull game.
+
+At this point you should have a quite solid combat system so now’s the time to spice things up a bit more!
+
+Read carefully the instructions, tips and reflection opportunity in **activity 6.2.** which will help you to add a meta-system to your game, potentially making it more engaging and adding more opportunities for your players to engage in deep gameplay and interesting decisions.

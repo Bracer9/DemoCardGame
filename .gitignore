@@ -1,0 +1,25 @@
+# .NET build output
+bin/
+obj/
+
+# Local tooling and editor state
+.vs/
+.vscode/
+.idea/
+.agents/
+.codex/
+*.user
+*.suo
+
+# Temporary files and local run logs
+tmp/
+*.log
+reference/temp.txt
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# library packages
+assets/audio_library
