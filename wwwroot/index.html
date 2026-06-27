@@ -25,10 +25,10 @@
       </div>
       <div id="mode-select" class="mode-select">
         <button id="start-trigger" class="mode-choice local-choice" type="button">
-          <span>LOCAL DUEL</span><b data-i18n="localPlay">ローカル対戦</b><small data-i18n="localPlayHint">1台のPCで交互にプレイ</small>
+          <b data-i18n="localPlay">ローカル対戦</b><small data-i18n="localPlayHint">1台のPCで交互にプレイ</small>
         </button>
         <button id="open-online" class="mode-choice online-choice" type="button">
-          <span>ONLINE ROOM</span><b data-i18n="onlinePlay">オンライン対戦</b><small data-i18n="onlinePlayHint">招待リンクで友達とプレイ</small>
+          <b data-i18n="onlinePlay">オンライン対戦</b><small data-i18n="onlinePlayHint">招待リンクで友達とプレイ</small>
         </button>
       </div>
       <div id="online-lobby" class="online-lobby" hidden>
@@ -174,7 +174,10 @@
       </div>
       <div id="preview-skill" class="preview-skill"></div>
       <ul id="preview-notes" class="preview-notes"></ul>
-      <button id="confirm-attack" class="confirm-attack" type="button"><span>EXECUTE</span><b data-i18n="executeAttack">攻撃実行</b></button>
+      <div class="preview-actions">
+        <button id="confirm-attack" class="confirm-attack preview-action decide-action" type="button" aria-label="攻撃実行" data-i18n-aria="executeAttack"></button>
+        <button id="cancel-preview" class="preview-action cancel-action" type="button" aria-label="閉じる" data-i18n-aria="close"></button>
+      </div>
     </aside>
 
     <aside id="character-inspector" class="character-inspector" aria-hidden="true"></aside>

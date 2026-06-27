@@ -801,6 +801,10 @@ AP 光球应与卡牌上方 cost 点使用同一视觉语言。
 --preview-panel-frame-zoom: 120%;
 --preview-panel-radius: 26px;
 --preview-panel-guide-radius: 15px;
+--preview-action-button-width: 112px;
+--preview-action-button-height: 82px;
+--preview-action-button-gap: 120px;
+--preview-action-button-y: 0px;
 --preview-forecast-icon-size: 30px;
 ```
 
@@ -830,9 +834,13 @@ AP 光球应与卡牌上方 cost 点使用同一视觉语言。
 - 外框圆角裁切：`--preview-panel-radius`。
 - 内侧参考线圆角：`--preview-panel-guide-radius`。
 - 伤害预测图标大小：`--preview-forecast-icon-size`。
+- 底部 decide / cancel 按钮宽度：`--preview-action-button-width`。
+- 底部 decide / cancel 按钮高度：`--preview-action-button-height`。
+- 两个按钮之间距离：`--preview-action-button-gap`。
+- 两个按钮整体上下位置：`--preview-action-button-y`。
 - 内部伤害格样式：`.forecast-box`。
 - 技能预测格样式：`.preview-skill`。
-- 攻击确认按钮：`.confirm-attack`。
+- 底部按钮图片：`.decide-action` 使用 `assets/ui/hud/battle/decide.png`，`.cancel-action` 使用 `assets/ui/hud/battle/cancel.png`。
 
 当前内部排版原则：
 
@@ -840,7 +848,7 @@ AP 光球应与卡牌上方 cost 点使用同一视觉语言。
 - 伤害预测是纵向账本行，不再使用左右并排的深色盒子。
 - 技能预测是纸面批注，结构是 `技能名 + 说明`。
 - notes 是细字脚注，没内容时隐藏。
-- 执行攻击按钮是纸面暗红命令签，不再使用大面积红色按钮。
+- 执行攻击 / 取消按钮只显示 PNG 素材，不显示文字。文字只保留在 `aria-label` 里，方便无障碍和本地化。
 
 ### 预测栏内容溢出素材边缘时
 

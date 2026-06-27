@@ -5,7 +5,7 @@ const ui = {
   turn: document.querySelector('#turn-number'), round: document.querySelector('#round-number'), ap: document.querySelector('#ap-pips'), apCurrent: document.querySelector('#ap-current'), apMaximum: document.querySelector('#ap-maximum'), instruction: document.querySelector('#instruction'),
   preview: document.querySelector('#preview-panel'), previewAttacker: document.querySelector('#preview-attacker'), previewDefender: document.querySelector('#preview-defender'),
   previewDamage: document.querySelector('#preview-damage'), previewCounter: document.querySelector('#preview-counter'), previewSkill: document.querySelector('#preview-skill'),
-  previewNotes: document.querySelector('#preview-notes'), confirm: document.querySelector('#confirm-attack'), log: document.querySelector('#battle-log'),
+  previewNotes: document.querySelector('#preview-notes'), confirm: document.querySelector('#confirm-attack'), cancelPreview: document.querySelector('#cancel-preview'), log: document.querySelector('#battle-log'),
   toast: document.querySelector('#toast'), curtain: document.querySelector('#turn-curtain'), curtainPlayer: document.querySelector('#curtain-player'), fx: document.querySelector('#fx-layer'),
   gameOver: document.querySelector('#game-over'), resultTitle: document.querySelector('#result-title'), resultCopy: document.querySelector('#result-copy'),
   inspector: document.querySelector('#character-inspector'), apHud: document.querySelector('#action-point-hud'),
@@ -1489,6 +1489,16 @@ function renderGameOver() {
 function updateInstruction() { const card = findCard(selectedAttacker); const name = card ? i18n.characterName(card.key) : ''; ui.instruction.innerHTML = card ? `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('currentSelected', { name }))}</strong><small>${i18n.t('selectUpperEnemy')}</small></div>` : `<span class="instruction-icon">◆</span><div><strong>${i18n.t('selectCard')}</strong><small>${i18n.t('selectTarget')}</small></div>`; }
 function findCard(id) { return game?.players.flatMap(player => player.characters).find(card => card.id === id); }
 function closePreview() { ui.preview.classList.remove('open'); ui.preview.setAttribute('aria-hidden', 'true'); }
+
+function cancelAttackPreview() {
+  if (ui.preview.classList.contains('open')) sound.emit('ui.preview-cancel');
+  selectedAttacker = null;
+  selectedDefender = null;
+  inspectedCardId = null;
+  hideAttackArrow();
+  closePreview();
+  render();
+}
 function showToast(value) { ui.toast.textContent = typeof value === 'string' ? value : i18n.message(value); ui.toast.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => ui.toast.classList.remove('show'), 2200); }
 function escapeHtml(value='') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 function truncateCardText(value='', limit=28) { const chars = [...String(value)]; return chars.length <= limit ? value : `${chars.slice(0, limit - 1).join('')}…`; }
@@ -1743,6 +1753,7 @@ async function bootstrapModes() {
 }
 
 document.querySelector('#confirm-attack').addEventListener('click', executeAttack);
+ui.cancelPreview.addEventListener('click', cancelAttackPreview);
 ui.endTurn.addEventListener('click', endTurn);
 ui.shieldButton.addEventListener('click', deployShield);
 ui.shieldButton.addEventListener('mouseenter', showShieldInspector);
