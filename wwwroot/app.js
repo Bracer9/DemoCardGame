@@ -148,6 +148,20 @@ function emitVoice(type, characterOrKey, options = {}) {
 function emitVoiceDelayed(type, characterOrKey, options = {}, delayMs = VOICE_REACTION_DELAY_MS) {
   window.setTimeout(() => emitVoice(type, characterOrKey, options), delayMs);
 }
+function emitSelectVoice(characterOrElement) {
+  const character = characterOrElement instanceof Element ? findCard(characterOrElement.dataset.id) : characterOrElement;
+  if (!character?.key) return false;
+  if (isLowHpForSelect(character) && hasVoiceSources(character.key, 'select-low-hp'))
+    return emitVoice('select-low-hp', character.key, {
+      currentHp: Number(character.currentHp || 0),
+      maxHp: Number(character.maxHp || 0),
+      lowHpThreshold: selectLowHpThreshold(character)
+    });
+  return emitVoice('select', character.key);
+}
+function hasVoiceSources(characterKey, type) {
+  return Boolean(voice.poolFor?.(characterKey, type)?.sources?.length);
+}
 function voiceReactionDelay(attackerType, defenderType) {
   if (attackerType === 'attack-declare' && defenderType === 'damage-taken') return ORDINARY_HIT_VOICE_REACTION_DELAY_MS;
   return VOICE_REACTION_DELAY_MS;
@@ -173,6 +187,15 @@ function heavyDamageThreshold(character) {
   const maxHp = Number(character?.maxHp || 0);
   return Math.max(1, Math.ceil(maxHp * Number(voice.manifest?.thresholds?.heavyDamageTakenMaxHpRatio ?? 0.25)));
 }
+function selectLowHpThreshold(character) {
+  const maxHp = Number(character?.maxHp || 0);
+  return Math.max(1, Math.ceil(maxHp * Number(voice.manifest?.thresholds?.selectLowHpMaxHpRatio ?? 0.25)));
+}
+function isLowHpForSelect(character) {
+  const currentHp = Number(character?.currentHp || 0);
+  const maxHp = Number(character?.maxHp || 0);
+  return maxHp > 0 && currentHp > 0 && currentHp <= selectLowHpThreshold(character);
+}
 function damageVoiceType(characterKey, amount, state) {
   const damage = Number(amount || 0);
   if (damage <= 0 || !characterKey) return null;
@@ -192,8 +215,8 @@ function forecastVoiceValue(forecast) {
 function attackPreviewVoiceType(previewData) {
   const dealt = forecastVoiceValue(previewData?.attack);
   const taken = forecastVoiceValue(previewData?.counter);
-  if (dealt - taken >= 2) return 'attack-preview-overpower';
-  if (taken - dealt >= 1) return 'attack-preview-disadvantage';
+  if (dealt > taken) return 'attack-preview-overpower';
+  if (taken - dealt >= 2) return 'attack-preview-disadvantage';
   return 'attack-preview-even';
 }
 function emitAttackPreviewVoice(attacker, defender, previewData) {
@@ -294,8 +317,8 @@ function render() {
   ui.opponentCards.dataset.count = String(opponentCharacters.length);
   ui.activeCards.innerHTML = renderCardRow(activeCharacters, true);
   ui.opponentCards.innerHTML = renderCardRow(opponentCharacters, false);
-  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me.sharedShield);
-  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent.sharedShield);
+  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me.sharedShield, hasPendingShieldBreakForPlayer(game, me));
+  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent.sharedShield, hasPendingShieldBreakForPlayer(game, opponent));
   bindCards();
   renderLog();
   updateInstruction();
@@ -316,19 +339,38 @@ function renderShieldBadge(element, value) {
   element.classList.toggle('active', value > 0);
 }
 
-function renderPersistentShield(dome, row, value) {
+function hasPendingShieldBreakForPlayer(state, player) {
+  if (!state || !player || Number(player.sharedShield || 0) > 0) return false;
+  const characterKeys = new Set((player.characters || []).map(character => character.key));
+  return (state.log || []).some(entry =>
+    entry.sequence > lastAnimatedLogSequence
+    && entry.message?.key === 'note.shieldAbsorb'
+    && characterKeys.has(String(logArg(entry, 'character') || '')));
+}
+
+function renderPersistentShield(dome, row, value, preserveUntilBreak = false) {
   const cards = [...row.querySelectorAll('.fighter-card')];
   const isOpponentShield = dome === ui.opponentShieldDome;
   dome.classList.toggle('opponent-facing', isOpponentShield);
   if (value <= 0 || cards.length === 0) {
-    dome.classList.remove('active', 'forming', 'breaking');
+    if (preserveUntilBreak && cards.length > 0 && dome.classList.contains('active')) {
+      dome.dataset.pendingBreak = 'true';
+      dome.classList.add('pending-break');
+      renderPersistentShield(dome, row, Number(dome.dataset.visualShieldValue || 1), false);
+      return;
+    }
+    dome.classList.remove('active', 'forming', 'breaking', 'pending-break');
+    delete dome.dataset.pendingBreak;
+    delete dome.dataset.visualShieldValue;
     return;
   }
+  dome.dataset.visualShieldValue = String(value);
   const first = stageRect(cards[0]), last = stageRect(cards[cards.length - 1]);
   const height = value > 2 ? 46 : 38;
   const edgeOffset = value > 2 ? 18 : 13;
+  const centerOffset = cssPixelVar('--team-shield-center-offset', 0);
   dome.style.left = `${first.left - 8}px`;
-  dome.style.top = `${isOpponentShield ? first.bottom - (height - edgeOffset) : first.top - edgeOffset}px`;
+  dome.style.top = `${isOpponentShield ? first.bottom - (height - edgeOffset) + centerOffset : first.top - edgeOffset - centerOffset}px`;
   dome.style.width = `${last.right - first.left + 16}px`;
   dome.style.height = `${height}px`;
   dome.classList.add('active');
@@ -404,7 +446,7 @@ function bindCards() {
       selectedAttacker = card.dataset.id; selectedDefender = null; closePreview();
       if (!wasAlreadySelected) {
         sound.emit('ui.card-select');
-        emitVoice('select', card.dataset.key);
+        emitSelectVoice(card);
       }
       document.querySelectorAll('.fighter-card.selected').forEach(element => element.classList.remove('selected'));
       card.classList.add('selected');
@@ -470,13 +512,27 @@ function updateAttackArrow(pointerX, pointerY, snapTarget = null) {
     endX = rect.left + rect.width / 2;
     endY = rect.top + rect.height / 2;
   }
-  const midX = (dragArrowOrigin.x + endX) / 2;
-  const midY = (dragArrowOrigin.y + endY) / 2;
-  const path = `M ${dragArrowOrigin.x} ${dragArrowOrigin.y} Q ${midX} ${midY}, ${endX} ${endY}`;
-  ui.attackArrow.querySelector('.arrow-shadow').setAttribute('d', path);
-  ui.attackArrow.querySelector('.arrow-core').setAttribute('d', path);
-  ui.attackArrow.querySelector('.arrow-origin').setAttribute('cx', dragArrowOrigin.x);
-  ui.attackArrow.querySelector('.arrow-origin').setAttribute('cy', dragArrowOrigin.y);
+  const dx = endX - dragArrowOrigin.x;
+  const dy = endY - dragArrowOrigin.y;
+  const distance = Math.hypot(dx, dy);
+  const arcLift = Math.min(210, Math.max(72, distance * 0.2));
+  const controlX = dragArrowOrigin.x + dx * 0.5;
+  const controlY = dragArrowOrigin.y + dy * 0.5 - arcLift;
+  const path = `M ${dragArrowOrigin.x.toFixed(1)} ${dragArrowOrigin.y.toFixed(1)} Q ${controlX.toFixed(1)} ${controlY.toFixed(1)}, ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+  const glow = ui.attackArrow.querySelector('.attack-arc-glow');
+  const core = ui.attackArrow.querySelector('.attack-arc-core');
+  const origin = ui.attackArrow.querySelector('.attack-arc-origin');
+  const head = ui.attackArrow.querySelector('.attack-arc-head');
+  const gradient = ui.attackArrow.querySelector('#attack-arc-gradient');
+  glow.setAttribute('d', path);
+  core.setAttribute('d', path);
+  origin.setAttribute('cx', dragArrowOrigin.x);
+  origin.setAttribute('cy', dragArrowOrigin.y);
+  head.setAttribute('transform', `translate(${endX.toFixed(1)} ${endY.toFixed(1)})`);
+  gradient.setAttribute('x1', dragArrowOrigin.x);
+  gradient.setAttribute('y1', dragArrowOrigin.y);
+  gradient.setAttribute('x2', endX);
+  gradient.setAttribute('y2', endY);
   ui.attackArrow.classList.toggle('locked', Boolean(snapTarget));
 }
 
@@ -500,17 +556,17 @@ function showCharacterInspector(element) {
         <small>${escapeHtml(status.timing || i18n.t('always'))}</small><p>${escapeHtml(status.description)}</p>
       </li>`).join('')
     : `<li class="empty-status">${i18n.t('noEffects')}</li>`;
-  const attackDelta = card.attack !== card.baseAttack ? `<small class="stat-delta">BASE ${card.baseAttack}</small>` : '';
+  const attackDelta = card.attack - card.baseAttack;
+  const attackDisplay = attackDelta === 0 ? `${card.attack}` : `${card.attack} (${attackDelta > 0 ? '+' : ''}${attackDelta})`;
   ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><strong>${escapeHtml(i18n.characterName(card.key))}</strong></header>
     <div class="inspector-stats">
-      <div><span>ATK</span><b>${card.attack}</b>${attackDelta}</div>
-      <div><span>HP</span><b>${card.currentHp}</b><small>/ ${card.maxHp}</small></div>
-      <div><span>COST</span><b>${card.cost}</b><small>AP</small></div>
-      <div><span>TYPE</span><b class="damage-type ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</b></div>
+      <div class="stat-card stat-attack"><span>ATK</span><b>${escapeHtml(attackDisplay)}</b></div>
+      <div class="stat-card stat-hp"><span>HP</span><b>${card.currentHp}/${card.maxHp}</b></div>
+      <div class="stat-card stat-cost"><span>COST</span><b>${card.cost}</b></div>
+      <div class="stat-card stat-type"><span>TYPE</span><b class="damage-type ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</b></div>
     </div>
     <section class="inspector-skill ${card.skill.isReady ? 'ready' : 'disabled'}">
-      <div class="inspector-skill-heading">${art.icon(art.forSkill(card.skill.id), { size: 'md', label: localizedSkill.name })}<div><span>SKILL / ${escapeHtml(localizedSkill.kind)}</span><b>${escapeHtml(localizedSkill.name)}</b></div></div>
-      <p>${escapeHtml(localizedSkill.description)}</p>
+      <div class="inspector-skill-heading">${art.icon(art.forSkill(card.skill.id), { size: 'md', label: localizedSkill.name })}<div><span>SKILL / ${escapeHtml(localizedSkill.kind)}</span><b>${escapeHtml(localizedSkill.name)}</b><p>${escapeHtml(localizedSkill.description)}</p></div></div>
       ${card.skill.unavailableReason ? `<small>${escapeHtml(i18n.message(card.skill.unavailableReason))}</small>` : ''}
     </section>`;
   ui.statusInspector.innerHTML = `<header><span>${i18n.t('liveEffects')}</span><strong>${i18n.t('effects')}</strong><b>${card.statuses.length}</b></header>
@@ -588,7 +644,7 @@ function onCardClick(element) {
     selectedAttacker = isSelecting ? id : null; selectedDefender = null; closePreview();
     if (isSelecting) {
       sound.emit('ui.card-select');
-      emitVoice('select', element.dataset.key);
+      emitSelectVoice(element);
     }
     render(); return;
   }
@@ -616,7 +672,7 @@ function renderPreview() {
   setForecast(ui.previewCounter, preview.counter, i18n.t('counterTaken'), 'event.counter');
   ui.previewSkill.className = `preview-skill ${preview.skillConditionPossible ? '' : 'inactive'}`;
   const localizedSkill = i18n.skill(preview.skillId);
-  ui.previewSkill.innerHTML = `<strong>${escapeHtml(localizedSkill.name)}</strong><br>${escapeHtml(i18n.message(preview.skillForecast))}`;
+  ui.previewSkill.innerHTML = `<strong>${escapeHtml(localizedSkill.name)}</strong><p>${escapeHtml(i18n.message(preview.skillForecast))}</p>`;
   ui.previewNotes.innerHTML = preview.notes.map(note => `<li>${escapeHtml(i18n.message(note))}</li>`).join('');
   art.hydrate(ui.preview);
   ui.preview.classList.add('open'); ui.preview.setAttribute('aria-hidden', 'false');
@@ -1133,15 +1189,38 @@ function launchFx(from, to, type) {
 function showCombatLink(attacker, defender) {
   if (!attacker || !defender) return null;
   const from = center(attacker), to = center(defender);
-  const midX = (from.x + to.x) / 2;
-  const midY = (from.y + to.y) / 2;
-  const bend = Math.max(-42, Math.min(42, (to.x - from.x) * .08));
-  const path = `M ${from.x} ${from.y} Q ${midX + bend} ${midY}, ${to.x} ${to.y}`;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  const arcLift = Math.min(230, Math.max(80, distance * 0.22));
+  const controlX = from.x + dx * 0.5;
+  const controlY = from.y + dy * 0.5 - arcLift;
+  const path = `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${controlX.toFixed(1)} ${controlY.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+  const gradientId = `combat-arc-gradient-${Date.now().toString(36)}-${Math.floor(Math.random() * 10000)}`;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.classList.add('combat-target-link');
   svg.setAttribute('viewBox', `0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`);
   svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = `<path class="combat-link-shadow" d="${path}"/><path class="combat-link-core" d="${path}"/><path class="combat-link-flow" d="${path}"/><circle class="combat-link-source" cx="${from.x}" cy="${from.y}" r="13"/><circle class="combat-link-target" cx="${to.x}" cy="${to.y}" r="18"/>`;
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="${gradientId}" gradientUnits="userSpaceOnUse" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}">
+        <stop offset="0%" stop-color="var(--combat-arc-tail)" stop-opacity=".18"></stop>
+        <stop offset="54%" stop-color="var(--combat-arc-red)" stop-opacity=".9"></stop>
+        <stop offset="100%" stop-color="var(--combat-arc-hot)" stop-opacity="1"></stop>
+      </linearGradient>
+    </defs>
+    <path class="combat-link-glow" d="${path}"/>
+    <path class="combat-link-core" d="${path}" stroke="url(#${gradientId})"/>
+    <circle class="combat-link-source" cx="${from.x}" cy="${from.y}" r="7"/>
+    <g class="combat-link-head" transform="translate(${to.x} ${to.y})">
+      <circle class="combat-head-aura" r="20"></circle>
+      <circle class="combat-head-ring" r="11"></circle>
+      <circle class="combat-head-core" r="5"></circle>
+      <circle class="combat-head-particle p1" cx="18" cy="-5" r="2.2"></circle>
+      <circle class="combat-head-particle p2" cx="-14" cy="8" r="1.8"></circle>
+      <circle class="combat-head-particle p3" cx="8" cy="17" r="1.5"></circle>
+      <circle class="combat-head-particle p4" cx="-21" cy="-7" r="1.3"></circle>
+    </g>`;
   ui.fx.appendChild(svg);
   return svg;
 }
@@ -1164,6 +1243,7 @@ function shieldBlock(target, amount, remaining) {
 }
 function breakShieldDome(dome) {
   const wasActive = dome.classList.contains('active');
+  const shouldHideAfterBreak = dome.dataset.pendingBreak === 'true' || !wasActive;
   // State polling/rendering may already contain the post-hit shield value. Briefly
   // restore the visual shell so both the acting and observing client still see it break.
   if (!wasActive) dome.classList.add('active');
@@ -1180,8 +1260,10 @@ function breakShieldDome(dome) {
   }).join('');
   ui.fx.appendChild(particles);
   setTimeout(() => {
-    particles.remove(); dome.classList.remove('breaking');
-    if (!wasActive) dome.classList.remove('active');
+    particles.remove(); dome.classList.remove('breaking', 'pending-break');
+    if (shouldHideAfterBreak) dome.classList.remove('active', 'reinforced');
+    delete dome.dataset.pendingBreak;
+    delete dome.dataset.visualShieldValue;
   }, 900);
 }
 function center(element) { const r = stageRect(element); return { x: r.left + r.width/2, y: r.top + r.height/2 }; }

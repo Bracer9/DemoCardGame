@@ -32,9 +32,10 @@ VoiceDirector 随机播放该目录下的音频
 | Type | 触发条件 | 说话者 |
 |---|---|---|
 | `select` | 选择/拖起可行动卡片 | 被选择角色 |
-| `attack-preview-overpower` | 选择攻击目标并弹出预测；预测净收益 ≥ 2 | 攻击者 |
-| `attack-preview-disadvantage` | 选择攻击目标并弹出预测；预测净损失 ≥ 1 | 攻击者 |
-| `attack-preview-even` | 选择攻击目标并弹出预测；不属于碾压或劣势 | 攻击者 |
+| `select-low-hp` | 选择/拖起可行动卡片，且当前 HP ≤ 当前最大 HP 的 1/4 | 被选择角色 |
+| `attack-preview-overpower` | 选择攻击目标并弹出预测；预测造成伤害 > 预测受到伤害 | 攻击者 |
+| `attack-preview-disadvantage` | 选择攻击目标并弹出预测；预测受到伤害 - 预测造成伤害 ≥ 2 | 攻击者 |
+| `attack-preview-even` | 选择攻击目标并弹出预测；不属于优势，且预测净亏小于 2 | 攻击者 |
 | `attack-declare` | 主动攻击演出开始 | 攻击者 |
 | `defeat` | 主动攻击并击败 target | 攻击者 |
 | `death` | 角色死亡，不区分来源 | 死亡角色 |
@@ -77,6 +78,7 @@ assets/audio/voice/
 ```text
 assets/audio/voice/mage/
   select/
+  select-low-hp/
   attack-preview-overpower/
   attack-preview-disadvantage/
   attack-preview-even/
@@ -165,10 +167,12 @@ assets/audio/voice/{characterId}/{voiceType}/
     "delayMs": 0
   },
   "thresholds": {
-    "heavyDamageTakenMaxHpRatio": 0.25
+    "heavyDamageTakenMaxHpRatio": 0.25,
+    "selectLowHpMaxHpRatio": 0.25
   },
   "preloadTypes": [
-    "select"
+    "select",
+    "select-low-hp"
   ],
   "characterVolumes": {
     "princess": 1,
@@ -176,6 +180,7 @@ assets/audio/voice/{characterId}/{voiceType}/
   },
   "typeVolumes": {
     "select": 1,
+    "select-low-hp": 1,
     "attack-preview-overpower": 1,
     "attack-preview-disadvantage": 1,
     "attack-preview-even": 1,
@@ -184,6 +189,7 @@ assets/audio/voice/{characterId}/{voiceType}/
   },
   "typeDelaysMs": {
     "select": 0,
+    "select-low-hp": 0,
     "attack-preview-overpower": 360,
     "attack-preview-disadvantage": 360,
     "attack-preview-even": 360,
@@ -202,7 +208,7 @@ assets/audio/voice/{characterId}/{voiceType}/
 
 - 默认：使用目录自动扫描结果。
 - 如果 `voice.json` 某个 pool 明确写了 `sources`，则该 pool 使用手写 `sources`。
-- `preloadTypes` 用来提前预热高频语音类型。当前只预热 `select`，避免选择角色时第一次播放吞掉开头。
+- `preloadTypes` 用来提前预热高频语音类型。当前预热 `select` 和 `select-low-hp`，避免选择角色时第一次播放吞掉开头。
 
 语音最终音量由多层倍率相乘：
 
@@ -227,6 +233,7 @@ assets/audio/voice/{characterId}/{voiceType}/
   },
   "typeVolumes": {
     "select": 0.9,
+    "select-low-hp": 1,
     "death": 1.05
   },
   "pools": {
@@ -248,6 +255,7 @@ assets/audio/voice/{characterId}/{voiceType}/
 ```json
 "typeDelaysMs": {
   "select": 0,
+  "select-low-hp": 0,
   "attack-preview-overpower": 360,
   "attack-preview-disadvantage": 360,
   "attack-preview-even": 360,
@@ -333,7 +341,7 @@ VOICE
 
 VOICE 可以单独开关和调音量。
 
-`select` 语音会在 manifest 加载后提前建立音频模板，播放时复用同源资源，降低浏览器第一次解码或音频设备刚唤醒时吞掉开头 0.x 秒的概率。如果某个台词文件本身开头贴得太紧，仍建议在素材前方保留约 80–150ms 的极短静音。
+`select` / `select-low-hp` 语音会在 manifest 加载后提前建立音频模板，播放时复用同源资源，降低浏览器第一次解码或音频设备刚唤醒时吞掉开头 0.x 秒的概率。如果某个台词文件本身开头贴得太紧，仍建议在素材前方保留约 80–150ms 的极短静音。
 
 ### 开发者用总线音量
 
@@ -426,12 +434,15 @@ wwwroot/config/audio.json
 | `lieutenant-joined` | 70 |
 | `attack-declare` | 40 |
 | `damage-taken` | 25 |
+| `select-low-hp` | 22 |
 | `attack-preview-overpower` | 18 |
 | `attack-preview-disadvantage` | 18 |
 | `attack-preview-even` | 18 |
 | `select` | 10 |
 
 大伤害会触发 `heavy-damage-taken`，不会再额外触发普通 `damage-taken`。
+
+低血量选择会优先尝试 `select-low-hp`。如果该角色没有这个目录，或目录里没有可播放文件，会自动回退到普通 `select`。如果 `select-low-hp` 有素材但因为冷却/优先级暂时不能播放，则不会再退回普通 `select`，避免濒危状态说出普通选择台词。
 
 死亡和击败优先级高，可以越过普通冷却。
 
@@ -465,9 +476,9 @@ wwwroot/config/audio.json
 
 | Type | 条件 | 含义 |
 |---|---|---|
-| `attack-preview-overpower` | `预测造成伤害 - 预测受到伤害 >= 2` | 碾压 |
-| `attack-preview-disadvantage` | `预测受到伤害 - 预测造成伤害 >= 1` | 劣势 |
-| `attack-preview-even` | 其他情况 | 基本势均力敌 |
+| `attack-preview-overpower` | `预测造成伤害 > 预测受到伤害` | 优势 |
+| `attack-preview-disadvantage` | `预测受到伤害 - 预测造成伤害 >= 2` | 明显劣势 |
+| `attack-preview-even` | 其他情况，也就是相等或预测只净亏不到 2 | 基本势均力敌 |
 
 如果预测伤害是范围，例如 `2–4`，语音分类使用中点 `(min + max) / 2`，避免只看最大值导致误判。
 
@@ -499,6 +510,15 @@ assets/audio/voice/mage/select/new-line-02.mp3
 ```
 
 然后刷新页面即可。
+
+例如给魔法师增加低血量选择语音：
+
+```text
+assets/audio/voice/mage/select-low-hp/low-hp-01.wav
+assets/audio/voice/mage/select-low-hp/low-hp-02.mp3
+```
+
+当魔法师当前 HP ≤ `ceil(maxHp × selectLowHpMaxHpRatio)` 时，选择/拖起会优先随机播放这里的语音。没有素材时自动回退普通 `select`。
 
 不需要：
 

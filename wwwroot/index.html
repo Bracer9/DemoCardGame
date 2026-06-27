@@ -52,7 +52,7 @@
 
     <section id="deal-sequence" class="deal-sequence" aria-hidden="true">
       <button id="deal-deck" class="shuffle-deck" type="button" aria-label="山札に触れてカードを配る" data-i18n-aria="dealDeck">
-        <i></i><i></i><i></i><b>TPF</b>
+        <i></i><i></i><i></i>
       </button>
       <div class="gloved-hand" aria-hidden="true"><span>☞</span></div>
       <div class="deal-caption"><span id="deal-status">SHUFFLING</span><strong>運命を配る</strong></div>
@@ -195,13 +195,25 @@
     </div>
     <svg id="attack-drag-arrow" class="attack-drag-arrow" aria-hidden="true">
       <defs>
-        <marker id="attack-arrow-head" markerWidth="20" markerHeight="16" refX="18" refY="8" orient="auto" markerUnits="userSpaceOnUse">
-          <path d="M1,1 L18,8 L1,15 L5,8 Z"></path>
-        </marker>
+        <linearGradient id="attack-arc-gradient" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="var(--attack-arc-tail)" stop-opacity=".12"></stop>
+          <stop offset="56%" stop-color="var(--attack-arc-gold)" stop-opacity=".88"></stop>
+          <stop offset="100%" stop-color="var(--attack-arc-hot)" stop-opacity="1"></stop>
+        </linearGradient>
       </defs>
-      <path class="arrow-shadow"></path>
-      <path class="arrow-core" marker-end="url(#attack-arrow-head)"></path>
-      <circle class="arrow-origin" r="8"></circle>
+      <path class="attack-arc-glow"></path>
+      <path class="attack-arc-core"></path>
+      <circle class="attack-arc-origin" r="4"></circle>
+      <g class="attack-arc-head">
+        <circle class="attack-head-aura" r="17"></circle>
+        <circle class="attack-head-ring" r="9"></circle>
+        <circle class="attack-head-core" r="4.5"></circle>
+        <circle class="attack-head-particle p1" cx="16" cy="-4" r="2.2"></circle>
+        <circle class="attack-head-particle p2" cx="-12" cy="7" r="1.7"></circle>
+        <circle class="attack-head-particle p3" cx="6" cy="15" r="1.45"></circle>
+        <circle class="attack-head-particle p4" cx="-18" cy="-5" r="1.25"></circle>
+        <circle class="attack-head-particle p5" cx="22" cy="8" r="1.35"></circle>
+      </g>
     </svg>
     <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
     <div id="toast" class="toast" role="status"></div>
