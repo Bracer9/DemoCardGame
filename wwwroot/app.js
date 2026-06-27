@@ -60,7 +60,73 @@ function stageRect(element) {
   };
 }
 
+function parseCssTimeVariable(name, fallbackMs) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!value) return fallbackMs;
+  const number = Number.parseFloat(value);
+  if (!Number.isFinite(number)) return fallbackMs;
+  return value.endsWith('ms') ? number : number * 1000;
+}
+
+function cssVariable(name, fallback = '') {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+function startHudSheenLoop() {
+  const sheen = document.querySelector('.hud-sheen');
+  if (!sheen) return;
+
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  let timer = null;
+  let animation = null;
+
+  const clear = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+    animation?.cancel();
+    animation = null;
+    sheen.style.opacity = '0';
+  };
+
+  const play = () => {
+    if (reducedMotion?.matches) {
+      clear();
+      return;
+    }
+
+    const cycleMs = Math.max(500, parseCssTimeVariable('--command-hud-sheen-cycle', 6000));
+    const travelMs = Math.max(120, Math.min(cycleMs, parseCssTimeVariable('--command-hud-sheen-travel-duration', 1600)));
+    const opacity = Number.parseFloat(cssVariable('--command-hud-sheen-opacity', '.30')) || .30;
+    const startX = cssVariable('--command-hud-sheen-start-x', '-48px');
+    const endX = cssVariable('--command-hud-sheen-end-x', '136px');
+
+    animation?.cancel();
+    animation = sheen.animate([
+      { opacity: 0, transform: `translateY(-50%) translateX(${startX})`, offset: 0 },
+      { opacity: 0, transform: `translateY(-50%) translateX(${startX})`, offset: .10 },
+      { opacity, transform: `translateY(-50%) translateX(${startX})`, offset: .24 },
+      { opacity, transform: `translateY(-50%) translateX(calc(${endX} - 28px))`, offset: .70 },
+      { opacity: opacity * .35, transform: `translateY(-50%) translateX(calc(${endX} - 10px))`, offset: .88 },
+      { opacity: 0, transform: `translateY(-50%) translateX(${endX})`, offset: 1 }
+    ], {
+      duration: travelMs,
+      easing: 'cubic-bezier(.22,.61,.36,1)',
+      fill: 'forwards'
+    });
+
+    timer = window.setTimeout(play, cycleMs);
+  };
+
+  reducedMotion?.addEventListener?.('change', () => {
+    clear();
+    play();
+  });
+
+  play();
+}
+
 resizeGameStage();
+startHudSheenLoop();
 
 const i18n = window.TinyPixelI18n;
 const art = window.TinyPixelAssets;
@@ -115,6 +181,8 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) soun
 let game = null;
 let selectedAttacker = null;
 let selectedDefender = null;
+let inspectedCardId = null;
+let suppressedOpponentInspectorId = null;
 let preview = null;
 let busy = false;
 let hasStarted = false;
@@ -131,9 +199,12 @@ let lastApSnapshot = null;
 let lastAnimatedLogSequence = 0;
 let eventPlayback = false;
 let resultAudioGameId = null;
+let pendingVisualBaselines = null;
 const recentSoundEvents = new Map();
 const VOICE_REACTION_DELAY_MS = 760;
 const ORDINARY_HIT_VOICE_REACTION_DELAY_MS = 980;
+const GUARD_VOICE_REACTION_DELAY_MS = 520;
+const GUARDED_TARGET_VOICE_REACTION_DELAY_MS = 1320;
 function emitSoundThrottled(eventName, cooldownMs = 300) {
   const now = performance.now();
   if (now - (recentSoundEvents.get(eventName) || -Infinity) < cooldownMs) return;
@@ -202,6 +273,30 @@ function damageVoiceType(characterKey, amount, state) {
   const character = characterByKey(state, characterKey);
   if (character && character.currentHp <= 0) return 'death';
   return damage >= heavyDamageThreshold(character) ? 'heavy-damage-taken' : 'damage-taken';
+}
+
+function emitGuardVoice(entry) {
+  const knightKey = logArg(entry, 'character');
+  const amount = Number(logArg(entry, 'amount') || 0);
+  if (!knightKey || amount <= 0) return;
+  emitVoiceDelayed('damage-taken', knightKey, {
+    source: 'guard',
+    damageType: 'Physical',
+    statusId: 'guard',
+    amount
+  }, GUARD_VOICE_REACTION_DELAY_MS);
+}
+
+async function playGuardRedirectEvent(entry, state, options = {}) {
+  const amount = Number(logArg(entry, 'amount') || 0);
+  const guardTarget = characterElementFromLog(state, entry);
+  const protectedTarget = characterElementByKey(state, logArg(entry, 'target'));
+  sound.emit('skill.guard-trigger');
+  if (options.emitVoice) emitGuardVoice(entry);
+  await Promise.all([
+    eventBurst(guardTarget, eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' }),
+    eventBurst(protectedTarget, eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' })
+  ]);
 }
 function defenderDefeatedByExchange(defenderKey, attackDamage, state) {
   const defender = characterByKey(state, defenderKey);
@@ -332,6 +427,7 @@ function render() {
   document.querySelector('#new-game').disabled = !game.isHost;
   document.querySelector('#play-again').disabled = !game.isHost;
   art.hydrate(document);
+  syncSelectedInspector();
 }
 
 function renderShieldBadge(element, value) {
@@ -387,13 +483,25 @@ function renderCardRow(characters, isActiveSide) {
 
 function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const classes = ['fighter-card'];
-  const canConsiderCost = isActiveSide && game?.canControl && card.isAlive && !card.hasActed;
+  const visualBaseline = hasUnplayedLogEvents(game) ? pendingVisualBaselines?.get(String(card.id)) : null;
+  const visualCurrentHp = Number(visualBaseline?.currentHp ?? card.currentHp);
+  const visualIsAlive = Boolean(visualBaseline?.isAlive ?? card.isAlive);
+  const visualIsInBattle = Boolean(visualBaseline?.isInBattle ?? card.isInBattle);
+  const isPendingDefeatAnimation = !card.isAlive
+    && (game?.log || []).some(entry =>
+      entry.sequence > lastAnimatedLogSequence
+      && entry.message?.key === 'log.defeated'
+      && String(logArg(entry, 'characterId') || '') === String(card.id));
+  const visuallyAlive = visualIsAlive || isPendingDefeatAnimation;
+  const canConsiderCost = isActiveSide && game?.canControl && visuallyAlive && !card.hasActed;
   if (canConsiderCost && card.cost <= game.actionPoints) classes.push('affordable-cost');
   if (canConsiderCost && card.cost > game.actionPoints) classes.push('unaffordable-cost');
-  if (card.canAct) classes.push('can-act');
+  if (card.canAct && !isPendingDefeatAnimation) classes.push('can-act');
+  if (isLowHpForSelect({ ...card, currentHp: visualCurrentHp })) classes.push('low-hp');
   if (card.hasActed) classes.push('acted');
-  if (!card.isAlive) classes.push('defeated');
-  if (!card.isInBattle) classes.push('leaving-battle');
+  if (!visuallyAlive) classes.push('defeated');
+  if (!visualIsInBattle && !isPendingDefeatAnimation) classes.push('leaving-battle');
+  if (isPendingDefeatAnimation) classes.push('pending-defeat');
   classes.push('full-art-card');
   if (dealing) classes.push('deal-hidden');
   if (card.id === selectedAttacker) classes.push('selected');
@@ -403,9 +511,9 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const localizedSkill = i18n.skill(card.skill.id);
   localizedSkill.kind = i18n.skillKind(card.skill.kind);
   const skillClass = card.skill.isReady ? 'ready' : 'disabled';
-  const over = card.currentHp > card.maxHp ? 'hp-over' : '';
-  const hpRatio = card.maxHp > 0 ? Math.max(0, Math.min(1, card.currentHp / card.maxHp)) : 0;
-  const hpEmpty = card.currentHp <= 0 ? ' hp-empty' : '';
+  const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
+  const hpRatio = card.maxHp > 0 ? Math.max(0, Math.min(1, visualCurrentHp / card.maxHp)) : 0;
+  const hpEmpty = visualCurrentHp <= 0 ? ' hp-empty' : '';
   const cardDescription = truncateCardText(localizedSkill.card, 28);
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
   const costCrystals = Array.from({ length: Math.max(0, card.cost) }, () => '<i class="cost-crystal" aria-hidden="true"></i>').join('');
@@ -419,7 +527,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
       <p class="skill-description">${escapeHtml(cardDescription)}</p>
     </div>
     <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong></div>
-    <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${card.currentHp}<small>/${card.maxHp}</small></strong></div>
+    <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${visualCurrentHp}<small>/${card.maxHp}</small></strong></div>
   </article>`;
 }
 
@@ -436,20 +544,18 @@ function cardPoseStyle(isActiveSide, index, count) {
 
 function bindCards() {
   document.querySelectorAll('.fighter-card').forEach(card => {
-    card.addEventListener('mouseenter', () => showCharacterInspector(card));
-    card.addEventListener('mouseleave', hideCharacterInspector);
     card.addEventListener('click', () => onCardClick(card));
     card.addEventListener('dragstart', event => {
-      hideCharacterInspector();
       if (!card.classList.contains('can-act')) { event.preventDefault(); return; }
       const wasAlreadySelected = selectedAttacker === card.dataset.id;
-      selectedAttacker = card.dataset.id; selectedDefender = null; closePreview();
+      selectedAttacker = card.dataset.id; selectedDefender = null; inspectedCardId = card.dataset.id; closePreview();
       if (!wasAlreadySelected) {
         sound.emit('ui.card-select');
         emitSelectVoice(card);
       }
       document.querySelectorAll('.fighter-card.selected').forEach(element => element.classList.remove('selected'));
       card.classList.add('selected');
+      syncSelectedInspector();
       event.dataTransfer.setData('text/plain', selectedAttacker);
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setDragImage(dragGhost, 0, 0);
@@ -465,6 +571,8 @@ function bindCards() {
       hideAttackArrow();
     });
     if (card.dataset.side === 'opponent' && !card.classList.contains('defeated')) {
+      card.addEventListener('mouseenter', () => showOpponentHoverInspector(card));
+      card.addEventListener('mouseleave', () => hideOpponentHoverInspector(card));
       card.addEventListener('dragover', event => { if (selectedAttacker) { event.preventDefault(); card.classList.add('drop-ready'); const point = clientToStage(event.clientX, event.clientY); updateAttackArrow(point.x, point.y, card); } });
       card.addEventListener('dragleave', () => card.classList.remove('drop-ready'));
       card.addEventListener('drop', event => { event.preventDefault(); card.classList.remove('drop-ready'); hideAttackArrow(); chooseDefender(card.dataset.id); });
@@ -596,6 +704,49 @@ function hideCharacterInspector() {
   ui.statusInspector.setAttribute('aria-hidden', 'true');
 }
 
+function syncSelectedInspector() {
+  if (!inspectedCardId || dealing || busy && ui.preview.classList.contains('open')) {
+    hideCharacterInspector();
+    return;
+  }
+  const selectedCard = characterElementById(inspectedCardId);
+  if (!selectedCard || selectedCard.classList.contains('defeated')) {
+    hideCharacterInspector();
+    return;
+  }
+  showCharacterInspector(selectedCard);
+}
+
+function showOpponentHoverInspector(element) {
+  if (busy || dealing || element.classList.contains('defeated')) return;
+  if (suppressedOpponentInspectorId === element.dataset.id) return;
+  inspectedCardId = element.dataset.id;
+  showCharacterInspector(element);
+}
+
+function hideOpponentHoverInspector(element) {
+  if (suppressedOpponentInspectorId === element.dataset.id) {
+    suppressedOpponentInspectorId = null;
+  }
+  if (inspectedCardId !== element.dataset.id) return;
+  inspectedCardId = selectedAttacker || null;
+  syncSelectedInspector();
+}
+
+function suppressOpponentHoverInspector(element) {
+  if (suppressedOpponentInspectorId === element.dataset.id) {
+    suppressedOpponentInspectorId = null;
+    inspectedCardId = element.dataset.id;
+    showCharacterInspector(element);
+    return;
+  }
+  suppressedOpponentInspectorId = element.dataset.id;
+  if (inspectedCardId === element.dataset.id) {
+    inspectedCardId = selectedAttacker || null;
+    syncSelectedInspector();
+  }
+}
+
 function showShieldInspector() {
   if (!game || dealing) return;
   hideCharacterInspector();
@@ -641,15 +792,17 @@ function onCardClick(element) {
   if (element.dataset.side === 'active') {
     if (!element.classList.contains('can-act')) { sound.emit('ui.invalid-action'); showToast(i18n.t('cannotAct')); return; }
     const isSelecting = selectedAttacker !== id;
-    selectedAttacker = isSelecting ? id : null; selectedDefender = null; closePreview();
+    selectedAttacker = isSelecting ? id : null; selectedDefender = null; inspectedCardId = isSelecting ? id : null; closePreview();
     if (isSelecting) {
       sound.emit('ui.card-select');
       emitSelectVoice(element);
     }
     render(); return;
   }
-  if (!selectedAttacker) { sound.emit('ui.invalid-action'); showToast(i18n.t('selectAttackerFirst')); return; }
-  if (!element.classList.contains('defeated')) chooseDefender(id);
+  if (element.classList.contains('defeated')) return;
+  if (!selectedAttacker) { suppressOpponentHoverInspector(element); return; }
+  inspectedCardId = id;
+  chooseDefender(id);
 }
 
 async function chooseDefender(id) {
@@ -691,9 +844,10 @@ async function executeAttack() {
   const attackerId = selectedAttacker, defenderId = selectedDefender;
   closePreview();
   try {
+    pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/attack', { method: 'POST', body: JSON.stringify({ attackerId, defenderId }) });
     sound.emit('ui.ap-spend');
-    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; preview = null; render();
+    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; preview = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; ui.confirm.disabled = false; }
@@ -715,9 +869,10 @@ async function endTurn() {
   }
   busy = true;
   try {
+    pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
     sound.emit('turn.change');
-    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
     ui.curtainPlayer.textContent = i18n.playerName(game.activePlayerName); ui.curtain.classList.remove('play'); void ui.curtain.offsetWidth; ui.curtain.classList.add('play');
     await wait(620); render(); await wait(430); ui.curtain.classList.remove('play');
     await playNewLogEvents(game);
@@ -735,8 +890,9 @@ async function deployShield() {
   sound.emit('ui.shield-command');
   busy = true;
   ui.shieldButton.disabled = true;
-  selectedAttacker = null; selectedDefender = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
+  selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
   try {
+    pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/shield', { method: 'POST', body: '{}' });
     sound.emit('ui.ap-spend');
     game = payload.data; lastGameJson = JSON.stringify(game);
@@ -753,7 +909,7 @@ async function newGame() {
     sound.emit('game.restart');
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
     if (sessionMode === 'online' && room) room.dealStarted = false;
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
     dealing = true; render();
     await playDealSequence();
   }
@@ -769,7 +925,7 @@ async function startLocalGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -945,6 +1101,24 @@ function effectLabel(arg) {
 
 function resetEventCursor(state = game) {
   lastAnimatedLogSequence = Math.max(0, ...(state?.log || []).map(entry => entry.sequence || 0));
+  pendingVisualBaselines = null;
+}
+
+function captureCharacterVisualBaselines(state = game) {
+  if (!state) return null;
+  const baselines = new Map();
+  for (const character of state.players.flatMap(player => player.characters)) {
+    baselines.set(String(character.id), {
+      currentHp: character.currentHp,
+      isAlive: character.isAlive,
+      isInBattle: character.isInBattle
+    });
+  }
+  return baselines;
+}
+
+function hasUnplayedLogEvents(state = game) {
+  return Boolean((state?.log || []).some(entry => entry.sequence > lastAnimatedLogSequence));
 }
 
 function pendingDefeatAnimationIds(state = game) {
@@ -1012,7 +1186,7 @@ function eventBurst(target, iconId, options = {}) {
   return wait(options.hold || 450);
 }
 
-async function playExchangeEvent(entry, state) {
+async function playExchangeEvent(entry, state, options = {}) {
   const attackerKey = logArg(entry, 'attacker');
   const defenderKey = logArg(entry, 'defender');
   const attacker = characterElementByKey(state, attackerKey);
@@ -1024,13 +1198,16 @@ async function playExchangeEvent(entry, state) {
   const counterDamage = Number(logArg(entry, 'counterDamage') || 0);
   const attackShieldAbsorbed = Number(logArg(entry, 'attackShieldAbsorbed') || 0);
   const counterShieldAbsorbed = Number(logArg(entry, 'counterShieldAbsorbed') || 0);
+  const guardRedirects = options.guardRedirects || [];
+  const hasGuardRedirect = guardRedirects.length > 0;
   const defeatedTarget = defenderDefeatedByExchange(defenderKey, attackDamage, state);
   const attackerVoiceType = defeatedTarget ? 'defeat' : 'attack-declare';
   const defenderVoiceType = defeatedTarget ? null : damageVoiceType(defenderKey, attackDamage, state);
   sound.emit('combat.target-lock');
   emitVoice(attackerVoiceType, attackerKey, { targetCharacterId: defenderKey, damageType: attackType, amount: attackDamage });
+  if (hasGuardRedirect) guardRedirects.forEach(emitGuardVoice);
   if (defenderVoiceType)
-    emitVoiceDelayed(defenderVoiceType, defenderKey, { source: 'active-attack', damageType: attackType, attackerCharacterId: attackerKey, amount: attackDamage }, voiceReactionDelay(attackerVoiceType, defenderVoiceType));
+    emitVoiceDelayed(defenderVoiceType, defenderKey, { source: 'active-attack', damageType: attackType, attackerCharacterId: attackerKey, amount: attackDamage }, hasGuardRedirect ? GUARDED_TARGET_VOICE_REACTION_DELAY_MS : voiceReactionDelay(attackerVoiceType, defenderVoiceType));
   if (attackType === 'Magical') sound.emit('combat.magic-active');
   if (attackType === 'Physical' && attackDamage > 0 && attackShieldAbsorbed === 0) sound.emit('combat.physical-hit');
   if (counterType === 'Physical' && counterDamage > 0 && counterShieldAbsorbed === 0) sound.emit('combat.physical-hit');
@@ -1041,6 +1218,9 @@ async function playExchangeEvent(entry, state) {
   await wait(180);
   if (attackType === 'Magical' && attackDamage > 0 && attackShieldAbsorbed === 0) sound.emit('combat.magic-impact');
   if (counterType === 'Magical' && counterDamage > 0 && counterShieldAbsorbed === 0) sound.emit('combat.magic-counter');
+  for (const guardEntry of guardRedirects) {
+    await playGuardRedirectEvent(guardEntry, state, { emitVoice: false });
+  }
   await Promise.all([
     eventBurst(defender, art.forDamageType(attackType), { title: attackType === 'Magical' ? i18n.t('eventMagical') : i18n.t('eventPhysical'), amount: `-${attackDamage}`, tone: attackType === 'Magical' ? 'magic' : 'physical' }),
     eventBurst(attacker, eventIcon.counter, { title: i18n.t('eventCounter'), secondaryIconId: art.forDamageType(counterType), amount: `-${counterDamage}`, tone: 'counter' })
@@ -1092,11 +1272,7 @@ async function playLogEntry(entry, state) {
       sound.emit('status.magic-bonus');
       await eventBurst(target, eventIcon.skill, { title: i18n.skill('stargazers-aegis').name, secondaryIconId: art.forSkill('stargazers-aegis'), amount: `+${amount}`, tone: 'skill' }); break;
     case 'note.guardRedirect':
-      sound.emit('skill.guard-trigger');
-      await Promise.all([
-        eventBurst(target, eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' }),
-        eventBurst(characterElementByKey(state, logArg(entry, 'target')), eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' })
-      ]); break;
+      await playGuardRedirectEvent(entry, state, { emitVoice: true }); break;
     case 'log.effectDamage': {
       const type = logArg(entry, 'damageType') || 'Physical';
       if (effect?.kind === 'status' && effect.value === 'burning') sound.emit('status.burning-tick');
@@ -1122,7 +1298,8 @@ async function playLogEntry(entry, state) {
       else if (amount > 0) sound.emit('combat.physical-hit');
       await eventBurst(target, eventIcon.skill, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: `-${amount}`, tone: 'skill' });
       if (target && amount > 0) damageFloat(target, amount, 'Physical');
-      emitDamageTakenVoice(characterKey, amount, state, { source: 'collateral', damageType: 'Physical', statusId: effect?.value });
+      if (effect?.value !== 'guard')
+        emitDamageTakenVoice(characterKey, amount, state, { source: 'collateral', damageType: 'Physical', statusId: effect?.value });
       await wait(340); break;
     case 'log.healed':
       emitSoundThrottled('status.blessing-heal', 450);
@@ -1172,13 +1349,36 @@ async function playLogEntry(entry, state) {
 
 async function playNewLogEvents(state) {
   const entries = (state?.log || []).filter(entry => entry.sequence > lastAnimatedLogSequence).sort((a, b) => a.sequence - b.sequence);
+  const pendingGuardRedirects = [];
   let shouldRenderAfter = false;
   for (const entry of entries) {
-    await playLogEntry(entry, state);
+    if (entry.message?.key === 'note.guardRedirect') {
+      pendingGuardRedirects.push(entry);
+      lastAnimatedLogSequence = Math.max(lastAnimatedLogSequence, entry.sequence || 0);
+      continue;
+    }
+    if (entry.message?.key === 'log.exchange' && pendingGuardRedirects.length) {
+      await playExchangeEvent(entry, state, { guardRedirects: pendingGuardRedirects.splice(0) });
+    } else {
+      if (pendingGuardRedirects.length) {
+        for (const guardEntry of pendingGuardRedirects.splice(0)) {
+          await playLogEntry(guardEntry, state);
+        }
+      }
+      await playLogEntry(entry, state);
+    }
     if (entry.message?.key === 'log.defeated') shouldRenderAfter = true;
     lastAnimatedLogSequence = Math.max(lastAnimatedLogSequence, entry.sequence || 0);
   }
-  if (shouldRenderAfter && state === game) render();
+  if (pendingGuardRedirects.length) {
+    for (const guardEntry of pendingGuardRedirects.splice(0)) {
+      await playLogEntry(guardEntry, state);
+      lastAnimatedLogSequence = Math.max(lastAnimatedLogSequence, guardEntry.sequence || 0);
+    }
+  }
+  const shouldApplyFinalVisualState = Boolean(pendingVisualBaselines) || shouldRenderAfter;
+  pendingVisualBaselines = null;
+  if (shouldApplyFinalVisualState && state === game) render();
 }
 
 function launchFx(from, to, type) {
@@ -1474,7 +1674,7 @@ async function enterOnlineGame(initialGame = null) {
     } else {
       await loadGame();
     }
-    selectedAttacker = null; selectedDefender = null; closePreview();
+    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
     dealing = true; render(); openDealLayer();
     ui.startScreen.classList.add('leaving');
     await wait(470);
@@ -1501,9 +1701,10 @@ async function pollOnlineState() {
     const oldActive = game?.activePlayerId;
     const isNewGame = Boolean(previousGameId && previousGameId !== payload.data.gameId);
     if (isNewGame) dealing = true;
+    pendingVisualBaselines = isNewGame ? null : captureCharacterVisualBaselines(game);
     game = payload.data; lastGameJson = json;
     if (isNewGame) lastApSnapshot = null;
-    selectedAttacker = null; selectedDefender = null; closePreview(); render();
+    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview(); render();
     if (isNewGame) {
       resetEventCursor(game);
       sound.emit('game.restart');
@@ -1602,6 +1803,7 @@ document.addEventListener('click', event => {
   if (interactive) return;
   selectedAttacker = null;
   selectedDefender = null;
+  inspectedCardId = null;
   closePreview();
   hideAttackArrow();
   render();
@@ -1629,7 +1831,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     setAudioMenuOpen(false);
     if (ui.preview.classList.contains('open')) sound.emit('ui.preview-cancel');
-    selectedAttacker = null; selectedDefender = null; hideAttackArrow(); closePreview(); render();
+    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; hideAttackArrow(); closePreview(); render();
   }
 });
 

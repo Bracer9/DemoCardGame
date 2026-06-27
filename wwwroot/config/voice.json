@@ -24,7 +24,7 @@
     "oracle": 1,
     "knight": 1,
     "druid": 1,
-    "barbarian": 1,
+    "barbarian": 0.5,
     "monster": 1
   },
   "typeVolumes": {
