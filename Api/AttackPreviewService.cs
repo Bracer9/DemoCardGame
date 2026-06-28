@@ -36,6 +36,22 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.targetForesight", ("chance", L10n.Raw(attack.ReductionChancePercent))));
         if (counter.ReductionChancePercent > 0)
             notes.Add(L10n.Text("preview.attackerForesight", ("chance", L10n.Raw(counter.ReductionChancePercent))));
+        if (attack.DefenseReduction > 0)
+            notes.Add(L10n.Text("preview.targetDefense",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
+                ("value", L10n.Raw(attack.DefenseReduction))));
+        if (attack.DefenseReduction < 0)
+            notes.Add(L10n.Text("preview.targetDefenseWeakness",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
+                ("value", L10n.Raw(Math.Abs(attack.DefenseReduction)))));
+        if (counter.DefenseReduction > 0)
+            notes.Add(L10n.Text("preview.attackerDefense",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
+                ("value", L10n.Raw(counter.DefenseReduction))));
+        if (counter.DefenseReduction < 0)
+            notes.Add(L10n.Text("preview.attackerDefenseWeakness",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
+                ("value", L10n.Raw(Math.Abs(counter.DefenseReduction)))));
         var reduction = GameEngine.GetCounterDebuffReduction(defender);
         if (reduction > 0)
             notes.Add(L10n.Text("preview.complacency", ("value", L10n.Raw(reduction))));
@@ -49,14 +65,23 @@ public sealed class AttackPreviewService
             attack, counter, skill.Metadata.Id, possible, skillText, notes);
     }
 
-    private static DamageForecast ForecastDamage(GameState state, CharacterState target, int baseDamage,
+    private DamageForecast ForecastDamage(GameState state, CharacterState target, int baseDamage,
         DamageType type, DamageSource source)
     {
         var owner = state.FindOwner(target);
+        var effectiveDefense = _engine.GetDefense(target, type);
+        var defense = effectiveDefense > 0
+            ? Math.Min(Math.Max(0, baseDamage), effectiveDefense)
+            : effectiveDefense < 0 && baseDamage > 0
+                ? effectiveDefense
+                : 0;
+        var damageAfterDefense = defense >= 0
+            ? Math.Max(0, baseDamage - defense)
+            : baseDamage + Math.Abs(defense);
         var hasOracle = owner.Characters.Any(character => character.IsAlive && character.Definition.Key == "oracle");
         var chance = hasOracle ? (type == DamageType.Physical ? 25 : 50) : 0;
-        var min = Math.Max(0, baseDamage - (chance > 0 ? 1 : 0));
-        var max = Math.Max(0, baseDamage);
+        var min = Math.Max(0, damageAfterDefense - (chance > 0 ? 1 : 0));
+        var max = Math.Max(0, damageAfterDefense);
         var shield = owner.SharedShield > 0 && max > 0;
         var shieldAbsorb = shield ? Math.Min(owner.SharedShield, max) : 0;
         if (shield) { min = Math.Max(0, min - owner.SharedShield); max = Math.Max(0, max - owner.SharedShield); }
@@ -65,7 +90,7 @@ public sealed class AttackPreviewService
         var guard = source == DamageSource.ActiveAttack && type == DamageType.Physical
             && target.Definition.Key != "knight" && knight is not null && max > 0;
         if (guard) { min = Math.Max(0, min - 1); max = Math.Max(0, max - 1); }
-        return new DamageForecast(min, max, type.ToString(), chance, shield, shieldAbsorb, guard, guard ? 1 : 0);
+        return new DamageForecast(min, max, type.ToString(), defense, chance, shield, shieldAbsorb, guard, guard ? 1 : 0);
     }
 
     private static (bool, LocalizedText) ForecastSkill(GameState state, CharacterState attacker,
@@ -129,7 +154,7 @@ public sealed class AttackPreviewService
 
     private static AttackPreview Invalid(Guid attackerId, Guid defenderId, LocalizedText error) => new(
         false, error, attackerId, defenderId, 0,
-        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, false, 0, false, 0),
-        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, false, 0, false, 0),
+        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, false, 0, false, 0),
+        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, false, 0, false, 0),
         string.Empty, false, L10n.Text("preview.skill.none"), []);
 }

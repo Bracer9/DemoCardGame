@@ -208,17 +208,16 @@ public sealed class GameEngine
         attacker.CurrentHp = Math.Max(0, attacker.CurrentHp - counterPacket.Amount);
         defender.CurrentHp = Math.Max(0, defender.CurrentHp - attackPacket.Amount);
 
-        var collateralDamage = attackPacket.Collateral.Concat(counterPacket.Collateral).ToArray();
-        foreach (var collateral in collateralDamage)
-        {
-            collateral.Target.CurrentHp = Math.Max(0, collateral.Target.CurrentHp - collateral.Amount);
-        }
+        var resolvedCollateral = attackPacket.Collateral
+            .Concat(counterPacket.Collateral)
+            .Select(collateral => (Collateral: collateral, Packet: ResolveCollateralDamage(state, collateral)))
+            .ToArray();
 
         attacker.HasActed = true;
         state.ActionPoints -= attacker.Definition.Cost;
         state.ActionsTakenThisTurn++;
 
-        foreach (var note in attackPacket.Notes.Concat(counterPacket.Notes))
+        foreach (var note in attackPacket.Notes.Concat(counterPacket.Notes).Concat(resolvedCollateral.SelectMany(item => item.Packet.Notes)))
             Log(state, note, "status");
 
         Log(state, L10n.Text("log.exchange",
@@ -226,17 +225,19 @@ public sealed class GameEngine
                 ("defender", L10n.Character(defender.Definition.Key)),
                 ("attackDamage", L10n.Raw(attackPacket.Amount)),
                 ("attackType", L10n.Damage(attackPacket.DamageType)),
+                ("attackDefenseReduced", L10n.Raw(attackPacket.DefenseReduced)),
                 ("attackShieldAbsorbed", L10n.Raw(attackPacket.ShieldAbsorbed)),
                 ("counterDamage", L10n.Raw(counterPacket.Amount)),
                 ("counterType", L10n.Damage(counterPacket.DamageType)),
+                ("counterDefenseReduced", L10n.Raw(counterPacket.DefenseReduced)),
                 ("counterShieldAbsorbed", L10n.Raw(counterPacket.ShieldAbsorbed))),
             attackPacket.DamageType == DamageType.Physical ? "physical" : "magic");
 
-        foreach (var collateral in collateralDamage)
+        foreach (var item in resolvedCollateral)
             Log(state, L10n.Text("log.collateralDamage",
-                ("effect", L10n.Status(collateral.EffectId)),
-                ("character", L10n.Character(collateral.Target.Definition.Key)),
-                ("amount", L10n.Raw(collateral.Amount))), "physical");
+                ("effect", L10n.Status(item.Collateral.EffectId)),
+                ("character", L10n.Character(item.Packet.TargetCharacter.Definition.Key)),
+                ("amount", L10n.Raw(item.Packet.Amount))), "physical");
 
         var exchange = new AttackExchange(
             attacker,
@@ -356,6 +357,19 @@ public sealed class GameEngine
 
     public static int GetBaseCounterAttack(int attack) => Math.Max(1, attack - CounterAttackPenalty);
 
+    public int GetPhysicalDefense(CharacterState character) =>
+        character.Definition.PhysicalDefense;
+
+    public int GetMagicalDefense(CharacterState character) =>
+        character.Definition.MagicalDefense;
+
+    public int GetDefense(CharacterState character, DamageType damageType) => damageType switch
+    {
+        DamageType.Physical => GetPhysicalDefense(character),
+        DamageType.Magical => GetMagicalDefense(character),
+        _ => 0
+    };
+
     public static int GetCounterDebuffReduction(CharacterState character) =>
         character.Statuses.OfType<ShieldComplacencyStatus>()
             .Where(status => !status.Expired)
@@ -396,6 +410,8 @@ public sealed class GameEngine
             _skills.Get(skillOwner.Definition.SkillId).ModifyOutgoingDamage(
                 new GameEngineContext(this, state), skillOwner, packet);
 
+        ApplyTypeDefense(packet);
+
         var targetOwner = state.FindOwner(packet.TargetCharacter);
         var incomingModifiers = targetOwner.Characters
             .Where(character => character.IsAlive)
@@ -415,6 +431,51 @@ public sealed class GameEngine
                 new GameEngineContext(this, state), skillOwner, packet);
 
         packet.Amount = Math.Max(0, packet.Amount);
+    }
+
+    private void ApplyTypeDefense(DamagePacket packet)
+    {
+        if (packet.Amount <= 0)
+            return;
+
+        var defense = GetDefense(packet.TargetCharacter, packet.DamageType);
+        if (defense > 0)
+        {
+            var reduced = Math.Min(packet.Amount, defense);
+            packet.Amount -= reduced;
+            packet.DefenseReduced += reduced;
+            packet.Notes.Add(L10n.Text("note.typeDefense",
+                ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+                ("damageType", L10n.Damage(packet.DamageType)),
+                ("amount", L10n.Raw(reduced))));
+            return;
+        }
+
+        if (defense < 0)
+        {
+            var increased = Math.Abs(defense);
+            packet.Amount += increased;
+            packet.DefenseReduced -= increased;
+            packet.Notes.Add(L10n.Text("note.typeDefenseWeakness",
+                ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+                ("damageType", L10n.Damage(packet.DamageType)),
+                ("amount", L10n.Raw(increased))));
+        }
+    }
+
+    private DamagePacket ResolveCollateralDamage(GameState state, CollateralDamage collateral)
+    {
+        var packet = new DamagePacket
+        {
+            SourceCharacter = collateral.Source,
+            TargetCharacter = collateral.Target,
+            DamageType = collateral.DamageType,
+            Source = DamageSource.Skill,
+            Amount = collateral.Amount
+        };
+        ModifyDamage(state, packet);
+        collateral.Target.CurrentHp = Math.Max(0, collateral.Target.CurrentHp - packet.Amount);
+        return packet;
     }
 
     private static void ApplySharedShield(PlayerState targetOwner, DamagePacket packet)

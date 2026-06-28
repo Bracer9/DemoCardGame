@@ -150,7 +150,7 @@
     },
     "interposing-shield": {
       "name": "替身之盾",
-      "description": "对骑士以外角色的主动物理进攻，全队共享一次伤害-1，并由骑士代受1点。对反击、魔法和技能无效。",
+      "description": "对骑士以外角色的主动物理进攻，全队共享一次伤害-1，并由骑士肩代わり1点物理伤害。该伤害会受到骑士自身防御影响。对反击、魔法和技能无效。",
       "card": "替骑士以外的我方角色承受一次主动物理伤害。"
     }
   },
@@ -256,9 +256,13 @@
     "preview.targetForesight": "目标的预见：{chance}%概率使受到伤害-1。",
     "preview.attackerForesight": "进攻方的预见：{chance}%概率使反击伤害-1。",
     "preview.complacency": "目标的有恃无恐：反击伤害-{value}。",
+    "preview.targetDefense": "目标的{damageType}防御：受到伤害-{value}。",
+    "preview.attackerDefense": "进攻方的{damageType}防御：反击伤害-{value}。",
+    "preview.targetDefenseWeakness": "目标的{damageType}防御低下：受到伤害+{value}。",
+    "preview.attackerDefenseWeakness": "进攻方的{damageType}防御低下：反击伤害+{value}。",
     "preview.targetShield": "目标方共有盾：受到伤害-{value}。",
     "preview.attackerShield": "进攻方共有盾：正数反击伤害-{value}。",
-    "preview.guard": "发动守护，骑士代为承受1点伤害。",
+    "preview.guard": "发动守护，骑士肩代わり1点物理伤害，并会受到骑士自身防御影响。",
     "preview.skill.harvestActive": "丰收回合不能播种。",
     "preview.skill.sowing": "进行播种，下个己方回合获得丰收（攻击+2）。",
     "preview.skill.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
@@ -292,9 +296,11 @@
     "log.attackBuffRemoved": "衰弱孢子抹除了{character}的{status}。",
     "log.skillFailed": "{skill}未能生效。",
     "note.complacencyReduction": "有恃无恐：反击伤害-{amount}。",
+    "note.typeDefense": "{character}的{damageType}防御：伤害-{amount}。",
+    "note.typeDefenseWeakness": "{character}的{damageType}防御低下：伤害+{amount}。",
     "note.shieldAbsorb": "共有盾吸收{amount}点伤害。",
     "note.magicBonus": "{effect}：魔法伤害+{amount}。",
     "note.foresightReduction": "预见：{damageType}伤害-{amount}。",
-    "note.guardRedirect": "守护：骑士代为承受{amount}点伤害。"
+    "note.guardRedirect": "守护：骑士肩代わり{amount}点物理伤害。"
   }
 }

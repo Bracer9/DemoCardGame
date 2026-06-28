@@ -12,12 +12,14 @@ public sealed class DamagePacket
     public required DamageSource Source { get; init; }
     public required int Amount { get; set; }
     public bool ReceivesMagicPowerBonus { get; init; }
+    public int DefenseReduced { get; set; }
     public int ShieldAbsorbed { get; set; }
     public List<CollateralDamage> Collateral { get; } = [];
     public List<LocalizedText> Notes { get; } = [];
 }
 
 public sealed record CollateralDamage(
+    CharacterState Source,
     CharacterState Target,
     int Amount,
     DamageType DamageType,
@@ -322,7 +324,7 @@ public sealed class InterposingShieldSkill : CharacterSkill
             return;
 
         packet.Amount--;
-        packet.Collateral.Add(new CollateralDamage(owner, 1, DamageType.Physical, "guard"));
+        packet.Collateral.Add(new CollateralDamage(owner, owner, 1, DamageType.Physical, "guard"));
         packet.Notes.Add(L10n.Text("note.guardRedirect",
             ("character", L10n.Character(owner.Definition.Key)),
             ("target", L10n.Character(packet.TargetCharacter.Definition.Key)),

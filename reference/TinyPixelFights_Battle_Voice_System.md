@@ -33,9 +33,9 @@ VoiceDirector 随机播放该目录下的音频
 |---|---|---|
 | `select` | 选择/拖起可行动卡片 | 被选择角色 |
 | `select-low-hp` | 选择/拖起可行动卡片，且当前 HP ≤ 当前最大 HP 的 1/4 | 被选择角色 |
-| `attack-preview-overpower` | 选择攻击目标并弹出预测；预测造成伤害 > 预测受到伤害 | 攻击者 |
+| `attack-preview-overpower` | 选择攻击目标并弹出预测；预测造成伤害 - 预测受到伤害 ≥ 2 | 攻击者 |
 | `attack-preview-disadvantage` | 选择攻击目标并弹出预测；预测受到伤害 - 预测造成伤害 ≥ 2 | 攻击者 |
-| `attack-preview-even` | 选择攻击目标并弹出预测；不属于优势，且预测净亏小于 2 | 攻击者 |
+| `attack-preview-even` | 选择攻击目标并弹出预测；不属于明显优势/劣势，例如只多造成 1 点、相等、或预测净亏小于 2 | 攻击者 |
 | `attack-declare` | 主动攻击演出开始 | 攻击者 |
 | `defeat` | 主动攻击并击败 target | 攻击者 |
 | `death` | 角色死亡，不区分来源 | 死亡角色 |
@@ -476,9 +476,9 @@ wwwroot/config/audio.json
 
 | Type | 条件 | 含义 |
 |---|---|---|
-| `attack-preview-overpower` | `预测造成伤害 > 预测受到伤害` | 优势 |
+| `attack-preview-overpower` | `预测造成伤害 - 预测受到伤害 >= 2` | 明显优势 |
 | `attack-preview-disadvantage` | `预测受到伤害 - 预测造成伤害 >= 2` | 明显劣势 |
-| `attack-preview-even` | 其他情况，也就是相等或预测只净亏不到 2 | 基本势均力敌 |
+| `attack-preview-even` | 其他情况，也就是只多造成 1 点、相等、或预测只净亏不到 2 | 基本势均力敌 |
 
 如果预测伤害是范围，例如 `2–4`，语音分类使用中点 `(min + max) / 2`，避免只看最大值导致误判。
 

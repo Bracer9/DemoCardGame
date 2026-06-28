@@ -310,7 +310,7 @@ function forecastVoiceValue(forecast) {
 function attackPreviewVoiceType(previewData) {
   const dealt = forecastVoiceValue(previewData?.attack);
   const taken = forecastVoiceValue(previewData?.counter);
-  if (dealt > taken) return 'attack-preview-overpower';
+  if (dealt - taken >= 2) return 'attack-preview-overpower';
   if (taken - dealt >= 2) return 'attack-preview-disadvantage';
   return 'attack-preview-even';
 }
@@ -481,6 +481,22 @@ function renderCardRow(characters, isActiveSide) {
   return characters.map((character, index) => cardMarkup(character, isActiveSide, index, characters.length)).join('');
 }
 
+function defenseMarkup(value, tagName = 'strong') {
+  const numericValue = Number(value || 0);
+  const displayValue = Math.abs(numericValue);
+  const className = numericValue < 0
+    ? ' class="defense-negative"'
+    : numericValue > 0
+      ? ' class="defense-positive"'
+      : '';
+  return `<${tagName}${className}>${displayValue}</${tagName}>`;
+}
+
+function damageTypeGlyph(type) {
+  const localized = String(i18n.damageType(type) || type || '').trim();
+  return localized ? localized[0] : '';
+}
+
 function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const classes = ['fighter-card'];
   const visualBaseline = hasUnplayedLogEvents(game) ? pendingVisualBaselines?.get(String(card.id)) : null;
@@ -526,7 +542,8 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
       <div class="skill-title"><span>${escapeHtml(localizedSkill.name)}</span><b class="skill-kind">${escapeHtml(localizedSkill.kind)}</b></div>
       <p class="skill-description">${escapeHtml(cardDescription)}</p>
     </div>
-    <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong></div>
+    <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong><em class="attack-type-label">${escapeHtml(damageTypeGlyph(card.attackType))}</em></div>
+    <div class="stat-orb defense"><span>${escapeHtml(damageTypeGlyph('Physical'))}</span>${defenseMarkup(card.physicalDefense)}<span>${escapeHtml(damageTypeGlyph('Magical'))}</span>${defenseMarkup(card.magicalDefense)}</div>
     <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${visualCurrentHp}<small>/${card.maxHp}</small></strong></div>
   </article>`;
 }
@@ -653,7 +670,10 @@ function hideAttackArrow() {
 
 function showCharacterInspector(element) {
   const card = findCard(element.dataset.id);
-  if (!card || dealing) return;
+  if (!card || dealing || ui.preview.classList.contains('open')) {
+    hideCharacterInspector();
+    return;
+  }
   hideShieldInspector();
   const translatedStatuses = card.statuses.map(status => i18n.status(status));
   const localizedSkill = i18n.skill(card.skill.id);
@@ -672,6 +692,8 @@ function showCharacterInspector(element) {
       <div class="stat-card stat-hp"><span>HP</span><b>${card.currentHp}/${card.maxHp}</b></div>
       <div class="stat-card stat-cost"><span>COST</span><b>${card.cost}</b></div>
       <div class="stat-card stat-type"><span>TYPE</span><b class="damage-type ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</b></div>
+      <div class="stat-card stat-pdef"><span>P.DEF</span>${defenseMarkup(card.physicalDefense, 'b')}</div>
+      <div class="stat-card stat-mdef"><span>M.DEF</span>${defenseMarkup(card.magicalDefense, 'b')}</div>
     </div>
     <section class="inspector-skill ${card.skill.isReady ? 'ready' : 'disabled'}">
       <div class="inspector-skill-heading">${art.icon(art.forSkill(card.skill.id), { size: 'md', label: localizedSkill.name })}<div><span>SKILL / ${escapeHtml(localizedSkill.kind)}</span><b>${escapeHtml(localizedSkill.name)}</b><p>${escapeHtml(localizedSkill.description)}</p></div></div>
@@ -705,7 +727,7 @@ function hideCharacterInspector() {
 }
 
 function syncSelectedInspector() {
-  if (!inspectedCardId || dealing || busy && ui.preview.classList.contains('open')) {
+  if (!inspectedCardId || dealing || ui.preview.classList.contains('open')) {
     hideCharacterInspector();
     return;
   }
@@ -718,7 +740,7 @@ function syncSelectedInspector() {
 }
 
 function showOpponentHoverInspector(element) {
-  if (busy || dealing || element.classList.contains('defeated')) return;
+  if (busy || dealing || ui.preview.classList.contains('open') || element.classList.contains('defeated')) return;
   if (suppressedOpponentInspectorId === element.dataset.id) return;
   inspectedCardId = element.dataset.id;
   showCharacterInspector(element);
@@ -734,6 +756,7 @@ function hideOpponentHoverInspector(element) {
 }
 
 function suppressOpponentHoverInspector(element) {
+  if (ui.preview.classList.contains('open')) return;
   if (suppressedOpponentInspectorId === element.dataset.id) {
     suppressedOpponentInspectorId = null;
     inspectedCardId = element.dataset.id;
@@ -829,6 +852,7 @@ function renderPreview() {
   ui.previewNotes.innerHTML = preview.notes.map(note => `<li>${escapeHtml(i18n.message(note))}</li>`).join('');
   art.hydrate(ui.preview);
   ui.preview.classList.add('open'); ui.preview.setAttribute('aria-hidden', 'false');
+  hideCharacterInspector();
 }
 
 function setForecast(element, forecast, label, iconId) {

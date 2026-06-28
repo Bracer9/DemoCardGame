@@ -150,7 +150,7 @@
     },
     "interposing-shield": {
       "name": "身代わりの盾",
-      "description": "騎士以外への主動物理攻撃を味方全体で1回だけ1軽減し、騎士が1ダメージを肩代わり。反撃・魔法・スキルには無効。",
+      "description": "騎士以外への主動物理攻撃を味方全体で1回だけ1軽減し、騎士が1物理ダメージを肩代わり。このダメージは騎士自身の防御の影響を受ける。反撃・魔法・スキルには無効。",
       "card": "騎士以外への主動物理攻撃を1回肩代わり。"
     }
   },
@@ -256,9 +256,13 @@
     "preview.targetForesight": "対象の予見：{chance}%で被ダメージ-1。",
     "preview.attackerForesight": "攻撃側の予見：{chance}%で反撃ダメージ-1。",
     "preview.complacency": "対象の油断：反撃ダメージ-{value}。",
+    "preview.targetDefense": "対象の{damageType}防御：被ダメージ-{value}。",
+    "preview.attackerDefense": "攻撃側の{damageType}防御：反撃ダメージ-{value}。",
+    "preview.targetDefenseWeakness": "対象の{damageType}防御低下：被ダメージ+{value}。",
+    "preview.attackerDefenseWeakness": "攻撃側の{damageType}防御低下：反撃ダメージ+{value}。",
     "preview.targetShield": "対象側の共有シールド：被ダメージ-{value}。",
     "preview.attackerShield": "攻撃側の共有シールド：正数の反撃を-{value}。",
-    "preview.guard": "守護が発動し、騎士が1ダメージを肩代わりします。",
+    "preview.guard": "守護が発動し、騎士が1物理ダメージを肩代わりします。このダメージは騎士自身の防御の影響を受けます。",
     "preview.skill.harvestActive": "豊穣中は種を蒔けません。",
     "preview.skill.sowing": "種を蒔き、次の自分のターンに豊穣（攻撃+2）。",
     "preview.skill.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
@@ -292,9 +296,11 @@
     "log.attackBuffRemoved": "衰弱の胞子が{character}の{status}を解除。",
     "log.skillFailed": "{skill}は発動しなかった。",
     "note.complacencyReduction": "油断：反撃ダメージ-{amount}。",
+    "note.typeDefense": "{character}の{damageType}防御：ダメージ-{amount}。",
+    "note.typeDefenseWeakness": "{character}の{damageType}防御低下：ダメージ+{amount}。",
     "note.shieldAbsorb": "共有シールドが{amount}ダメージを吸収。",
     "note.magicBonus": "{effect}：魔法ダメージ+{amount}。",
     "note.foresightReduction": "予見：{damageType}ダメージ-{amount}。",
-    "note.guardRedirect": "守護：騎士が{amount}ダメージを肩代わり。"
+    "note.guardRedirect": "守護：騎士が{amount}物理ダメージを肩代わり。"
   }
 }

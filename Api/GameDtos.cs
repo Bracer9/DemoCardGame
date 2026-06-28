@@ -14,7 +14,8 @@ public sealed record PlayerView(Guid Id, string Name, bool IsActive, int SharedS
 
 public sealed record CharacterView(
     Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack,
-    string AttackType, int CurrentHp, int MaxHp, bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
+    string AttackType, int PhysicalDefense, int MagicalDefense,
+    int CurrentHp, int MaxHp, bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
     SkillView Skill, IReadOnlyList<StatusView> Statuses);
 
 public sealed record SkillView(string Id, string Kind, bool IsReady, LocalizedText? UnavailableReason);
@@ -23,7 +24,7 @@ public sealed record AttackRequest(Guid AttackerId, Guid DefenderId);
 public sealed record ApiEnvelope<T>(T Data, CombatOutcome? Combat = null, LocalizedText? Message = null);
 
 public sealed record DamageForecast(
-    int Min, int Max, string DamageType, int ReductionChancePercent, bool ShieldWillAbsorb,
+    int Min, int Max, string DamageType, int DefenseReduction, int ReductionChancePercent, bool ShieldWillAbsorb,
     int ShieldAbsorb, bool GuardWillTrigger, int GuardDamage);
 
 public sealed record AttackPreview(
@@ -89,7 +90,8 @@ public sealed class GameViewFactory
             character.Id, character.Definition.Key, $"/assets/{character.Definition.AssetFile}",
             $"/assets/{character.Definition.ColoredAssetFile}",
             character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(character),
-            character.Definition.AttackType.ToString(), character.CurrentHp, character.Definition.MaxHp,
+            character.Definition.AttackType.ToString(), _engine.GetPhysicalDefense(character), _engine.GetMagicalDefense(character),
+            character.CurrentHp, character.Definition.MaxHp,
             character.IsAlive, character.IsInBattle, character.Zone.ToString(), character.HasActed, canAct,
             new SkillView(skill.Metadata.Id, skill.Metadata.Kind.ToString(),
                 skill.IsReady(state, character), skill.UnavailableReason(state, character)), statuses);
