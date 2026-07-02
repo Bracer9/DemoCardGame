@@ -133,7 +133,7 @@ test('runtime sound pass is mapped and fireball replaces the old magic attack cu
   const requiredEvents = [
     'combat.magic-impact', 'combat.magic-counter', 'combat.character-defeated',
     'shield.deploy', 'shield.reinforce', 'shield.break',
-    'skill.aftershock-axe', 'skill.guard-trigger', 'ui.attack-confirm',
+    'trait.aftershock-axe', 'trait.guard-trigger', 'ui.attack-confirm',
     'ui.shuffle', 'ui.deal', 'ui.card-place', 'ui.ap-spend'
   ];
   for (const eventId of requiredEvents)

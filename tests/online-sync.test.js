@@ -6,5 +6,5 @@ const appSource = fs.readFileSync('wwwroot/app.js', 'utf8');
 
 test('an open attack preview does not suspend online state polling', () => {
   assert.doesNotMatch(appSource, /dealing\s*\|\|\s*preview\s*\|\|\s*!hasStarted/);
-  assert.match(appSource, /selectedAttacker = null; selectedDefender = null; closePreview\(\); render\(\);/);
+  assert.match(appSource, /selectedAttacker = null; selectedDefender = null; inspectedCardId = null; hideAttackArrow\(\); closePreview\(\); render\(\);/);
 });

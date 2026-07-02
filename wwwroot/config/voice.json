@@ -11,21 +11,21 @@
   },
   "thresholds": {
     "heavyDamageTakenMaxHpRatio": 0.25,
-    "selectLowHpMaxHpRatio": 0.25
+    "selectLowHpMaxHpRatio": 0.3334
   },
   "preloadTypes": [
     "select",
     "select-low-hp"
   ],
   "characterVolumes": {
-    "peasant": 1,
+    "peasant": 0.8,
     "princess": 0.5,
     "mage": 1,
     "oracle": 1,
-    "knight": 1,
-    "druid": 1,
+    "knight": 1.5,
+    "druid": 2,
     "barbarian": 0.5,
-    "monster": 1
+    "monster": 3
   },
   "typeVolumes": {
     "select": 1,
@@ -38,7 +38,7 @@
     "death": 1,
     "damage-taken": 1,
     "heavy-damage-taken": 1,
-    "ultra-skill": 1,
+    "ultra-action": 1,
     "level-up": 1,
     "lieutenant-joined": 1
   },
@@ -55,7 +55,7 @@
     "heavy-damage-taken": 0,
     "buff-received": 0,
     "debuff-received": 0,
-    "ultra-skill": 0,
+    "ultra-action": 0,
     "level-up": 0,
     "lieutenant-joined": 0
   },
@@ -72,7 +72,7 @@
     "heavy-damage-taken": 70,
     "defeat": 85,
     "death": 100,
-    "ultra-skill": 95,
+    "ultra-action": 95,
     "level-up": 90,
     "lieutenant-joined": 70
   },
@@ -80,7 +80,7 @@
   "reservedTypes": [
     "buff-received",
     "debuff-received",
-    "ultra-skill",
+    "ultra-action",
     "level-up",
     "lieutenant-joined"
   ],

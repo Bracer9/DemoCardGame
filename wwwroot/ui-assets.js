@@ -32,9 +32,9 @@
     }
 
     forDamageType(type) { return this.binding('damageTypes', type, 'event.physical'); }
-    forLogTone(tone) { return this.binding('logTones', tone, 'event.skill'); }
+    forLogTone(tone) { return this.binding('logTones', tone, 'event.trait'); }
     forStatus(id) { return this.binding('statuses', id, `status.${id || 'unknown'}`); }
-    forSkill(id) { return this.binding('skills', id, `skill.${id || 'unknown'}`); }
+    forTrait(id) { return this.binding('traits', id, `trait.${id || 'unknown'}`); }
 
     resolveSource(source) {
       if (!source) return null;

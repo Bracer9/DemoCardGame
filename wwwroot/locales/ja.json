@@ -29,7 +29,6 @@
     "eventPhysical": "物理攻撃",
     "eventMagical": "魔法攻撃",
     "eventCounter": "反撃",
-    "eventSkill": "スキル発動",
     "eventStatus": "状態効果",
     "eventHeal": "HP回復",
     "eventShield": "共有シールド",
@@ -37,6 +36,18 @@
     "executeAttack": "攻撃実行",
     "apUsage": "攻撃命令に使用",
     "battleLog": "戦況ログ",
+    "rewardTitle": "戦利品を選択",
+    "rewardSubtitle": "BPを消費して報酬を得るか、スキップして戦功を温存します。",
+    "rewardReset": "リセット",
+    "rewardResetFree": "初回無料",
+    "rewardResetCost": "{cost} BP",
+    "rewardSkip": "スキップ +{amount} BP",
+    "rewardExit": "退出",
+    "roleActionTitle": "ロールアクション",
+    "roleActionLocked": "ロールアクションはまだ解放されていません。",
+    "roleActionComingSoon": "発動処理はまだ実装されていません。",
+    "rewardCannotAfford": "BP不足",
+    "opponentChoosingReward": "相手が報酬を選択中",
     "rematch": "再戦する",
     "close": "閉じる",
     "audio": "音声",
@@ -51,6 +62,7 @@
     "activeSide": "行動側",
     "sharedShieldEnemy": "相手の共有シールド",
     "sharedShieldAlly": "味方の共有シールド",
+    "sharedShieldObject": "共有シールド",
     "actionPanel": "行動パネル",
     "defenseFormation": "防御陣形",
     "reinforceFormation": "陣形を強化",
@@ -71,6 +83,14 @@
     "shieldNote4": "共有シールドがこのターン中に0になった場合、次の防御指令は2段階目ではなく、もう一度1段階目になります。",
     "shieldCurrent": "現在の共有シールド：{value}",
     "shieldNone": "現在シールドなし",
+    "bpTitle": "戦功点",
+    "bpLead": "BPは報酬ウィンドウで戦利品を得るための資源です。スキップして温存することもできます。",
+    "bpRuleTurnStart": "自分のターン開始",
+    "bpRuleDamage": "自分のターン中に敵のHPへダメージ",
+    "bpRuleBreakShield": "敵の共有シールドを破壊",
+    "bpRuleFullShield": "防御陣形を最大まで展開",
+    "bpNote1": "1ターン中に獲得できるBPには上限があります。上限を超えた分は獲得できません。",
+    "bpNote2": "報酬ウィンドウでは購入とリセットにBPを使い、スキップで追加BPを得ようとします。",
     "currentSelected": "{name}を選択中",
     "selectUpperEnemy": "上側の敵へドラッグ、またはクリック",
     "cannotAct": "このカードは現在行動できません。",
@@ -87,7 +107,22 @@
     "playerJoinedHost": "プレイヤー2が参加しました。対局を開始できます。",
     "joinedWaitingHost": "参加しました。主催者の開始を待っています。",
     "inviteCopied": "招待リンクをコピーしました。",
-    "hostOnlyRestart": "再戦を開始できるのは主催者だけです。"
+    "hostOnlyRestart": "再戦を開始できるのは主催者だけです。",
+    "eventTrait": "特性",
+    "roleActionChooseTitle": "ロールアクション選択",
+    "roleActionUpgradeInstruction": "強化する英雄を選択",
+    "roleActionUpgradeHint": "姫・騎士・バーバリアンなど、強化可能な英雄をクリックし、左側HUDで職業行動を1つ選びます。",
+    "roleActionTargetInstruction": "{name}の対象を選択",
+    "roleActionSelectAlly": "味方キャラクターを1体選択してください。",
+    "roleActionUpgradeInvalid": "このキャラクターは今ロールアクションを解放できません。",
+    "notDispellable": "解除不可",
+    "shieldStatShield": "盾",
+    "shieldStatPdef": "物防",
+    "shieldStatMdef": "魔防",
+    "shieldStats": "盾 {shield} / 物防 {pdef} / 魔防 {mdef}",
+    "shieldDefenseOrder": "共有シールドが先にダメージを受け、貫通分だけ対象の防御へ進みます。",
+    "roleActionSelectEnemy": "敵キャラクターを1体選択してください。",
+    "roleActionSelectTarget": "対象を1つ選択してください。"
   },
   "players": {
     "player.1": "プレイヤー1",
@@ -108,57 +143,122 @@
     "Magical": "魔法",
     "Absolute": "絶対"
   },
-  "skillKinds": {
-    "Active": "アクティブ",
-    "Passive": "パッシブ"
+  "bpReasons": {
+    "turn-start": "ターン開始",
+    "break-enemy-shield": "敵シールド破壊",
+    "own-turn-enemy-hp-damage": "自分のターンに敵へHPダメージ",
+    "shield-fully-deployed": "防御陣形最大展開",
+    "reward-purchase": "報酬購入",
+    "reward-reroll": "報酬リセット",
+    "reward-skip": "報酬スキップ",
+    "role-action-cleanse": "ロールアクションで浄化成功",
+    "role-action-dark-pact": "闇の契約で瀕死"
   },
-  "skills": {
-    "saints-prayer": {
+  "rewards": {
+    "dummy-reward-a": {
+      "name": "護符補給",
+      "description": "味方全体に魔法防御+1を付与。仮の遺物効果。"
+    },
+    "dummy-reward-b": {
+      "name": "星詠みの札",
+      "description": "味方の魔法攻撃ユニットに攻撃+1を付与。仮の遺物効果。"
+    },
+    "dummy-reward-c": {
+      "name": "王家の勲章",
+      "description": "味方全体に攻撃+1を付与。仮の遺物効果。"
+    },
+    "hero-role-action-upgrade": {
+      "name": "英雄職業訓練",
+      "description": "強化可能な英雄を選び、2つの初期ロールアクションから1つを解放する。"
+    }
+  },
+  "roleActions": {
+    "saintly-prayer": {
       "name": "聖女の祈り",
-      "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。",
-      "card": "味方全員を毎ターン1回復。最大HP+2まで。"
+      "description": "対象を2 HP回復。対象に浄化可能なデバフがあれば1つ浄化し、1 BPを得る。",
+      "button": "祈る"
     },
-    "stargazers-aegis": {
-      "name": "星読みの加護",
-      "description": "味方全員に予見を付与。物理25%／魔法50%で被ダメージ-1。さらに星読みの魔力を付与し、魔法攻撃と炎上ダメージ+1。",
-      "card": "全員に予見。確率軽減、魔法と炎上+1。"
+    "raise-bulwark": {
+      "name": "盾の号令",
+      "description": "味方に共有盾がある時のみ使用可能。共有盾+2、共有盾の物防+2。次の自分のターン開始まで。",
+      "button": "盾令"
     },
-    "spring-harvest": {
-      "name": "春種秋収",
-      "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。",
-      "card": "最初の攻撃で播種。次の自分のターン攻撃+2。"
+    "cleansing-herbs": {
+      "name": "浄化の薬草",
+      "description": "味方1体の浄化可能なデバフを1つ解除。ダメージ系デバフを優先。成功時HP+1、上限を超える。",
+      "button": "薬草"
     },
-    "searing-mark": {
-      "name": "灼熱の刻印",
-      "description": "攻撃時50%で炎上を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。",
-      "card": "攻撃時50%で炎上。次ターン1魔法ダメージ。"
-    },
-    "weakening-spores": {
+    "weakening-spores-action": {
       "name": "衰弱の胞子",
-      "description": "有効打なら100%、無効打なら50%で発動。対象の解除可能な攻撃強化Buffをランダムに1つ即座に解除する。その後、待機衰弱を付与し、対象の次ターン中は主動攻撃ダメージ-2。",
-      "card": "発動時、攻撃強化Buffを1つ解除して衰弱を付与。"
+      "description": "敵1体の解除可能なバフを1つ消し、衰弱を付与する。",
+      "button": "胞子"
     },
-    "aftershock-axe": {
-      "name": "戦斧の余波",
-      "description": "主動攻撃で対象に3以上のダメージを与えた時、隣接する敵1体に1物理ダメージ。隣が1体なら確定、2体ならランダム。",
-      "card": "主動攻撃3以上で、隣接敵に1物理ダメージ。"
+    "royal-command": {
+      "name": "王令",
+      "description": "このターンAP+2。次の自分のターン開始時にAP-1。使用後、次の自分のターンは使用不可。",
+      "button": "王令"
     },
-    "predatory-instinct": {
-      "name": "美女と野獣",
-      "description": "姫以外への主動攻撃が0ダメージだった時、3絶対ダメージで追撃。味方の姫が生存中なら4ダメージ。味方の姫が倒れると、野獣の怒りで基礎攻撃+2。",
-      "card": "姫死亡後攻撃+2。非姫へ0時3絶対、姫存命中+1。"
+    "guard-oath": {
+      "name": "守護の誓約",
+      "description": "自分以外の味方に守護の誓約を付与：物防+2。次に主動攻撃を受けた後に解除。",
+      "button": "誓約"
     },
-    "interposing-shield": {
-      "name": "身代わりの盾",
-      "description": "騎士以外への主動物理攻撃を味方全体で1回だけ1軽減し、騎士が1物理ダメージを肩代わり。このダメージは騎士自身の防御の影響を受ける。反撃・魔法・スキルには無効。",
-      "card": "騎士以外への主動物理攻撃を1回肩代わり。"
+    "war-cry": {
+      "name": "戦吼",
+      "description": "自身に激怒を付与。物防・魔防-2、攻撃回数+1。共有盾を破壊した時、対象へ現在攻撃力分の絶対ダメージ。",
+      "button": "戦吼"
+    },
+    "challenge": {
+      "name": "崩し",
+      "description": "敵1体の構えを崩す。このターン中、その対象は反撃できない。",
+      "button": "崩し"
+    },
+    "arcane-channel": {
+      "name": "秘術集中",
+      "description": "集中を始める。このターンは攻撃できない。次の自分のターン、魔法攻撃+2。",
+      "button": "集中"
+    },
+    "searing-brand": {
+      "name": "灼熱の刻印",
+      "description": "敵1体に炎上1層と灼熱の刻印を付与。このターン受ける魔法ダメージ+1。",
+      "button": "刻印"
+    },
+    "star-reading": {
+      "name": "星読み",
+      "description": "すでに主動攻撃した味方魔法ユニット1体を選ぶ。このターン、もう一度主動攻撃できる。",
+      "button": "星読み"
+    },
+    "fate-mark": {
+      "name": "運命の印",
+      "description": "敵1体に印を付与。次に味方を主動攻撃する時、50%でダメージ半減、50%でダメージ+1。",
+      "button": "運命"
+    },
+    "predatory-gaze": {
+      "name": "捕食の眼差し",
+      "description": "敵1体に獲物を付与。このターン、0 HPダメージを受けるたび追加で2絶対ダメージ。",
+      "button": "眼差し"
+    },
+    "dark-pact": {
+      "name": "闇の契約",
+      "description": "味方1体が4 HPを失い、契約を得る。次の主動攻撃+4。HPが半分未満なら1 BP獲得。",
+      "button": "契約"
+    },
+    "supply-basket": {
+      "name": "補給籠",
+      "description": "味方1体を1 HP回復し、物防+1を付与。次の自分のターン開始まで。",
+      "button": "補給"
+    },
+    "field-work": {
+      "name": "野良仕事",
+      "description": "豊穣中なら再攻撃可。播種中なら自身を2 HP回復。何もなければ播種。使用後、次の自分のターンは使用不可。",
+      "button": "労作"
     }
   },
   "statuses": {
     "burning": {
       "name": "炎上",
       "timing": "次の自分のターン開始時",
-      "description": "1魔法ダメージを受けて解除。星読みの加護で+1。"
+      "description": "ターン開始時に1層消費し、1魔法ダメージ。星読みの加護で+1。現在の層数：{magnitude}。"
     },
     "weakness-pending": {
       "name": "衰弱（待機）",
@@ -198,7 +298,7 @@
     "magic-power": {
       "name": "星読みの魔力",
       "timing": "魔法ダメージを与える時",
-      "description": "魔法攻撃と炎上ダメージ+{magnitude}。解除可能な攻撃強化Buff。"
+      "description": "魔法攻撃と炎上ダメージ+{magnitude}。"
     },
     "team-shield": {
       "name": "共有シールド",
@@ -212,20 +312,93 @@
     },
     "beast-rage": {
       "name": "野獣の怒り",
-      "timing": "味方の姫が倒れた後",
-      "description": "基礎攻撃+2。主動攻撃と反撃の両方に適用。"
+      "timing": "姫が倒れた後",
+      "description": "基礎攻撃+2。主動攻撃と反撃の両方に適用。解除不可。"
     },
     "aftershock-axe": {
       "name": "戦斧の余波"
     },
     "predatory-instinct": {
       "name": "美女と野獣"
+    },
+    "reward-attack": {
+      "name": "王家の勲章",
+      "timing": "報酬",
+      "description": "攻撃+{magnitude}。この対戦中持続。解除不可。"
+    },
+    "reward-magical-attack": {
+      "name": "星詠みの札",
+      "timing": "報酬",
+      "description": "魔法攻撃ユニットの攻撃+{magnitude}。この対戦中持続。解除不可。"
+    },
+    "reward-magical-defense": {
+      "name": "護符補給",
+      "timing": "報酬",
+      "description": "魔法防御+{magnitude}。この対戦中持続。解除不可。"
+    },
+    "guarded": {
+      "name": "守護の誓約",
+      "timing": "次に主動攻撃を受けた後に解除",
+      "description": "物理防御+{magnitude}。"
+    },
+    "rage": {
+      "name": "激怒",
+      "timing": "次の自分のターンまで",
+      "description": "物防・魔防-{magnitude}。このターン攻撃回数+1。共有盾を破壊した時、対象へ現在攻撃力分の絶対ダメージ。"
+    },
+    "challenged": {
+      "name": "崩し",
+      "timing": "このターン終了まで",
+      "description": "反撃できない。"
+    },
+    "charged": {
+      "name": "チャージ",
+      "timing": "次の自分のターン",
+      "description": "自分の魔法攻撃+{magnitude}。"
+    },
+    "charged-pending": {
+      "name": "集中準備",
+      "timing": "次の自分のターン開始時",
+      "description": "次の自分のターンにチャージを得て、魔法攻撃+2。"
+    },
+    "attack-sealed": {
+      "name": "攻撃封印",
+      "timing": "このターン終了まで",
+      "description": "このターン、主動攻撃できない。"
+    },
+    "searing-brand": {
+      "name": "灼熱の刻印",
+      "timing": "このターン終了まで",
+      "description": "受ける魔法ダメージ+{magnitude}。"
+    },
+    "marked": {
+      "name": "運命の印",
+      "timing": "次に味方を主動攻撃する時",
+      "description": "50%でダメージ半減、50%でダメージ+{magnitude}。発動後に解除。"
+    },
+    "prey": {
+      "name": "獲物",
+      "timing": "このターン終了まで",
+      "description": "0 HPダメージを受けるたび、追加で{magnitude}絶対ダメージ。"
+    },
+    "pact": {
+      "name": "契約",
+      "timing": "次の主動攻撃",
+      "description": "次の主動攻撃+{magnitude}。発動後に解除。"
+    },
+    "supply-guard": {
+      "name": "補給守備",
+      "timing": "次の自分のターン開始まで",
+      "description": "物防+{magnitude}。"
     }
   },
   "messages": {
     "message.newGame": "新しい対戦を開始しました。",
     "message.shieldDeployed": "防御陣形を展開しました。",
     "message.turnEnded": "ターンを終了しました。",
+    "message.rewardPurchased": "報酬を獲得しました。",
+    "message.rewardReset": "報酬をリセットしました。",
+    "message.rewardSkipped": "報酬をスキップしました。",
     "error.roomExists": "このサーバーには既に対局ルームがあります。",
     "error.roomNotFound": "ルームが見つかりません。",
     "error.roomFull": "このルームは満員です。",
@@ -242,7 +415,11 @@
     "error.defeatedCharacter": "戦闘不能のキャラクターは行動できません。",
     "error.alreadyActed": "このキャラクターは行動済みです。",
     "error.notEnoughAp": "APが足りません。",
+    "error.notEnoughBp": "BPが足りません。",
     "error.shieldMaxed": "防御陣形は既に最大です。",
+    "error.rewardNotFound": "報酬が見つかりません。",
+    "error.rewardWindowClosed": "現在選択できる報酬はありません。",
+    "error.rewardWindowOpen": "先に報酬を選択してください。",
     "reason.defeated": "戦闘不能",
     "reason.matchFinished": "対戦終了",
     "reason.opponentTurn": "相手のターン",
@@ -263,21 +440,21 @@
     "preview.targetShield": "対象側の共有シールド：被ダメージ-{value}。",
     "preview.attackerShield": "攻撃側の共有シールド：正数の反撃を-{value}。",
     "preview.guard": "守護が発動し、騎士が1物理ダメージを肩代わりします。このダメージは騎士自身の防御の影響を受けます。",
-    "preview.skill.harvestActive": "豊穣中は種を蒔けません。",
-    "preview.skill.sowing": "種を蒔き、次の自分のターンに豊穣（攻撃+2）。",
-    "preview.skill.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
-    "preview.skill.burningBoosted": "50%で炎上。星読みの加護により2魔法ダメージ。",
-    "preview.skill.burning": "50%で炎上を付与。",
-    "preview.skill.weaknessGuaranteed": "有効打：100%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
-    "preview.skill.weaknessChance": "無効打：50%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
-    "preview.skill.weaknessVariable": "結果に応じ50%か100%で発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
-    "preview.skill.aftershockGuaranteed": "3以上の攻撃ダメージが確定。隣接する敵へ1物理ダメージ。",
-    "preview.skill.aftershockPossible": "軽減結果次第で攻撃ダメージが3以上なら余波が発動。",
-    "preview.skill.beautyPrincessImmune": "姫には美女と野獣を発動できません。",
-    "preview.skill.beautyGuaranteed": "主動攻撃は0ダメージ。追撃で{amount}絶対ダメージ。",
-    "preview.skill.beautyPossible": "軽減結果が0ダメージなら、追撃で{amount}絶対ダメージ。",
-    "preview.skill.beautyUnavailable": "主動攻撃がダメージを与えるため、追撃は発動しません。",
-    "preview.skill.none": "この攻撃で能動的に発動する効果はありません。",
+    "preview.trait.harvestActive": "豊穣中は種を蒔けません。",
+    "preview.trait.sowing": "種を蒔き、次の自分のターンに豊穣（攻撃+2）。",
+    "preview.trait.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
+    "preview.trait.burningBoosted": "50%で炎上1層を付与。星読みの加護により1層ごとに2魔法ダメージ。",
+    "preview.trait.burning": "50%で炎上1層を付与。",
+    "preview.trait.weaknessGuaranteed": "有効打：100%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.trait.weaknessChance": "無効打：50%発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.trait.weaknessVariable": "結果に応じ50%か100%で発動。攻撃強化Buffをランダムに1つ解除し、次ターンの主動攻撃ダメージ-2。",
+    "preview.trait.aftershockGuaranteed": "3以上の攻撃ダメージが確定。隣接する敵へ1物理ダメージ。",
+    "preview.trait.aftershockPossible": "軽減結果次第で攻撃ダメージが3以上なら余波が発動。",
+    "preview.trait.beautyPrincessImmune": "姫には美女と野獣を発動できません。",
+    "preview.trait.beautyGuaranteed": "主動攻撃は0ダメージ。追撃で{amount}絶対ダメージ。",
+    "preview.trait.beautyPossible": "軽減結果が0ダメージなら、追撃で{amount}絶対ダメージ。",
+    "preview.trait.beautyUnavailable": "主動攻撃がダメージを与えるため、追撃は発動しません。",
+    "preview.trait.none": "この攻撃で能動的に発動する効果はありません。",
     "log.firstPlayer": "{player}が先攻。",
     "log.firstTurnNoStartEffects": "最初のターンはターン開始効果を発動しません。",
     "log.collateralDamage": "{effect}：{character}に{amount}ダメージ。",
@@ -286,6 +463,13 @@
     "log.shieldReinforced": "{player}が防御陣形を強化。共有シールド{shield}、油断-{reduction}。",
     "log.shieldExpired": "{player}の防御陣形が解除。",
     "log.turnStart": "ターン{turn}：{player}の行動。",
+    "log.bpGained": "{player}が{amount} BPを獲得（{reason}）。現在 {current}/{max}。",
+    "log.bpGainCapped": "{player}のBP獲得上限により、{blocked} BPは獲得できませんでした（{reason}）。",
+    "log.bpSpent": "{player}が{amount} BPを消費（{reason}）。現在 {current}/{max}。",
+    "log.rewardOpened": "Round {round}：{player}に報酬選択が提示された。",
+    "log.rewardPurchased": "{player}が{reward}を選択し、{cost} BPを支払った。",
+    "log.rewardReset": "{player}が報酬をリセット（消費 {cost} BP、{count}回目）。",
+    "log.rewardSkipped": "{player}が報酬をスキップし、{amount} BPを得ようとした。",
     "log.effectDamage": "{effect}：{character}に{amount}{damageType}ダメージ。",
     "log.defeated": "{character}は戦闘不能。",
     "log.weaknessActivated": "{character}の衰弱が発動。",
@@ -294,13 +478,128 @@
     "log.sowing": "{character}が種を蒔いた。",
     "log.statusApplied": "{character}に{status}を付与。",
     "log.attackBuffRemoved": "衰弱の胞子が{character}の{status}を解除。",
-    "log.skillFailed": "{skill}は発動しなかった。",
     "note.complacencyReduction": "油断：反撃ダメージ-{amount}。",
     "note.typeDefense": "{character}の{damageType}防御：ダメージ-{amount}。",
     "note.typeDefenseWeakness": "{character}の{damageType}防御低下：ダメージ+{amount}。",
     "note.shieldAbsorb": "共有シールドが{amount}ダメージを吸収。",
     "note.magicBonus": "{effect}：魔法ダメージ+{amount}。",
     "note.foresightReduction": "予見：{damageType}ダメージ-{amount}。",
-    "note.guardRedirect": "守護：騎士が{amount}物理ダメージを肩代わり。"
+    "note.guardRedirect": "守護：騎士が{amount}物理ダメージを肩代わり。",
+    "log.traitFailed": "{trait}は発動しなかった。",
+    "message.roleActionUnlocked": "ロールアクションを解放しました。",
+    "message.roleActionUsed": "ロールアクションを発動しました。",
+    "error.pendingRoleActionUpgrade": "先に解放するロールアクションを選んでください。",
+    "error.noPendingRoleActionUpgrade": "現在選択待ちのロールアクション強化はありません。",
+    "error.noRoleActionUpgradeTarget": "ロールアクションを解放できる英雄がいません。",
+    "error.roleActionAlreadyUnlocked": "このキャラクターはすでにロールアクションを解放しています。",
+    "error.roleActionNotUpgradeChoice": "このロールアクションはこのキャラクターの選択肢ではありません。",
+    "error.roleActionNotUnlocked": "このキャラクターはそのロールアクションを解放していません。",
+    "error.roleActionNotFound": "ロールアクションが見つかりません。",
+    "error.roleActionInvalidTarget": "このロールアクションはその対象を選べません。",
+    "error.roleActionRequiresShield": "味方に共有盾が必要です。",
+    "log.roleActionUpgradePending": "{player}が英雄のロールアクション選択を開始した。",
+    "log.roleActionUnlocked": "{character}が{roleAction}を解放した。",
+    "log.roleActionCleanse": "{character}の{status}を浄化した。",
+    "log.roleActionHeal": "{actor}が職業行動を発動し、{target}が{amount} HP回復。",
+    "log.royalCommand": "{character}が王令を下す：このターンAP+2、次の自分のターン開始時AP-1。",
+    "log.actionPointDebt": "{player}が王令の代価を支払う：AP-{amount}。",
+    "log.guardedApplied": "{actor}が守護の誓約を立て、{target}の物防+2。",
+    "log.bulwarkRaised": "{character}が共有盾を強化。現在の共有盾{shield}、盾物防{pdef}。",
+    "note.shieldTypeDefense": "共有シールドの{damageType}防御：ダメージ-{amount}。",
+    "note.shieldTypeDefenseWeakness": "共有シールドの{damageType}防御低下：ダメージ+{amount}。",
+    "preview.targetShieldDefense": "対象側の共有シールドの{damageType}防御：ダメージ-{value}。",
+    "preview.targetShieldDefenseWeakness": "対象側の共有シールドの{damageType}防御低下：ダメージ+{value}。",
+    "preview.attackerShieldDefense": "攻撃側の共有シールドの{damageType}防御：反撃ダメージ-{value}。",
+    "preview.attackerShieldDefenseWeakness": "攻撃側の共有シールドの{damageType}防御低下：反撃ダメージ+{value}。",
+    "reason.roleActionCooldown": "あと{turns}ターン使用不可",
+    "log.warCry": "{character}が戦吼を上げた。",
+    "log.challenge": "{actor}が{target}の構えを崩した。",
+    "note.counterBlockedByChallenge": "{character}は構えを崩されているため反撃できない。",
+    "preview.counterBlockedByChallenge": "対象は崩しを受けているため、この攻撃に反撃できません。",
+    "note.beautyPrincessBypass": "美女と野獣：{character}への攻撃は共有盾を無視する。",
+    "preview.trait.beautyPrincessBacklash": "美女と野獣：共有盾を無視。攻撃後、モンスターは与えたダメージの2倍（{min}～{max}）を受けるが、この効果では倒れない。",
+    "preview.trait.beautyPrincessBacklashTrait": "姫には共有盾を無視して攻撃し、与えたダメージの2倍を自身に受ける。",
+    "note.chargedMagic": "{character}のチャージ：魔法攻撃+{amount}。",
+    "note.searingBrand": "{character}の灼熱の刻印：魔法ダメージ+{amount}。",
+    "preview.roleAction.arcaneChannel": "チャージによりこのターンの魔法攻撃+{value}。",
+    "preview.roleAction.searingBrand": "灼熱の刻印により対象が受ける魔法ダメージ+{value}。",
+    "preview.roleAction.searingBrandCounter": "灼熱の刻印により攻撃側が受ける魔法反撃ダメージ+{value}。",
+    "preview.roleAction.warCryShieldBreak": "戦吼：共有盾を破壊すると追加で{value}絶対ダメージ。",
+    "log.arcaneChannel": "{character}は秘術に集中した。",
+    "log.starReading": "{actor}が星を読み、{target}はもう一度主動攻撃できる。",
+    "log.fateMark": "{actor}が{target}に運命の印を刻んだ。",
+    "note.fateMarkReduced": "{character}の運命の印：ダメージが{before}から{after}に半減。",
+    "note.fateMarkAmplified": "{character}の運命の印：ダメージ+{amount}。",
+    "preview.roleAction.fateMark": "運命の印：この主動攻撃は50%でダメージ半減、50%でダメージ+1。",
+    "log.predatoryGaze": "{actor}が{target}を獲物として見据えた。",
+    "log.darkPact": "{actor}が闇の契約を結び、{target}は{amount} HPを失った。",
+    "preview.roleAction.predatoryGaze": "獲物：この攻撃が0 HPダメージなら、追加で{value}絶対ダメージ。",
+    "preview.roleAction.predatoryGazeCounter": "獲物：この反撃が0 HPダメージなら、追加で{value}絶対ダメージ。",
+    "log.supplyBasket": "{actor}が{target}に補給を渡し、{amount} HP回復して物防を高めた。",
+    "log.fieldWorkDouble": "{character}は豊穣の勢いに乗り、もう一度動ける。",
+    "log.fieldWorkRest": "{character}は畑を手入れし、{amount} HP回復した。",
+    "log.fieldWorkSowing": "{character}が種を蒔いた。",
+    "log.cleansingHerbs": "{actor}が薬草で{target}の{status}を浄化し、{amount} HP回復した。",
+    "log.roleActionNoCleanse": "{actor}は{target}を浄化しようとしたが、解除できるデバフはなかった。",
+    "log.roleActionNoDispel": "{actor}は{target}を弱めようとしたが、解除できるバフはなかった。"
+  },
+  "abilityKinds": {
+    "Trait": "特性",
+    "RoleAction": "ロールアクション"
+  },
+  "traitTriggers": {
+    "Continuous": "常時",
+    "TurnStart": "ターン開始",
+    "TurnEnd": "ターン終了",
+    "OnAttack": "攻撃時",
+    "OnAttackDeclared": "攻撃宣言",
+    "OnAttackResolved": "攻撃後",
+    "OnDamaged": "被ダメージ時",
+    "OnShieldBreak": "盾破壊",
+    "OnCharacterDefeated": "戦闘不能時",
+    "OnRewardWindow": "報酬",
+    "ManualCheck": "条件判定"
+  },
+  "traits": {
+    "saints-prayer": {
+      "name": "聖女の祈り",
+      "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。",
+      "card": "味方全員を毎ターン1回復。最大HP+2まで。"
+    },
+    "stargazers-aegis": {
+      "name": "星読みの加護",
+      "description": "味方全員に予見を付与。物理25%／魔法50%で被ダメージ-1。さらに星読みの魔力を付与し、魔法攻撃と炎上ダメージ+1。",
+      "card": "全員に予見。確率軽減、魔法と炎上+1。"
+    },
+    "spring-harvest": {
+      "name": "春種秋収",
+      "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。",
+      "card": "最初の攻撃で播種。次の自分のターン攻撃+2。"
+    },
+    "searing-mark": {
+      "name": "灼熱の刻印",
+      "description": "攻撃時50%で炎上を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。",
+      "card": "攻撃時50%で炎上。次ターン1魔法ダメージ。"
+    },
+    "weakening-spores": {
+      "name": "衰弱の胞子",
+      "description": "有効打なら100%、無効打なら50%で発動。対象の解除可能な攻撃強化Buffをランダムに1つ即座に解除する。その後、待機衰弱を付与し、対象の次ターン中は主動攻撃ダメージ-2。",
+      "card": "発動時、攻撃強化Buffを1つ解除して衰弱を付与。"
+    },
+    "aftershock-axe": {
+      "name": "戦斧の余波",
+      "description": "主動攻撃で対象に3以上のダメージを与えた時、隣接する敵1体に1物理ダメージ。隣が1体なら確定、2体ならランダム。",
+      "card": "主動攻撃3以上で、隣接敵に1物理ダメージ。"
+    },
+    "predatory-instinct": {
+      "name": "美女と野獣",
+      "description": "ダメージを与えなかった時、3絶対ダメージで追撃。味方に姫がいれば+1。姫へは共有盾を無視して攻撃するが、与えたダメージの2倍を自身に受ける（この効果では倒れない）。",
+      "card": "非姫に0ダメージなら絶対追撃。姫には盾を無視し、自傷。"
+    },
+    "interposing-shield": {
+      "name": "身代わりの盾",
+      "description": "騎士以外への主動物理攻撃を味方全体で1回だけ1軽減し、騎士が1物理ダメージを肩代わり。このダメージは騎士自身の防御の影響を受ける。反撃・魔法・スキルには無効。",
+      "card": "騎士以外への主動物理攻撃を1回肩代わり。"
+    }
   }
 }

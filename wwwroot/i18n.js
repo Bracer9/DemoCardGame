@@ -25,9 +25,19 @@
   const characterName = key => lookup('characters', key) ?? key;
   const playerName = value => lookup('players', value) ?? value;
   const damageType = value => lookup('damageTypes', value) ?? value;
-  const skillKind = value => lookup('skillKinds', value) ?? value;
-  const skill = id => {
-    const value = lookup('skills', id) || {};
+  const bpReason = value => lookup('bpReasons', value) ?? value;
+  const reward = id => {
+    const value = lookup('rewards', id) || {};
+    return { id, name: value.name ?? id, description: value.description ?? '' };
+  };
+  const roleAction = id => {
+    const value = lookup('roleActions', id) || {};
+    return { id, name: value.name ?? id, description: value.description ?? '', button: value.button ?? value.name ?? id };
+  };
+  const traitKind = value => lookup('abilityKinds', value) ?? value;
+  const traitTrigger = value => lookup('traitTriggers', value) ?? value;
+  const trait = id => {
+    const value = lookup('traits', id) || {};
     return { id, name: value.name ?? id, description: value.description ?? '', card: value.card ?? value.description ?? '' };
   };
   const status = value => {
@@ -47,7 +57,10 @@
       case 'character': return characterName(arg.value);
       case 'player': return playerName(arg.value);
       case 'damageType': return damageType(arg.value);
-      case 'skill': return skill(arg.value).name;
+      case 'bpReason': return bpReason(arg.value);
+      case 'reward': return reward(arg.value).name;
+      case 'roleAction': return roleAction(arg.value).name;
+      case 'trait': return trait(arg.value).name;
       case 'status': return status({ id: arg.value, magnitude: 0 }).name;
       case 'ui': return t(arg.value);
       default: return arg.value ?? '';
@@ -72,6 +85,6 @@
   window.TinyPixelI18n = {
     load, t, message, toggle, setLanguage,
     get language() { return language; },
-    characterName, playerName, damageType, skillKind, skill, status
+    characterName, playerName, damageType, bpReason, reward, roleAction, traitKind, traitTrigger, trait, status
   };
 })();

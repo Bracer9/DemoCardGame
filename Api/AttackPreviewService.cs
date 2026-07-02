@@ -21,12 +21,17 @@ public sealed class AttackPreviewService
         if (attacker.Definition.AttackType == DamageType.Magical
             && attacker.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
             attackBase++;
-
-        var attack = ForecastDamage(state, defender, attackBase, attacker.Definition.AttackType, DamageSource.ActiveAttack);
+        var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
+        var attack = ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
+        attack = ApplyPreyForecast(defender, attack);
+        var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
+        if (rageShieldBreakBonus > 0)
+            attack = attack with { Min = attack.Min + rageShieldBreakBonus, Max = attack.Max + rageShieldBreakBonus };
         var counter = ForecastDamage(state, attacker, _engine.GetCounterAttack(defender),
             defender.Definition.AttackType, DamageSource.CounterAttack);
-        var skill = _engine.GetSkill(attacker);
-        var (possible, skillText) = ForecastSkill(state, attacker, defender, attack);
+        counter = ApplyPreyForecast(attacker, counter);
+        var trait = _engine.GetTrait(attacker);
+        var (possible, traitText) = ForecastTrait(state, attacker, defender, attack);
 
         var notes = new List<LocalizedText>
         {
@@ -52,6 +57,22 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.attackerDefenseWeakness",
                 ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
                 ("value", L10n.Raw(Math.Abs(counter.DefenseReduction)))));
+        if (attack.ShieldDefenseReduction > 0)
+            notes.Add(L10n.Text("preview.targetShieldDefense",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
+                ("value", L10n.Raw(attack.ShieldDefenseReduction))));
+        if (attack.ShieldDefenseReduction < 0)
+            notes.Add(L10n.Text("preview.targetShieldDefenseWeakness",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
+                ("value", L10n.Raw(Math.Abs(attack.ShieldDefenseReduction)))));
+        if (counter.ShieldDefenseReduction > 0)
+            notes.Add(L10n.Text("preview.attackerShieldDefense",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
+                ("value", L10n.Raw(counter.ShieldDefenseReduction))));
+        if (counter.ShieldDefenseReduction < 0)
+            notes.Add(L10n.Text("preview.attackerShieldDefenseWeakness",
+                ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
+                ("value", L10n.Raw(Math.Abs(counter.ShieldDefenseReduction)))));
         var reduction = GameEngine.GetCounterDebuffReduction(defender);
         if (reduction > 0)
             notes.Add(L10n.Text("preview.complacency", ("value", L10n.Raw(reduction))));
@@ -60,101 +81,220 @@ public sealed class AttackPreviewService
         if (counter.ShieldWillAbsorb)
             notes.Add(L10n.Text("preview.attackerShield", ("value", L10n.Raw(counter.ShieldAbsorb))));
         if (attack.GuardWillTrigger) notes.Add(L10n.Text("preview.guard"));
+        if (GameEngine.IsCounterAttackBlocked(defender))
+            notes.Add(L10n.Text("preview.counterBlockedByChallenge"));
+        if (monsterPrincessAttack)
+            notes.Add(L10n.Text("preview.trait.beautyPrincessBacklash",
+                ("min", L10n.Raw(attack.Min * PredatoryInstinctTrait.PrincessBacklashMultiplier)),
+                ("max", L10n.Raw(attack.Max * PredatoryInstinctTrait.PrincessBacklashMultiplier))));
+        if (attacker.Definition.AttackType == DamageType.Magical
+            && attacker.Statuses.Any(status => status.Id == "charged" && !status.Expired))
+            notes.Add(L10n.Text("preview.roleAction.arcaneChannel",
+                ("value", L10n.Raw(ChargedStatus.DamageBonus))));
+        if (defender.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired)
+            && attacker.Definition.AttackType == DamageType.Magical)
+            notes.Add(L10n.Text("preview.roleAction.searingBrand",
+                ("value", L10n.Raw(SearingBrandStatus.MagicDamageBonus))));
+        if (attacker.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired)
+            && defender.Definition.AttackType == DamageType.Magical)
+            notes.Add(L10n.Text("preview.roleAction.searingBrandCounter",
+                ("value", L10n.Raw(SearingBrandStatus.MagicDamageBonus))));
+        if (rageShieldBreakBonus > 0)
+            notes.Add(L10n.Text("preview.roleAction.warCryShieldBreak",
+                ("value", L10n.Raw(rageShieldBreakBonus))));
+        if (attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired))
+            notes.Add(L10n.Text("preview.roleAction.fateMark"));
+        if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attack.Min <= PreyStatus.AbsoluteDamage)
+            notes.Add(L10n.Text("preview.roleAction.predatoryGaze",
+                ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
+        if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired) && counter.Min <= PreyStatus.AbsoluteDamage)
+            notes.Add(L10n.Text("preview.roleAction.predatoryGazeCounter",
+                ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
 
         return new AttackPreview(true, null, attacker.Id, defender.Id, attacker.Definition.Cost,
-            attack, counter, skill.Metadata.Id, possible, skillText, notes);
+            attack, counter, trait.Metadata.Id, possible, traitText, notes);
     }
 
+    private static DamageForecast ApplyPreyForecast(CharacterState target, DamageForecast forecast)
+    {
+        if (target.Statuses.All(status => status.Id != "prey" || status.Expired) || forecast.Min > 0)
+            return forecast;
+
+        var min = PreyStatus.AbsoluteDamage;
+        var max = forecast.Max == 0
+            ? PreyStatus.AbsoluteDamage
+            : Math.Max(forecast.Max, PreyStatus.AbsoluteDamage);
+        return forecast with { Min = min, Max = max };
+    }
+
+    private DamageForecast ForecastActiveAttackDamage(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender,
+        int attackBase,
+        bool ignoreShield)
+    {
+        var marked = attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired);
+        if (!marked)
+            return ForecastDamage(state, defender, attackBase, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+                ignoreShield: ignoreShield,
+                ignoreDefense: false);
+
+        var reduced = ForecastDamage(state, defender, attackBase / 2, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+            ignoreShield: ignoreShield,
+            ignoreDefense: false);
+        var amplified = ForecastDamage(state, defender, attackBase + FateMarkedStatus.DamageBonus, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+            ignoreShield: ignoreShield,
+            ignoreDefense: false);
+        return CombineForecasts(reduced, amplified);
+    }
+
+    private static DamageForecast CombineForecasts(DamageForecast first, DamageForecast second) => first with
+    {
+        Min = Math.Min(first.Min, second.Min),
+        Max = Math.Max(first.Max, second.Max),
+        ShieldDefenseReduction = Math.Abs(second.ShieldDefenseReduction) > Math.Abs(first.ShieldDefenseReduction)
+            ? second.ShieldDefenseReduction
+            : first.ShieldDefenseReduction,
+        DefenseReduction = Math.Abs(second.DefenseReduction) > Math.Abs(first.DefenseReduction)
+            ? second.DefenseReduction
+            : first.DefenseReduction,
+        ReductionChancePercent = Math.Max(first.ReductionChancePercent, second.ReductionChancePercent),
+        ShieldWillAbsorb = first.ShieldWillAbsorb || second.ShieldWillAbsorb,
+        ShieldAbsorb = Math.Max(first.ShieldAbsorb, second.ShieldAbsorb),
+        GuardWillTrigger = first.GuardWillTrigger || second.GuardWillTrigger,
+        GuardDamage = Math.Max(first.GuardDamage, second.GuardDamage)
+    };
+
     private DamageForecast ForecastDamage(GameState state, CharacterState target, int baseDamage,
-        DamageType type, DamageSource source)
+        DamageType type, DamageSource source, bool ignoreShield = false, bool ignoreDefense = false)
     {
         var owner = state.FindOwner(target);
-        var effectiveDefense = _engine.GetDefense(target, type);
+        var shieldDefense = 0;
+        var damageAfterShieldDefense = baseDamage;
+        if (!ignoreShield && owner.SharedShield > 0 && damageAfterShieldDefense > 0)
+        {
+            var effectiveShieldDefense = GameEngine.GetSharedShieldDefense(owner, type);
+            shieldDefense = effectiveShieldDefense > 0
+                ? Math.Min(damageAfterShieldDefense, effectiveShieldDefense)
+                : effectiveShieldDefense < 0
+                    ? effectiveShieldDefense
+                    : 0;
+            damageAfterShieldDefense = shieldDefense >= 0
+                ? Math.Max(0, damageAfterShieldDefense - shieldDefense)
+                : damageAfterShieldDefense + Math.Abs(shieldDefense);
+        }
+
+        var shield = !ignoreShield && owner.SharedShield > 0 && damageAfterShieldDefense > 0;
+        var shieldAbsorb = shield ? Math.Min(owner.SharedShield, damageAfterShieldDefense) : 0;
+        var damageAfterShield = shield
+            ? Math.Max(0, damageAfterShieldDefense - owner.SharedShield)
+            : damageAfterShieldDefense;
+
+        var effectiveDefense = ignoreDefense ? 0 : _engine.GetDefense(target, type);
         var defense = effectiveDefense > 0
-            ? Math.Min(Math.Max(0, baseDamage), effectiveDefense)
-            : effectiveDefense < 0 && baseDamage > 0
+            ? Math.Min(damageAfterShield, effectiveDefense)
+            : effectiveDefense < 0 && damageAfterShield > 0
                 ? effectiveDefense
                 : 0;
         var damageAfterDefense = defense >= 0
-            ? Math.Max(0, baseDamage - defense)
-            : baseDamage + Math.Abs(defense);
+            ? Math.Max(0, damageAfterShield - defense)
+            : damageAfterShield + Math.Abs(defense);
+        if (type == DamageType.Magical
+            && damageAfterDefense > 0
+            && target.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired))
+            damageAfterDefense += SearingBrandStatus.MagicDamageBonus;
         var hasOracle = owner.Characters.Any(character => character.IsAlive && character.Definition.Key == "oracle");
         var chance = hasOracle ? (type == DamageType.Physical ? 25 : 50) : 0;
         var min = Math.Max(0, damageAfterDefense - (chance > 0 ? 1 : 0));
         var max = Math.Max(0, damageAfterDefense);
-        var shield = owner.SharedShield > 0 && max > 0;
-        var shieldAbsorb = shield ? Math.Min(owner.SharedShield, max) : 0;
-        if (shield) { min = Math.Max(0, min - owner.SharedShield); max = Math.Max(0, max - owner.SharedShield); }
         var knight = owner.Characters.FirstOrDefault(character => character.IsAlive
             && character.Definition.Key == "knight" && !character.GuardConsumed);
         var guard = source == DamageSource.ActiveAttack && type == DamageType.Physical
             && target.Definition.Key != "knight" && knight is not null && max > 0;
         if (guard) { min = Math.Max(0, min - 1); max = Math.Max(0, max - 1); }
-        return new DamageForecast(min, max, type.ToString(), defense, chance, shield, shieldAbsorb, guard, guard ? 1 : 0);
+        return new DamageForecast(min, max, type.ToString(), shieldDefense, defense, chance, shield, shieldAbsorb, guard, guard ? 1 : 0);
     }
 
-    private static (bool, LocalizedText) ForecastSkill(GameState state, CharacterState attacker,
+    private int ForecastRageShieldBreakBonus(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender,
+        DamageForecast attack)
+    {
+        if (attacker.Statuses.All(status => status.Id != "rage" || status.Expired))
+            return 0;
+
+        var defenderOwner = state.FindOwner(defender);
+        return defenderOwner.SharedShield > 0 && attack.ShieldAbsorb >= defenderOwner.SharedShield
+            ? _engine.GetActiveAttack(attacker)
+            : 0;
+    }
+
+    private static (bool, LocalizedText) ForecastTrait(GameState state, CharacterState attacker,
         CharacterState defender, DamageForecast attack) => attacker.Definition.Key switch
     {
         "peasant" => attacker.Statuses.Any(status => status.Id == "harvest" && !status.Expired)
-            ? (false, L10n.Text("preview.skill.harvestActive"))
-            : state.ActionsTakenThisTurn == 0
-                ? (true, L10n.Text("preview.skill.sowing"))
-                : (false, L10n.Text("preview.skill.notFirstAttack")),
+            ? (false, L10n.Text("preview.trait.harvestActive"))
+            : state.ActiveAttacksTakenThisTurn == 0
+                ? (true, L10n.Text("preview.trait.sowing"))
+                : (false, L10n.Text("preview.trait.notFirstAttack")),
         "mage" => (true, L10n.Text(attacker.Statuses.Any(status =>
             status.Id == "magic-power" && !status.Expired)
-            ? "preview.skill.burningBoosted" : "preview.skill.burning")),
-        "druid" => ForecastDruidSkill(defender, attack),
-        "barbarian" => (attack.Max >= AftershockAxeSkill.TriggerDamage,
-            L10n.Text(attack.Min >= AftershockAxeSkill.TriggerDamage
-                ? "preview.skill.aftershockGuaranteed" : "preview.skill.aftershockPossible")),
-        "monster" => ForecastMonsterSkill(state, attacker, defender, attack),
-        _ => (false, L10n.Text("preview.skill.none"))
+            ? "preview.trait.burningBoosted" : "preview.trait.burning")),
+        "druid" => ForecastDruidTrait(defender, attack),
+        "barbarian" => (attack.Max >= AftershockAxeTrait.TriggerDamage,
+            L10n.Text(attack.Min >= AftershockAxeTrait.TriggerDamage
+                ? "preview.trait.aftershockGuaranteed" : "preview.trait.aftershockPossible")),
+        "monster" => ForecastMonsterTrait(state, attacker, defender, attack),
+        _ => (false, L10n.Text("preview.trait.none"))
     };
 
-    private static (bool, LocalizedText) ForecastDruidSkill(CharacterState defender, DamageForecast attack)
+    private static (bool, LocalizedText) ForecastDruidTrait(CharacterState defender, DamageForecast attack)
     {
         var guaranteed = attack.Min > 0;
         var noDamage = attack.Max == 0;
         var key = (guaranteed, noDamage) switch
         {
-            (true, _) => "preview.skill.weaknessGuaranteed",
-            (false, true) => "preview.skill.weaknessChance",
-            _ => "preview.skill.weaknessVariable"
+            (true, _) => "preview.trait.weaknessGuaranteed",
+            (false, true) => "preview.trait.weaknessChance",
+            _ => "preview.trait.weaknessVariable"
         };
         return (true, L10n.Text(key));
     }
 
-    private static (bool, LocalizedText) ForecastMonsterSkill(GameState state, CharacterState attacker,
+    private static (bool, LocalizedText) ForecastMonsterTrait(GameState state, CharacterState attacker,
         CharacterState defender, DamageForecast attack)
     {
         if (defender.Definition.Key == "princess")
-            return (false, L10n.Text("preview.skill.beautyPrincessImmune"));
+            return (true, L10n.Text("preview.trait.beautyPrincessBacklashTrait"));
 
         var hasPrincess = state.FindOwner(attacker).Characters.Any(character =>
             character.IsAlive && character.Definition.Key == "princess");
-        var damage = PredatoryInstinctSkill.AbsoluteDamage
-            + (hasPrincess ? PredatoryInstinctSkill.PrincessBonusDamage : 0);
-        var key = attack.Max == 0 ? "preview.skill.beautyGuaranteed"
-            : attack.Min == 0 ? "preview.skill.beautyPossible"
-            : "preview.skill.beautyUnavailable";
+        var damage = PredatoryInstinctTrait.AbsoluteDamage
+            + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0);
+        var key = attack.Max == 0 ? "preview.trait.beautyGuaranteed"
+            : attack.Min == 0 ? "preview.trait.beautyPossible"
+            : "preview.trait.beautyUnavailable";
         return (attack.Min == 0, L10n.Text(key, ("amount", L10n.Raw(damage))));
     }
 
     private static LocalizedText? Validate(GameState state, CharacterState attacker, CharacterState defender)
     {
         if (state.Phase != GamePhase.Playing) return L10n.Text("error.matchFinished");
+        if (state.RewardWindow is not null) return L10n.Text("error.rewardWindowOpen");
+        if (state.PendingRoleActionUpgrade is not null) return L10n.Text("error.pendingRoleActionUpgrade");
         if (attacker.PlayerId != state.ActivePlayerId) return L10n.Text("error.notActiveCharacter");
         if (defender.PlayerId == state.ActivePlayerId) return L10n.Text("error.cannotAttackAlly");
         if (!attacker.IsAlive || !defender.IsAlive) return L10n.Text("error.defeatedSelection");
-        if (attacker.HasActed) return L10n.Text("error.alreadyActed");
+        if (attacker.HasActed || GameEngine.IsActiveAttackBlocked(attacker)) return L10n.Text("error.alreadyActed");
         if (attacker.Definition.Cost > state.ActionPoints) return L10n.Text("error.notEnoughAp");
         return null;
     }
 
     private static AttackPreview Invalid(Guid attackerId, Guid defenderId, LocalizedText error) => new(
         false, error, attackerId, defenderId, 0,
-        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, false, 0, false, 0),
-        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, false, 0, false, 0),
-        string.Empty, false, L10n.Text("preview.skill.none"), []);
+        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, 0, false, 0, false, 0),
+        new DamageForecast(0, 0, DamageType.Physical.ToString(), 0, 0, 0, false, 0, false, 0),
+        string.Empty, false, L10n.Text("preview.trait.none"), []);
 }

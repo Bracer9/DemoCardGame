@@ -52,7 +52,7 @@ test('rendered image URLs include the manifest version cache key', async () => {
 });
 
 test('all eight event assets are wired into synchronized battle playback', () => {
-  const eventIds = ['physical', 'magical', 'counter', 'skill', 'status-tick', 'heal', 'shield', 'death'];
+  const eventIds = ['physical', 'magical', 'counter', 'trait', 'status-tick', 'heal', 'shield', 'death'];
   for (const id of eventIds) {
     assert.ok(manifest.icons[`event.${id}`], `missing event.${id} artwork`);
     assert.match(appSource, new RegExp(`event\\.${id.replace('-', '\\-')}`), `event.${id} is not used by the battle presenter`);
@@ -67,5 +67,5 @@ test('all eight event assets are wired into synchronized battle playback', () =>
 test('confirmed attacks render a synchronized attacker-to-target link', () => {
   assert.match(appSource, /async function playExchangeEvent[\s\S]*showCombatLink\(attacker, defender\)/);
   assert.match(appSource, /function showCombatLink\(attacker, defender\)/);
-  assert.match(appSource, /combat-link-target/);
+  assert.match(appSource, /combat-link-head/);
 });

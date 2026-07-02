@@ -2,58 +2,275 @@
   "version": 2,
   "basePath": "/assets/ui",
   "icons": {
-    "event.physical": { "category": "event", "source": "events/icon_event_physical.png", "fallback": "⚔", "tone": "physical" },
-    "event.magical": { "category": "event", "source": "events/icon_event_magical.png", "fallback": "✦", "tone": "magic" },
-    "event.counter": { "category": "event", "source": "events/icon_event_counter.png", "fallback": "↩", "tone": "counter" },
-    "event.skill": { "category": "event", "source": "events/icon_event_skill.png", "fallback": "◆", "tone": "skill" },
-    "event.status-tick": { "category": "event", "source": "events/icon_event_status_tick.png", "fallback": "◈", "tone": "status" },
-    "event.heal": { "category": "event", "source": "events/icon_event_heal.png", "fallback": "+", "tone": "heal" },
-    "event.shield": { "category": "event", "source": "events/icon_event_shield.png", "fallback": "⬡", "tone": "shield" },
-    "event.death": { "category": "event", "source": "events/icon_event_death.png", "fallback": "×", "tone": "death" },
-    "status.blessing": { "category": "status", "source": "statuses/status_blessing.png", "fallback": "✦", "tone": "buff" },
-    "status.foresight": { "category": "status", "source": "statuses/status_foresight.png", "fallback": "◉", "tone": "buff" },
-    "status.magic-power": { "category": "status", "source": "statuses/status_foresight.png", "fallback": "✦", "tone": "arcane" },
-    "status.team-shield": { "category": "status", "source": "statuses/status_team_shield.png", "fallback": "⬡", "tone": "buff" },
-    "status.shield-complacency": { "category": "status", "source": null, "fallback": "↘", "tone": "debuff" },
-    "status.beast-rage": { "category": "status", "source": null, "fallback": "♠", "tone": "physical" },
-    "status.guard": { "category": "status", "source": "statuses/status_guard.png", "fallback": "◇", "tone": "buff" },
-    "status.burning": { "category": "status", "source": "statuses/status_burning.png", "fallback": "♨", "tone": "debuff" },
-    "status.weakness-pending": { "category": "status", "source": "statuses/status_weakness_pending.png", "fallback": "◌", "tone": "pending" },
-    "status.weakness": { "category": "status", "source": "statuses/status_weakness.png", "fallback": "↓", "tone": "debuff" },
-    "status.harvest-pending": { "category": "status", "source": "statuses/status_harvest_pending.png", "fallback": "◇", "tone": "pending" },
-    "status.harvest": { "category": "status", "source": "statuses/status_harvest.png", "fallback": "↑", "tone": "buff" },
-    "skill.saints-prayer": { "category": "skill", "source": "skills/skill_saints_prayer.png", "fallback": "✧", "tone": "holy" },
-    "skill.stargazers-aegis": { "category": "skill", "source": "skills/skill_stargazers_aegis.png", "fallback": "◉", "tone": "arcane" },
-    "skill.spring-harvest": { "category": "skill", "source": "skills/skill_spring_harvest.png", "fallback": "♣", "tone": "nature" },
-    "skill.searing-mark": { "category": "skill", "source": "skills/skill_searing_mark.png", "fallback": "♨", "tone": "fire" },
-    "skill.weakening-spores": { "category": "skill", "source": "skills/skill_weakening_spores.png", "fallback": "❈", "tone": "nature" },
-    "skill.aftershock-axe": { "category": "skill", "source": "skills/skill_aftershock_axe.png", "fallback": "⚔", "tone": "physical" },
-    "skill.predatory-instinct": { "category": "skill", "source": "skills/skill_predatory_instinct.png", "fallback": "◈", "tone": "death" },
-    "skill.interposing-shield": { "category": "skill", "source": "skills/skill_interposing_shield.png", "fallback": "◇", "tone": "shield" }
+    "event.physical": {
+      "category": "event",
+      "source": "events/icon_event_physical.png",
+      "fallback": "⚔",
+      "tone": "physical"
+    },
+    "event.magical": {
+      "category": "event",
+      "source": "events/icon_event_magical.png",
+      "fallback": "✦",
+      "tone": "magic"
+    },
+    "event.counter": {
+      "category": "event",
+      "source": "events/icon_event_counter.png",
+      "fallback": "↩",
+      "tone": "counter"
+    },
+    "event.trait": {
+      "category": "event",
+      "source": "events/icon_event_trait.png",
+      "fallback": "◆",
+      "tone": "trait"
+    },
+    "event.status-tick": {
+      "category": "event",
+      "source": "events/icon_event_status_tick.png",
+      "fallback": "◈",
+      "tone": "status"
+    },
+    "event.heal": {
+      "category": "event",
+      "source": "events/icon_event_heal.png",
+      "fallback": "+",
+      "tone": "heal"
+    },
+    "event.shield": {
+      "category": "event",
+      "source": "events/icon_event_shield.png",
+      "fallback": "⬡",
+      "tone": "shield"
+    },
+    "event.death": {
+      "category": "event",
+      "source": "events/icon_event_death.png",
+      "fallback": "×",
+      "tone": "death"
+    },
+    "status.blessing": {
+      "category": "status",
+      "source": "statuses/status_blessing.png",
+      "fallback": "✦",
+      "tone": "buff"
+    },
+    "status.foresight": {
+      "category": "status",
+      "source": "statuses/status_foresight.png",
+      "fallback": "◉",
+      "tone": "buff"
+    },
+    "status.magic-power": {
+      "category": "status",
+      "source": "statuses/status_foresight.png",
+      "fallback": "✦",
+      "tone": "arcane"
+    },
+    "status.team-shield": {
+      "category": "status",
+      "source": "statuses/status_team_shield.png",
+      "fallback": "⬡",
+      "tone": "buff"
+    },
+    "status.shield-complacency": {
+      "category": "status",
+      "source": null,
+      "fallback": "↘",
+      "tone": "debuff"
+    },
+    "status.beast-rage": {
+      "category": "status",
+      "source": null,
+      "fallback": "♠",
+      "tone": "physical"
+    },
+    "status.guard": {
+      "category": "status",
+      "source": "statuses/status_guard.png",
+      "fallback": "◇",
+      "tone": "buff"
+    },
+    "status.burning": {
+      "category": "status",
+      "source": "statuses/status_burning.png",
+      "fallback": "♨",
+      "tone": "debuff"
+    },
+    "status.weakness-pending": {
+      "category": "status",
+      "source": "statuses/status_weakness_pending.png",
+      "fallback": "◌",
+      "tone": "pending"
+    },
+    "status.weakness": {
+      "category": "status",
+      "source": "statuses/status_weakness.png",
+      "fallback": "↓",
+      "tone": "debuff"
+    },
+    "status.harvest-pending": {
+      "category": "status",
+      "source": "statuses/status_harvest_pending.png",
+      "fallback": "◇",
+      "tone": "pending"
+    },
+    "status.harvest": {
+      "category": "status",
+      "source": "statuses/status_harvest.png",
+      "fallback": "↑",
+      "tone": "buff"
+    },
+    "status.supply-guard": {
+      "category": "status",
+      "source": "statuses/status_guard.png",
+      "fallback": "G",
+      "tone": "buff"
+    },
+    "trait.saints-prayer": {
+      "category": "trait",
+      "source": "traits/trait_saints_prayer.png",
+      "fallback": "✧",
+      "tone": "holy"
+    },
+    "trait.stargazers-aegis": {
+      "category": "trait",
+      "source": "traits/trait_stargazers_aegis.png",
+      "fallback": "◉",
+      "tone": "arcane"
+    },
+    "trait.spring-harvest": {
+      "category": "trait",
+      "source": "traits/trait_spring_harvest.png",
+      "fallback": "♣",
+      "tone": "nature"
+    },
+    "trait.searing-mark": {
+      "category": "trait",
+      "source": "traits/trait_searing_mark.png",
+      "fallback": "♨",
+      "tone": "fire"
+    },
+    "trait.weakening-spores": {
+      "category": "trait",
+      "source": "traits/trait_weakening_spores.png",
+      "fallback": "❈",
+      "tone": "nature"
+    },
+    "trait.aftershock-axe": {
+      "category": "trait",
+      "source": "traits/trait_aftershock_axe.png",
+      "fallback": "⚔",
+      "tone": "physical"
+    },
+    "trait.predatory-instinct": {
+      "category": "trait",
+      "source": "traits/trait_predatory_instinct.png",
+      "fallback": "◈",
+      "tone": "death"
+    },
+    "trait.interposing-shield": {
+      "category": "trait",
+      "source": "traits/trait_interposing_shield.png",
+      "fallback": "◇",
+      "tone": "shield"
+    },
+    "status.charged": {
+      "category": "status",
+      "source": null,
+      "fallback": "C",
+      "tone": "arcane"
+    },
+    "status.attack-sealed": {
+      "category": "status",
+      "source": null,
+      "fallback": "X",
+      "tone": "debuff"
+    },
+    "status.searing-brand": {
+      "category": "status",
+      "source": null,
+      "fallback": "B",
+      "tone": "debuff"
+    },
+    "status.charged-pending": {
+      "category": "status",
+      "source": null,
+      "fallback": "C",
+      "tone": "pending"
+    },
+    "status.marked": {
+      "category": "status",
+      "source": null,
+      "fallback": "M",
+      "tone": "debuff"
+    },
+    "status.prey": {
+      "category": "status",
+      "source": null,
+      "fallback": "P",
+      "tone": "death"
+    },
+    "status.pact": {
+      "category": "status",
+      "source": null,
+      "fallback": "P",
+      "tone": "physical"
+    }
   },
   "bindings": {
-    "damageTypes": { "Physical": "event.physical", "Magical": "event.magical", "Absolute": "event.skill" },
+    "damageTypes": {
+      "Physical": "event.physical",
+      "Magical": "event.magical",
+      "Absolute": "event.trait"
+    },
     "logTones": {
-      "physical": "event.physical", "magic": "event.magical", "counter": "event.counter",
-      "skill": "event.skill", "buff": "event.skill", "status": "event.status-tick",
-      "heal": "event.heal", "shield": "event.shield", "defeat": "event.death",
-      "death": "event.death", "turn": "event.status-tick", "system": "event.skill",
-      "neutral": "event.skill"
+      "physical": "event.physical",
+      "magic": "event.magical",
+      "counter": "event.counter",
+      "trait": "event.trait",
+      "buff": "event.trait",
+      "status": "event.status-tick",
+      "heal": "event.heal",
+      "shield": "event.shield",
+      "defeat": "event.death",
+      "death": "event.death",
+      "turn": "event.status-tick",
+      "system": "event.trait",
+      "neutral": "event.trait"
     },
     "statuses": {
-      "blessing": "status.blessing", "foresight": "status.foresight",
+      "blessing": "status.blessing",
+      "foresight": "status.foresight",
       "magic-power": "status.magic-power",
-      "team-shield": "status.team-shield", "shield-complacency": "status.shield-complacency",
+      "team-shield": "status.team-shield",
+      "shield-complacency": "status.shield-complacency",
       "beast-rage": "status.beast-rage",
-      "guard": "status.guard", "burning": "status.burning",
-      "weakness-pending": "status.weakness-pending", "weakness": "status.weakness",
-      "harvest-pending": "status.harvest-pending", "harvest": "status.harvest"
+      "guard": "status.guard",
+      "burning": "status.burning",
+      "weakness-pending": "status.weakness-pending",
+      "weakness": "status.weakness",
+      "harvest-pending": "status.harvest-pending",
+      "harvest": "status.harvest",
+      "supply-guard": "status.supply-guard",
+      "charged": "status.charged",
+      "attack-sealed": "status.attack-sealed",
+      "searing-brand": "status.searing-brand",
+      "charged-pending": "status.charged-pending",
+      "marked": "status.marked",
+      "prey": "status.prey",
+      "pact": "status.pact"
     },
-    "skills": {
-      "saints-prayer": "skill.saints-prayer", "stargazers-aegis": "skill.stargazers-aegis",
-      "spring-harvest": "skill.spring-harvest", "searing-mark": "skill.searing-mark",
-      "weakening-spores": "skill.weakening-spores", "aftershock-axe": "skill.aftershock-axe",
-      "predatory-instinct": "skill.predatory-instinct", "interposing-shield": "skill.interposing-shield"
+    "traits": {
+      "saints-prayer": "trait.saints-prayer",
+      "stargazers-aegis": "trait.stargazers-aegis",
+      "spring-harvest": "trait.spring-harvest",
+      "searing-mark": "trait.searing-mark",
+      "weakening-spores": "trait.weakening-spores",
+      "aftershock-axe": "trait.aftershock-axe",
+      "predatory-instinct": "trait.predatory-instinct",
+      "interposing-shield": "trait.interposing-shield"
     }
   }
 }

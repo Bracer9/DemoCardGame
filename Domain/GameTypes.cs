@@ -11,14 +11,80 @@ public enum DamageSource
 {
     ActiveAttack,
     CounterAttack,
-    Skill,
+    Trait,
     Status
 }
 
-public enum SkillKind
+public enum CardType
 {
-    Active,
-    Passive
+    Hero,
+    Soldier
+}
+
+public enum AbilityKind
+{
+    RoleAction,
+    Trait
+}
+
+public enum TraitTriggerKind
+{
+    Continuous,
+    TurnStart,
+    TurnEnd,
+    OnAttack,
+    OnAttackDeclared,
+    OnAttackResolved,
+    OnDamaged,
+    OnShieldBreak,
+    OnCharacterDefeated,
+    OnRewardWindow,
+    ManualCheck
+}
+
+public enum TraitScopeKind
+{
+    Self,
+    Ally,
+    Enemy,
+    Team,
+    EnemyTeam,
+    Global
+}
+
+public enum TraitEffectKind
+{
+    Damage,
+    Heal,
+    Shield,
+    Status,
+    Dispel,
+    DamageModifier,
+    DefenseModifier,
+    CostModifier,
+    ActionPointModifier,
+    BattlePointModifier,
+    RewardModifier,
+    TargetingRule
+}
+
+public enum RoleActionActivationMode
+{
+    Immediate,
+    Targeted
+}
+
+public enum RoleActionTargetKind
+{
+    None,
+    SelfCard,
+    AllyCard,
+    EnemyCard,
+    OwnShield,
+    EnemyShield,
+    ActionPointPanel,
+    BattlePointMedal,
+    EmptySlot
 }
 
 public enum GamePhase
@@ -48,7 +114,10 @@ public static class L10n
     public static LocalizedArg Character(string key) => new("character", key);
     public static LocalizedArg Player(string value) => new("player", value);
     public static LocalizedArg Damage(DamageType value) => new("damageType", value.ToString());
-    public static LocalizedArg Skill(string id) => new("skill", id);
+    public static LocalizedArg Trait(string id) => new("trait", id);
+    public static LocalizedArg RoleAction(string id) => new("roleAction", id);
     public static LocalizedArg Status(string id) => new("status", id);
+    public static LocalizedArg Reward(string id) => new("reward", id);
+    public static LocalizedArg BpReason(string id) => new("bpReason", id);
     public static LocalizedArg Ui(string key) => new("ui", key);
 }

@@ -172,7 +172,7 @@ startHudSheenLoop()
 low-hp
 ```
 
-当前阈值沿用 voice system 的 `select-low-hp` 判断：当前 HP 大于 0，且小于等于最大 HP 的 25% 向上取整。
+当前阈值沿用 voice system 的 `select-low-hp` 判断：当前 HP 大于 0，且小于等于最大 HP 的约 1/3 向上取整。
 
 视觉参数：
 

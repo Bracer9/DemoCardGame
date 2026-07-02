@@ -158,6 +158,38 @@
       </div>
     </section>
 
+    <aside id="battle-point-hud" class="battle-point-hud" aria-label="Battle Point">
+      <div class="bp-medal" aria-hidden="true"></div>
+      <div class="bp-values">
+        <div class="bp-row bp-row--opponent">
+          <span>ENEMY</span>
+          <strong id="opponent-bp-value">0/0</strong>
+        </div>
+        <div class="bp-row bp-row--active">
+          <span>YOU</span>
+          <strong id="active-bp-value">0/0</strong>
+        </div>
+      </div>
+    </aside>
+    <aside id="bp-inspector" class="shield-inspector bp-inspector" aria-hidden="true"></aside>
+
+    <aside id="reward-window" class="reward-window" aria-hidden="true">
+      <div class="reward-backdrop" aria-hidden="true"></div>
+      <section class="reward-panel" aria-label="Reward Window">
+        <header class="reward-header">
+          <small>TACTICAL REWARD</small>
+          <h2 data-i18n="rewardTitle">戦利品を選択</h2>
+          <p data-i18n="rewardSubtitle">BPを消費して報酬を得るか、スキップして戦功を温存します。</p>
+          <b id="reward-waiting" class="reward-waiting" data-i18n="opponentChoosingReward">相手が報酬を選択中</b>
+        </header>
+        <div id="reward-options" class="reward-options"></div>
+        <footer class="reward-actions">
+          <button id="reward-reset" class="reward-control reward-reset" type="button"></button>
+          <button id="reward-skip" class="reward-control reward-skip" type="button"></button>
+        </footer>
+      </section>
+    </aside>
+
     <aside id="preview-panel" class="preview-panel" aria-live="polite" aria-hidden="true">
       <div class="preview-header">
         <span>COMBAT FORECAST</span>
@@ -172,7 +204,7 @@
         <div id="preview-damage" class="forecast-box physical"><small data-i18n="damageDealt">与えるダメージ</small><strong>—</strong></div>
         <div id="preview-counter" class="forecast-box"><small data-i18n="counterTaken">受ける反撃</small><strong>—</strong></div>
       </div>
-      <div id="preview-skill" class="preview-skill"></div>
+      <div id="preview-trait" class="preview-trait"></div>
       <ul id="preview-notes" class="preview-notes"></ul>
       <div class="preview-actions">
         <button id="confirm-attack" class="confirm-attack preview-action decide-action" type="button" aria-label="攻撃実行" data-i18n-aria="executeAttack"></button>
@@ -181,6 +213,7 @@
     </aside>
 
     <aside id="character-inspector" class="character-inspector" aria-hidden="true"></aside>
+    <aside id="role-action-inspector" class="role-action-detail-inspector" aria-hidden="true"></aside>
     <aside id="status-inspector" class="status-inspector" aria-hidden="true"></aside>
     <aside id="shield-inspector" class="shield-inspector" aria-hidden="true"></aside>
 

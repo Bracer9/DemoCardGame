@@ -4,7 +4,8 @@ using TinyPixelFights.Domain;
 using TinyPixelFights.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton<SkillRegistry>();
+builder.Services.AddSingleton<TraitRegistry>();
+builder.Services.AddSingleton<RoleActionRegistry>();
 builder.Services.AddSingleton<GameEngine>();
 builder.Services.AddSingleton<GameSession>();
 builder.Services.AddSingleton<OnlineGameSession>();
@@ -20,7 +21,7 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/assets"
 });
 
-// Online mode uses its own room/session boundary but shares GameEngine, DTOs, skills and assets.
+// Online mode uses its own room/session boundary but shares GameEngine, DTOs, traits and assets.
 app.MapPost("/api/online/room/create", (CreateRoomRequest request, OnlineGameSession session) =>
     Online(() => Results.Ok(new ApiEnvelope<RoomIdentity>(session.CreateRoom(request.PlayerName)))));
 
@@ -85,6 +86,51 @@ app.MapPost("/api/online/game/end-turn", (HttpRequest request, OnlineGameSession
         engine.EndTurn(state);
         return Results.Ok(new ApiEnvelope<GameView>(
             views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.turnEnded")));
+    })));
+
+app.MapPost("/api/online/game/reward/select", (SelectRewardRequest reward, HttpRequest request,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(request), true, (state, seat, index) =>
+    {
+        engine.SelectReward(state, reward.InstanceId);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardPurchased")));
+    })));
+
+app.MapPost("/api/online/game/reward/reset", (HttpRequest request,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(request), true, (state, seat, index) =>
+    {
+        engine.ResetRewardWindow(state);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardReset")));
+    })));
+
+app.MapPost("/api/online/game/reward/skip", (HttpRequest request,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(request), true, (state, seat, index) =>
+    {
+        engine.SkipRewardWindow(state);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardSkipped")));
+    })));
+
+app.MapPost("/api/online/game/role-action/upgrade", (SelectRoleActionUpgradeRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.SelectRoleActionUpgrade(state, request.CharacterId, request.RoleActionId);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.roleActionUnlocked")));
+    })));
+
+app.MapPost("/api/online/game/role-action/use", (UseRoleActionRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.UseRoleAction(state, request.CharacterId, request.RoleActionId, request.TargetCharacterId);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.roleActionUsed")));
     })));
 
 app.MapGet("/api/game/state", (GameSession session, GameViewFactory views) =>
@@ -170,6 +216,71 @@ app.MapPost("/api/game/end-turn", (GameSession session, GameEngine engine, GameV
         {
             engine.EndTurn(state);
             return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.turnEnded")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/reward/select", (SelectRewardRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.SelectReward(state, request.InstanceId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardPurchased")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/reward/reset", (GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.ResetRewardWindow(state);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardReset")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/reward/skip", (GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.SkipRewardWindow(state);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardSkipped")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/role-action/upgrade", (SelectRoleActionUpgradeRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.SelectRoleActionUpgrade(state, request.CharacterId, request.RoleActionId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.roleActionUnlocked")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/role-action/use", (UseRoleActionRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.UseRoleAction(state, request.CharacterId, request.RoleActionId, request.TargetCharacterId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.roleActionUsed")));
         });
     }
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }

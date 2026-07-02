@@ -32,7 +32,7 @@ VoiceDirector 随机播放该目录下的音频
 | Type | 触发条件 | 说话者 |
 |---|---|---|
 | `select` | 选择/拖起可行动卡片 | 被选择角色 |
-| `select-low-hp` | 选择/拖起可行动卡片，且当前 HP ≤ 当前最大 HP 的 1/4 | 被选择角色 |
+| `select-low-hp` | 选择/拖起可行动卡片，且当前 HP ≤ 当前最大 HP 的 1/3 | 被选择角色 |
 | `attack-preview-overpower` | 选择攻击目标并弹出预测；预测造成伤害 - 预测受到伤害 ≥ 2 | 攻击者 |
 | `attack-preview-disadvantage` | 选择攻击目标并弹出预测；预测受到伤害 - 预测造成伤害 ≥ 2 | 攻击者 |
 | `attack-preview-even` | 选择攻击目标并弹出预测；不属于明显优势/劣势，例如只多造成 1 点、相等、或预测净亏小于 2 | 攻击者 |
@@ -168,7 +168,7 @@ assets/audio/voice/{characterId}/{voiceType}/
   },
   "thresholds": {
     "heavyDamageTakenMaxHpRatio": 0.25,
-    "selectLowHpMaxHpRatio": 0.25
+    "selectLowHpMaxHpRatio": 0.3334
   },
   "preloadTypes": [
     "select",
@@ -518,7 +518,7 @@ assets/audio/voice/mage/select-low-hp/low-hp-01.wav
 assets/audio/voice/mage/select-low-hp/low-hp-02.mp3
 ```
 
-当魔法师当前 HP ≤ `ceil(maxHp × selectLowHpMaxHpRatio)` 时，选择/拖起会优先随机播放这里的语音。没有素材时自动回退普通 `select`。
+当魔法师当前 HP ≤ `ceil(maxHp × selectLowHpMaxHpRatio)` 时，选择/拖起会优先随机播放这里的语音。当前默认阈值为最大 HP 的约 1/3。没有素材时自动回退普通 `select`。
 
 不需要：
 

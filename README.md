@@ -5,7 +5,7 @@
 音频资产、事件映射与扩展方法见 [`reference/TinyPixelFights_Audio.md`](reference/TinyPixelFights_Audio.md)。
 机制扩展、技能设计与 Cost/AP 可变性原则见 [`reference/TinyPixelFights_Extensibility_Principles.md`](reference/TinyPixelFights_Extensibility_Principles.md)。
 
-本项目现在同时包含两种模式，并共用同一套战斗规则、角色、技能、界面、多语言资源和素材：
+本项目现在同时包含两种模式，并共用同一套战斗规则、角色、特性、界面、多语言资源和素材：
 
 - 本地对战：两人在同一台电脑上轮流操作。
 - 在线房间：两人分别使用自己的浏览器，通过房间邀请链接对战。
@@ -162,9 +162,9 @@ wwwroot/                     共用 HTML、CSS、JavaScript 与多语言资源
 Program.cs                   两种模式的 API 路由与应用入口
 ```
 
-角色数据位于 `Domain/CharacterDefinition.cs`，技能位于 `Domain/Skills.cs`，状态效果位于 `Domain/StatusEffects.cs`。本地和在线模式都调用同一个 `GameEngine`；模式差异只存在于 Session、玩家身份和操作权限层。
+角色数据位于 `Domain/CharacterDefinition.cs`，特性位于 `Domain/Traits.cs`，状态效果位于 `Domain/StatusEffects.cs`。本地和在线模式都调用同一个 `GameEngine`；模式差异只存在于 Session、玩家身份和操作权限层。
 
-界面翻译集中在 `wwwroot/i18n.js`，角色、技能与状态通过稳定 ID 获取本地化文本。新增语言或修改 UI 文案只需维护这一份资源。
+界面翻译集中在 `wwwroot/i18n.js`，角色、特性与状态通过稳定 ID 获取本地化文本。新增语言或修改 UI 文案只需维护这一份资源。
 
 ## 音频扩展
 
@@ -189,7 +189,7 @@ wwwroot/locales/ja.json
 wwwroot/locales/zh.json
 ```
 
-新增角色、技能、状态或战报时，需在兩份資源中加入相同 key。完整说明见 `reference/TinyPixelFights_Localization.md`。
+新增角色、特性、状态或战报时，需在兩份資源中加入相同 key。完整说明见 `reference/TinyPixelFights_Localization.md`。
 
 ## 版本（当前 V1.17）
 

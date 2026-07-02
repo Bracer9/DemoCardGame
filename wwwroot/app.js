@@ -4,11 +4,14 @@ const ui = {
   opponentName: document.querySelector('#opponent-name'), bottomName: document.querySelector('#bottom-name'), activePlayer: document.querySelector('#active-player'),
   turn: document.querySelector('#turn-number'), round: document.querySelector('#round-number'), ap: document.querySelector('#ap-pips'), apCurrent: document.querySelector('#ap-current'), apMaximum: document.querySelector('#ap-maximum'), instruction: document.querySelector('#instruction'),
   preview: document.querySelector('#preview-panel'), previewAttacker: document.querySelector('#preview-attacker'), previewDefender: document.querySelector('#preview-defender'),
-  previewDamage: document.querySelector('#preview-damage'), previewCounter: document.querySelector('#preview-counter'), previewSkill: document.querySelector('#preview-skill'),
+  previewDamage: document.querySelector('#preview-damage'), previewCounter: document.querySelector('#preview-counter'), previewTrait: document.querySelector('#preview-trait'),
   previewNotes: document.querySelector('#preview-notes'), confirm: document.querySelector('#confirm-attack'), cancelPreview: document.querySelector('#cancel-preview'), log: document.querySelector('#battle-log'),
+  rewardWindow: document.querySelector('#reward-window'), rewardOptions: document.querySelector('#reward-options'), rewardReset: document.querySelector('#reward-reset'), rewardSkip: document.querySelector('#reward-skip'), rewardWaiting: document.querySelector('#reward-waiting'),
   toast: document.querySelector('#toast'), curtain: document.querySelector('#turn-curtain'), curtainPlayer: document.querySelector('#curtain-player'), fx: document.querySelector('#fx-layer'),
   gameOver: document.querySelector('#game-over'), resultTitle: document.querySelector('#result-title'), resultCopy: document.querySelector('#result-copy'),
   inspector: document.querySelector('#character-inspector'), apHud: document.querySelector('#action-point-hud'),
+  roleActionInspector: document.querySelector('#role-action-inspector'),
+  bpHud: document.querySelector('#battle-point-hud'), bpInspector: document.querySelector('#bp-inspector'), opponentBpValue: document.querySelector('#opponent-bp-value'), activeBpValue: document.querySelector('#active-bp-value'),
   statusInspector: document.querySelector('#status-inspector'), shieldInspector: document.querySelector('#shield-inspector'), shieldButton: document.querySelector('#deploy-shield'),
   activeShield: document.querySelector('#active-shield'), opponentShield: document.querySelector('#opponent-shield'),
   activeShieldDome: document.querySelector('#active-shield-dome'), opponentShieldDome: document.querySelector('#opponent-shield-dome'),
@@ -183,12 +186,14 @@ let selectedAttacker = null;
 let selectedDefender = null;
 let inspectedCardId = null;
 let suppressedOpponentInspectorId = null;
+let pendingRoleAction = null;
 let preview = null;
 let busy = false;
 let hasStarted = false;
 let dealing = false;
 let initialLoadPromise = null;
 let dragArrowOrigin = null;
+let roleActionDragActive = false;
 let sessionMode = null;
 let playerToken = localStorage.getItem('tpf-online-player-token') || '';
 let room = null;
@@ -196,6 +201,7 @@ let pollTimer = null;
 let lastGameJson = '';
 let endTurnQueued = false;
 let lastApSnapshot = null;
+let lastRewardRenderKey = '';
 let lastAnimatedLogSequence = 0;
 let eventPlayback = false;
 let resultAudioGameId = null;
@@ -291,11 +297,11 @@ async function playGuardRedirectEvent(entry, state, options = {}) {
   const amount = Number(logArg(entry, 'amount') || 0);
   const guardTarget = characterElementFromLog(state, entry);
   const protectedTarget = characterElementByKey(state, logArg(entry, 'target'));
-  sound.emit('skill.guard-trigger');
+  sound.emit('trait.guard-trigger');
   if (options.emitVoice) emitGuardVoice(entry);
   await Promise.all([
-    eventBurst(guardTarget, eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' }),
-    eventBurst(protectedTarget, eventIcon.skill, { title: i18n.skill('interposing-shield').name, secondaryIconId: art.forSkill('interposing-shield'), amount: `-${amount}`, tone: 'skill' })
+    eventBurst(guardTarget, eventIcon.trait, { title: i18n.trait('interposing-shield').name, secondaryIconId: art.forTrait('interposing-shield'), amount: `-${amount}`, tone: 'trait' }),
+    eventBurst(protectedTarget, eventIcon.trait, { title: i18n.trait('interposing-shield').name, secondaryIconId: art.forTrait('interposing-shield'), amount: `-${amount}`, tone: 'trait' })
   ]);
 }
 function defenderDefeatedByExchange(defenderKey, attackDamage, state) {
@@ -363,9 +369,11 @@ function render() {
   ui.opponentName.textContent = i18n.playerName(opponent.name);
   renderShieldBadge(ui.activeShield, me.sharedShield);
   renderShieldBadge(ui.opponentShield, opponent.sharedShield);
+  renderBattlePoints(me, opponent);
+  renderRewardWindow();
   const activeSharedShield = active?.sharedShield || 0;
   const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && activeSharedShield > 0;
-  const shieldUnavailable = !game.canDeployShield || !game.canControl || dealing;
+  const shieldUnavailable = !game.canDeployShield || !game.canControl || dealing || Boolean(game.pendingRoleActionUpgrade);
   ui.shieldButton.disabled = false;
   ui.shieldButton.classList.toggle('unavailable', shieldUnavailable);
   ui.shieldButton.setAttribute('aria-disabled', String(shieldUnavailable));
@@ -412,15 +420,17 @@ function render() {
   ui.opponentCards.dataset.count = String(opponentCharacters.length);
   ui.activeCards.innerHTML = renderCardRow(activeCharacters, true);
   ui.opponentCards.innerHTML = renderCardRow(opponentCharacters, false);
-  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me.sharedShield, hasPendingShieldBreakForPlayer(game, me));
-  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent.sharedShield, hasPendingShieldBreakForPlayer(game, opponent));
+  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me, hasPendingShieldBreakForPlayer(game, me));
+  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent, hasPendingShieldBreakForPlayer(game, opponent));
   bindCards();
   renderLog();
   updateInstruction();
   renderGameOver();
   ui.app.classList.toggle('turn-locked', !game.canControl);
+  ui.app.classList.toggle('role-action-upgrade-pending', Boolean(game.pendingRoleActionUpgrade?.canChoose));
+  ui.app.classList.toggle('role-action-targeting', Boolean(pendingRoleAction));
   ui.app.classList.toggle('attacker-selected', Boolean(selectedAttacker));
-  ui.endTurn.disabled = !game.canControl || game.phase === 'Finished';
+  ui.endTurn.disabled = !game.canControl || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade);
   ui.endTurn.classList.toggle('queued', endTurnQueued);
   ui.endTurn.classList.toggle('ap-empty-ready', game.canControl && game.phase !== 'Finished' && game.actionPoints === 0 && !endTurnQueued);
   ui.endTurn.setAttribute('aria-busy', String(endTurnQueued));
@@ -430,9 +440,71 @@ function render() {
   syncSelectedInspector();
 }
 
+function renderRewardWindow() {
+  const reward = game?.rewardWindow;
+  if (!ui.rewardWindow) return;
+  const open = Boolean(reward);
+  ui.rewardWindow.classList.toggle('open', open);
+  ui.rewardWindow.classList.toggle('can-choose', Boolean(reward?.canChoose));
+  ui.rewardWindow.setAttribute('aria-hidden', String(!open));
+  if (!reward) {
+    ui.rewardOptions.innerHTML = '';
+    lastRewardRenderKey = '';
+    return;
+  }
+
+  selectedAttacker = null;
+  selectedDefender = null;
+  inspectedCardId = null;
+  hideAttackArrow();
+  hideCharacterInspector();
+  hideShieldInspector();
+  closePreview();
+  ui.rewardWaiting.hidden = reward.canChoose;
+  const rewardKey = [
+    i18n.language,
+    reward.playerId,
+    reward.roundNumber,
+    reward.resetCount,
+    reward.canChoose,
+    ...(reward.options || []).map(option => `${option.instanceId}:${option.rewardId}:${option.cost}:${option.canAfford}`)
+  ].join('|');
+  if (rewardKey !== lastRewardRenderKey) {
+    lastRewardRenderKey = rewardKey;
+    ui.rewardOptions.innerHTML = (reward.options || []).map((option, index) => {
+      const localized = i18n.reward(option.rewardId);
+      const disabled = !reward.canChoose || !option.canAfford;
+      return `<button class="reward-card ${option.canAfford ? '' : 'unaffordable'}" type="button" data-reward-instance="${escapeHtml(option.instanceId)}" data-index="${index}" ${disabled ? 'disabled' : ''}>
+        <small>${escapeHtml(option.rarity || 'COMMON')}</small>
+        <strong>${escapeHtml(localized.name)}</strong>
+        <p>${escapeHtml(localized.description)}</p>
+        <b>${option.cost} BP</b>
+        ${option.canAfford ? '' : `<em>${escapeHtml(i18n.t('rewardCannotAfford'))}</em>`}
+      </button>`;
+    }).join('');
+  }
+
+  const resetCost = Number(reward.nextResetCost || 0);
+  const viewer = game.players.find(player => player.id === game.viewerPlayerId);
+  const canAffordReset = Number(viewer?.battlePoints?.current || 0) >= resetCost;
+  ui.rewardReset.disabled = !reward.canChoose || !canAffordReset;
+  ui.rewardReset.innerHTML = `<span>${escapeHtml(i18n.t('rewardReset'))}</span><b>${escapeHtml(resetCost === 0 ? i18n.t('rewardResetFree') : i18n.t('rewardResetCost', { cost: resetCost }))}</b>`;
+  ui.rewardSkip.disabled = !reward.canChoose;
+  ui.rewardSkip.innerHTML = `<span>${escapeHtml(Number(reward.purchaseCount || 0) > 0 ? i18n.t('rewardExit') : i18n.t('rewardSkip', { amount: 1 }))}</span>`;
+}
+
 function renderShieldBadge(element, value) {
   element.innerHTML = value > 0 ? `${art.icon('status.team-shield', { size: 'xs', label: 'Shared shield' })}<span>SHARED SHIELD</span><b>${value}</b>` : '';
   element.classList.toggle('active', value > 0);
+}
+
+function renderBattlePoints(me, opponent) {
+  if (!ui.bpHud) return;
+  const format = bp => bp ? `${bp.current}/${bp.max}` : '0/0';
+  ui.activeBpValue.textContent = format(me?.battlePoints);
+  ui.opponentBpValue.textContent = format(opponent?.battlePoints);
+  ui.activeBpValue.parentElement?.setAttribute('title', me?.battlePoints?.lastReasonId ? i18n.bpReason(me.battlePoints.lastReasonId) : '');
+  ui.opponentBpValue.parentElement?.setAttribute('title', opponent?.battlePoints?.lastReasonId ? i18n.bpReason(opponent.battlePoints.lastReasonId) : '');
 }
 
 function hasPendingShieldBreakForPlayer(state, player) {
@@ -444,10 +516,15 @@ function hasPendingShieldBreakForPlayer(state, player) {
     && characterKeys.has(String(logArg(entry, 'character') || '')));
 }
 
-function renderPersistentShield(dome, row, value, preserveUntilBreak = false) {
+function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBreak = false) {
+  const player = typeof playerOrShieldValue === 'object' && playerOrShieldValue !== null ? playerOrShieldValue : null;
+  const value = player ? Number(player.sharedShield || 0) : Number(playerOrShieldValue || 0);
   const cards = [...row.querySelectorAll('.fighter-card')];
   const isOpponentShield = dome === ui.opponentShieldDome;
   dome.classList.toggle('opponent-facing', isOpponentShield);
+  dome.dataset.shield = String(value);
+  dome.dataset.pdef = String(player?.sharedShieldPhysicalDefense || 0);
+  dome.dataset.mdef = String(player?.sharedShieldMagicalDefense || 0);
   if (value <= 0 || cards.length === 0) {
     if (preserveUntilBreak && cards.length > 0 && dome.classList.contains('active')) {
       dome.dataset.pendingBreak = 'true';
@@ -458,9 +535,11 @@ function renderPersistentShield(dome, row, value, preserveUntilBreak = false) {
     dome.classList.remove('active', 'forming', 'breaking', 'pending-break');
     delete dome.dataset.pendingBreak;
     delete dome.dataset.visualShieldValue;
+    dome.setAttribute('aria-hidden', 'true');
     return;
   }
   dome.dataset.visualShieldValue = String(value);
+  dome.setAttribute('aria-hidden', 'false');
   const first = stageRect(cards[0]), last = stageRect(cards[cards.length - 1]);
   const height = value > 2 ? 46 : 38;
   const edgeOffset = value > 2 ? 18 : 13;
@@ -492,9 +571,42 @@ function defenseMarkup(value, tagName = 'strong') {
   return `<${tagName}${className}>${displayValue}</${tagName}>`;
 }
 
+function statDeltaDisplay(current, base, { absoluteCurrent = false } = {}) {
+  const currentValue = Number(current || 0);
+  const baseValue = Number(base || 0);
+  const delta = currentValue - baseValue;
+  const currentDisplay = absoluteCurrent ? Math.abs(currentValue) : currentValue;
+  return delta === 0 ? `${currentDisplay}` : `${currentDisplay} (${delta > 0 ? '+' : ''}${delta})`;
+}
+
+function defenseDeltaMarkup(current, base) {
+  const currentValue = Number(current || 0);
+  const className = currentValue < 0 ? 'defense-negative' : currentValue > 0 ? 'defense-positive' : '';
+  return `<b${className ? ` class="${className}"` : ''}>${escapeHtml(statDeltaDisplay(current, base, { absoluteCurrent: true }))}</b>`;
+}
+
 function damageTypeGlyph(type) {
   const localized = String(i18n.damageType(type) || type || '').trim();
   return localized ? localized[0] : '';
+}
+
+const AURA_DISPLAY_STATUS_IDS = new Set(['blessing', 'foresight', 'guard', 'magic-power']);
+const AURA_DISPLAY_ORDER = ['guard', 'blessing', 'foresight', 'magic-power'];
+function isAuraDisplayStatus(status) {
+  return Boolean(status?.isAura) || AURA_DISPLAY_STATUS_IDS.has(status?.id);
+}
+function sortAuraDisplayStatuses(statuses) {
+  return [...statuses].sort((a, b) => {
+    const left = AURA_DISPLAY_ORDER.indexOf(a?.id);
+    const right = AURA_DISPLAY_ORDER.indexOf(b?.id);
+    const leftOrder = left >= 0 ? left : AURA_DISPLAY_ORDER.length;
+    const rightOrder = right >= 0 ? right : AURA_DISPLAY_ORDER.length;
+    return leftOrder - rightOrder || String(a?.name || '').localeCompare(String(b?.name || ''));
+  });
+}
+
+function primaryTrait(card) {
+  return Array.isArray(card?.traits) && card.traits.length > 0 ? card.traits[0] : null;
 }
 
 function cardMarkup(card, isActiveSide, index = 0, count = 1) {
@@ -509,12 +621,23 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
       && entry.message?.key === 'log.defeated'
       && String(logArg(entry, 'characterId') || '') === String(card.id));
   const visuallyAlive = visualIsAlive || isPendingDefeatAnimation;
-  const canConsiderCost = isActiveSide && game?.canControl && visuallyAlive && !card.hasActed;
-  if (canConsiderCost && card.cost <= game.actionPoints) classes.push('affordable-cost');
-  if (canConsiderCost && card.cost > game.actionPoints) classes.push('unaffordable-cost');
+  const hasEnabledRoleAction = isActiveSide && game?.canControl
+    && Array.isArray(card.roleActions) && card.roleActions.some(action => action.enabled);
+  const hasAvailableAction = Boolean(card.canAct || hasEnabledRoleAction);
+  const canConsiderAttackCost = isActiveSide && game?.canControl && visuallyAlive && !card.hasActed;
+  if (canConsiderAttackCost && card.cost <= game.actionPoints) classes.push('affordable-cost');
+  if (canConsiderAttackCost && card.cost > game.actionPoints) classes.push('unaffordable-cost');
+  if (isActiveSide && game?.canControl && visuallyAlive && card.hasActed) classes.push('attack-spent');
   if (card.canAct && !isPendingDefeatAnimation) classes.push('can-act');
+  if (isActiveSide && Array.isArray(card.roleActions) && card.roleActions.length && visuallyAlive)
+    classes.push('role-action-owner');
+  if (game?.pendingRoleActionUpgrade?.canChoose && isActiveSide && Array.isArray(card.roleActionChoices) && card.roleActionChoices.length)
+    classes.push('upgrade-selectable');
+  if (pendingRoleAction && isActiveSide && visuallyAlive)
+    classes.push('role-action-target');
   if (isLowHpForSelect({ ...card, currentHp: visualCurrentHp })) classes.push('low-hp');
-  if (card.hasActed) classes.push('acted');
+  if (isActiveSide && game?.canControl && visuallyAlive && !hasAvailableAction) classes.push('acted');
+  else if (!isActiveSide && card.hasActed) classes.push('acted');
   if (!visuallyAlive) classes.push('defeated');
   if (!visualIsInBattle && !isPendingDefeatAnimation) classes.push('leaving-battle');
   if (isPendingDefeatAnimation) classes.push('pending-defeat');
@@ -523,27 +646,30 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   if (card.id === selectedAttacker) classes.push('selected');
   if (card.id === selectedDefender) classes.push('target-selected');
   const translatedStatuses = card.statuses.map(status => i18n.status(status));
-  const statuses = translatedStatuses.map(status => `<span class="status-chip ${status.isBuff ? '' : 'debuff'}" title="${escapeHtml(status.description)}">${art.icon(art.forStatus(status.id), { size: 'xs', label: status.name })}<span>${escapeHtml(status.name)}</span></span>`).join('');
-  const localizedSkill = i18n.skill(card.skill.id);
-  localizedSkill.kind = i18n.skillKind(card.skill.kind);
-  const skillClass = card.skill.isReady ? 'ready' : 'disabled';
+  const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
+  const statuses = visibleStatuses.map(status => `<span class="status-chip ${status.isBuff ? '' : 'debuff'}" title="${escapeHtml(status.description)}">${art.icon(art.forStatus(status.id), { size: 'xs', label: status.name })}<span>${escapeHtml(status.name)}</span></span>`).join('');
+  const trait = primaryTrait(card);
+  const localizedTrait = i18n.trait(trait?.id);
+  localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
+  const traitClass = trait?.isReady !== false ? 'ready' : 'disabled';
   const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
   const hpRatio = card.maxHp > 0 ? Math.max(0, Math.min(1, visualCurrentHp / card.maxHp)) : 0;
   const hpEmpty = visualCurrentHp <= 0 ? ' hp-empty' : '';
-  const cardDescription = truncateCardText(localizedSkill.card, 28);
+  const cardDescription = truncateCardText(localizedTrait.card, 28);
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
+  const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}">`;
   const costCrystals = Array.from({ length: Math.max(0, card.cost) }, () => '<i class="cost-crystal" aria-hidden="true"></i>').join('');
   return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}" data-id="${card.id}" data-key="${card.key}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
     <div class="card-name">${escapeHtml(i18n.characterName(card.key))}</div><div class="cost-orb" aria-label="Cost ${card.cost}">${costCrystals}</div>
     <div class="type-rune ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</div>
-    <div class="portrait-wrap"><img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}"></div>
+    <div class="portrait-wrap">${portraitMarkup}</div>
     <div class="status-stack">${statuses}</div>
-    <div class="skill-panel ${skillClass}" title="${escapeHtml(i18n.message(card.skill.unavailableReason))}">
-      <div class="skill-title"><span>${escapeHtml(localizedSkill.name)}</span><b class="skill-kind">${escapeHtml(localizedSkill.kind)}</b></div>
-      <p class="skill-description">${escapeHtml(cardDescription)}</p>
+    <div class="trait-panel ${traitClass}" title="${escapeHtml(i18n.message(trait?.unavailableReason))}">
+      <div class="trait-title"><span>${escapeHtml(localizedTrait.name)}</span><b class="trait-kind">${escapeHtml(localizedTrait.kind)}</b></div>
+      <p class="trait-description">${escapeHtml(cardDescription)}</p>
     </div>
     <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong><em class="attack-type-label">${escapeHtml(damageTypeGlyph(card.attackType))}</em></div>
-    <div class="stat-orb defense"><span>${escapeHtml(damageTypeGlyph('Physical'))}</span>${defenseMarkup(card.physicalDefense)}<span>${escapeHtml(damageTypeGlyph('Magical'))}</span>${defenseMarkup(card.magicalDefense)}</div>
+    <div class="stat-orb defense"><span>物防</span>${defenseMarkup(card.physicalDefense)}<span>魔防</span>${defenseMarkup(card.magicalDefense)}</div>
     <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${visualCurrentHp}<small>/${card.maxHp}</small></strong></div>
   </article>`;
 }
@@ -572,7 +698,7 @@ function bindCards() {
       }
       document.querySelectorAll('.fighter-card.selected').forEach(element => element.classList.remove('selected'));
       card.classList.add('selected');
-      syncSelectedInspector();
+      hideCharacterInspector();
       event.dataTransfer.setData('text/plain', selectedAttacker);
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setDragImage(dragGhost, 0, 0);
@@ -590,19 +716,52 @@ function bindCards() {
     if (card.dataset.side === 'opponent' && !card.classList.contains('defeated')) {
       card.addEventListener('mouseenter', () => showOpponentHoverInspector(card));
       card.addEventListener('mouseleave', () => hideOpponentHoverInspector(card));
-      card.addEventListener('dragover', event => { if (selectedAttacker) { event.preventDefault(); card.classList.add('drop-ready'); const point = clientToStage(event.clientX, event.clientY); updateAttackArrow(point.x, point.y, card); } });
+      card.addEventListener('dragover', event => {
+        if (roleActionDragActive) return;
+        if (selectedAttacker) {
+          event.preventDefault();
+          card.classList.add('drop-ready');
+          const point = clientToStage(event.clientX, event.clientY);
+          updateAttackArrow(point.x, point.y, card);
+        }
+      });
       card.addEventListener('dragleave', () => card.classList.remove('drop-ready'));
-      card.addEventListener('drop', event => { event.preventDefault(); card.classList.remove('drop-ready'); hideAttackArrow(); chooseDefender(card.dataset.id); });
+      card.addEventListener('drop', event => {
+        if (roleActionDragActive) return;
+        event.preventDefault();
+        card.classList.remove('drop-ready');
+        hideAttackArrow();
+        chooseDefender(card.dataset.id);
+      });
     }
+    card.addEventListener('dragover', event => {
+      if (!roleActionDragActive || !pendingRoleAction || !canRoleActionTargetCard(pendingRoleAction, card)) return;
+      event.preventDefault();
+      card.classList.add('drop-ready');
+      const point = clientToStage(event.clientX, event.clientY);
+      updateAttackArrow(point.x, point.y, card);
+    });
+    card.addEventListener('dragleave', () => {
+      if (roleActionDragActive) card.classList.remove('drop-ready');
+    });
+    card.addEventListener('drop', event => {
+      if (!roleActionDragActive || !pendingRoleAction || !canRoleActionTargetCard(pendingRoleAction, card)) return;
+      event.preventDefault();
+      card.classList.remove('drop-ready');
+      const action = pendingRoleAction;
+      hideAttackArrow();
+      useRoleAction(action.characterId, action.roleActionId, card.dataset.id);
+    });
   });
 }
 
-function startAttackArrow(card) {
-  const rect = stageRect(card);
-  const isActiveCard = card.dataset.side === 'active';
+function startAttackArrow(sourceElement, mode = 'attack') {
+  const rect = stageRect(sourceElement);
+  const isActiveCard = sourceElement.classList.contains('fighter-card') && sourceElement.dataset.side === 'active';
   const lift = isActiveCard ? cssPixelVar('--active-selected-lift', 0) : 0;
-  const alreadyLifted = card.classList.contains('selected') && Math.abs(cssTranslateY(card)) > Math.max(12, lift * .5);
+  const alreadyLifted = sourceElement.classList.contains('selected') && Math.abs(cssTranslateY(sourceElement)) > Math.max(12, lift * .5);
   dragArrowOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height * 0.5 - (alreadyLifted ? 0 : lift) };
+  ui.attackArrow.classList.toggle('role-action', mode === 'role-action');
   ui.attackArrow.classList.add('active');
   updateAttackArrow(dragArrowOrigin.x, dragArrowOrigin.y - 72);
 }
@@ -663,9 +822,10 @@ function updateAttackArrow(pointerX, pointerY, snapTarget = null) {
 
 function hideAttackArrow() {
   dragArrowOrigin = null;
+  roleActionDragActive = false;
   ui.app.classList.remove('dragging-attack');
   document.body.classList.remove('dragging-attack');
-  ui.attackArrow.classList.remove('active', 'locked');
+  ui.attackArrow.classList.remove('active', 'locked', 'role-action');
 }
 
 function showCharacterInspector(element) {
@@ -675,31 +835,81 @@ function showCharacterInspector(element) {
     return;
   }
   hideShieldInspector();
+  hideRoleActionInspector();
   const translatedStatuses = card.statuses.map(status => i18n.status(status));
-  const localizedSkill = i18n.skill(card.skill.id);
-  localizedSkill.kind = i18n.skillKind(card.skill.kind);
-  const statusMarkup = translatedStatuses.length
-    ? translatedStatuses.map(status => `<li class="${status.isBuff ? 'buff' : 'debuff'}">
-        <div class="effect-title">${art.icon(art.forStatus(status.id), { size: 'md', label: status.name })}<div><b>${escapeHtml(status.name)}</b><em>${status.isBuff ? i18n.t('buff') : i18n.t('debuff')}${status.isAura ? ` / ${i18n.t('aura')}` : ''}</em></div></div>
+  const auraStatuses = sortAuraDisplayStatuses(translatedStatuses.filter(isAuraDisplayStatus));
+  const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
+  const trait = primaryTrait(card);
+  const localizedTrait = i18n.trait(trait?.id);
+  localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
+  const visibleStatusMarkup = visibleStatuses.map(status => `<li class="${status.isBuff ? 'buff' : 'debuff'}">
+        <div class="effect-title">${art.icon(art.forStatus(status.id), { size: 'md', label: status.name })}<div><b>${escapeHtml(status.name)}</b><em>${status.isBuff ? i18n.t('buff') : i18n.t('debuff')}${status.isAura ? ` / ${i18n.t('aura')}` : ''}${status.isDispellable === false ? ` / ${i18n.t('notDispellable')}` : ''}</em></div></div>
         <small>${escapeHtml(status.timing || i18n.t('always'))}</small><p>${escapeHtml(status.description)}</p>
-      </li>`).join('')
+      </li>`).join('');
+  const auraMarkup = auraStatuses.length
+    ? `<li class="buff aura-group">
+        <div class="effect-title">${art.icon(art.forStatus(auraStatuses[0]?.id || 'foresight'), { size: 'md', label: i18n.t('aura') })}<div><b>${escapeHtml(i18n.t('aura'))}</b><em>×${escapeHtml(auraStatuses.length)}</em></div></div>
+        <small>${escapeHtml(i18n.t('always'))}</small><p>${escapeHtml(auraStatuses.map(status => status.name).join(' / '))}</p>
+        <div class="aura-detail" aria-hidden="true">
+          <header><span>${escapeHtml(i18n.t('aura'))}</span><strong>${escapeHtml(i18n.t('effects'))}</strong></header>
+          <ul>${auraStatuses.map(status => `<li>
+            <div class="effect-title">${art.icon(art.forStatus(status.id), { size: 'md', label: status.name })}<div><b>${escapeHtml(status.name)}</b><em>${status.isDispellable === false ? escapeHtml(i18n.t('notDispellable')) : escapeHtml(i18n.t('aura'))}</em></div></div>
+            <small>${escapeHtml(status.timing || i18n.t('always'))}</small>
+            <p>${escapeHtml(status.description)}</p>
+          </li>`).join('')}</ul>
+        </div>
+      </li>`
+    : '';
+  const statusMarkup = visibleStatusMarkup || auraMarkup
+    ? `${visibleStatusMarkup}${auraMarkup}`
     : `<li class="empty-status">${i18n.t('noEffects')}</li>`;
   const attackDelta = card.attack - card.baseAttack;
   const attackDisplay = attackDelta === 0 ? `${card.attack}` : `${card.attack} (${attackDelta > 0 ? '+' : ''}${attackDelta})`;
+  const isUpgradeChoiceMode = Boolean(game?.pendingRoleActionUpgrade?.canChoose)
+    && Array.isArray(card.roleActionChoices) && card.roleActionChoices.length > 0;
+  const visibleRoleActions = isUpgradeChoiceMode ? card.roleActionChoices : card.roleActions;
+  const roleActionMarkup = Array.isArray(visibleRoleActions) && visibleRoleActions.length
+    ? visibleRoleActions.map(action => {
+        const localized = i18n.roleAction(action.id);
+        const summary = roleActionSummary(localized.description);
+        const disabledText = action.disabledReason ? i18n.message(action.disabledReason) : '';
+        const disabled = !isUpgradeChoiceMode && !action.enabled;
+        const cooldownRemaining = Number(action.cooldownRemaining || 0);
+        const cooldownTurns = Number(action.cooldownTurns || 0);
+        const costLabel = cooldownRemaining > 0 ? `CD ${cooldownRemaining}` : `${action.cost} AP`;
+        const draggable = !isUpgradeChoiceMode && !disabled && Array.isArray(action.validTargetKinds)
+          && action.validTargetKinds.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind));
+        return `<button class="role-action-button ${isUpgradeChoiceMode ? 'choice' : ''} ${disabled ? 'disabled' : 'enabled'}" type="button"
+          data-character-id="${escapeHtml(card.id)}" data-role-action-id="${escapeHtml(action.id)}" data-role-action-mode="${escapeHtml(action.activationMode)}"
+          data-role-action-targets="${escapeHtml((action.validTargetKinds || []).join(','))}"
+          data-role-action-name="${escapeHtml(localized.name)}" data-role-action-description="${escapeHtml(localized.description)}"
+          data-role-action-cost="${escapeHtml(action.cost)}" data-role-action-summary="${escapeHtml(summary)}"
+          data-role-action-cooldown="${escapeHtml(cooldownTurns)}" data-role-action-cooldown-remaining="${escapeHtml(cooldownRemaining)}"
+          ${draggable ? 'draggable="true"' : ''} ${disabled ? 'disabled' : ''}>
+          <span>${escapeHtml(localized.button || localized.name)}</span><small>${escapeHtml(costLabel)}</small>
+          <em>${escapeHtml(summary)}</em>
+        </button>`;
+      }).join('')
+    : `<p class="role-action-empty">${escapeHtml(i18n.t('roleActionLocked'))}</p>`;
   ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><strong>${escapeHtml(i18n.characterName(card.key))}</strong></header>
     <div class="inspector-stats">
       <div class="stat-card stat-attack"><span>ATK</span><b>${escapeHtml(attackDisplay)}</b></div>
       <div class="stat-card stat-hp"><span>HP</span><b>${card.currentHp}/${card.maxHp}</b></div>
       <div class="stat-card stat-cost"><span>COST</span><b>${card.cost}</b></div>
       <div class="stat-card stat-type"><span>TYPE</span><b class="damage-type ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</b></div>
-      <div class="stat-card stat-pdef"><span>P.DEF</span>${defenseMarkup(card.physicalDefense, 'b')}</div>
-      <div class="stat-card stat-mdef"><span>M.DEF</span>${defenseMarkup(card.magicalDefense, 'b')}</div>
+      <div class="stat-card stat-pdef"><span>P.DEF</span>${defenseDeltaMarkup(card.physicalDefense, card.basePhysicalDefense)}</div>
+      <div class="stat-card stat-mdef"><span>M.DEF</span>${defenseDeltaMarkup(card.magicalDefense, card.baseMagicalDefense)}</div>
     </div>
-    <section class="inspector-skill ${card.skill.isReady ? 'ready' : 'disabled'}">
-      <div class="inspector-skill-heading">${art.icon(art.forSkill(card.skill.id), { size: 'md', label: localizedSkill.name })}<div><span>SKILL / ${escapeHtml(localizedSkill.kind)}</span><b>${escapeHtml(localizedSkill.name)}</b><p>${escapeHtml(localizedSkill.description)}</p></div></div>
-      ${card.skill.unavailableReason ? `<small>${escapeHtml(i18n.message(card.skill.unavailableReason))}</small>` : ''}
+    <section class="inspector-trait ${trait?.isReady !== false ? 'ready' : 'disabled'}">
+      <div class="inspector-trait-heading">${art.icon(art.forTrait(trait?.id), { size: 'md', label: localizedTrait.name })}<div><span>TRAIT / ${escapeHtml(localizedTrait.kind)}</span><b>${escapeHtml(localizedTrait.name)}</b><p>${escapeHtml(localizedTrait.description)}</p></div></div>
+      ${trait?.unavailableReason ? `<small>${escapeHtml(i18n.message(trait.unavailableReason))}</small>` : ''}
+    </section>
+    <section class="inspector-role-actions">
+      <div class="inspector-section-label">${escapeHtml(isUpgradeChoiceMode ? i18n.t('roleActionChooseTitle') : i18n.t('roleActionTitle'))}</div>
+      <div class="role-action-list">${roleActionMarkup}</div>
     </section>`;
-  ui.statusInspector.innerHTML = `<header><span>${i18n.t('liveEffects')}</span><strong>${i18n.t('effects')}</strong><b>${card.statuses.length}</b></header>
+  const visibleStatusCount = visibleStatuses.length + (auraStatuses.length ? 1 : 0);
+  ui.statusInspector.innerHTML = `<header><span>${i18n.t('liveEffects')}</span><strong>${i18n.t('effects')}</strong><b>${visibleStatusCount}</b></header>
     <section class="inspector-effects"><ul>${statusMarkup}</ul></section>`;
   const rect = stageRect(element);
   ui.inspector.classList.add('open');
@@ -724,6 +934,46 @@ function hideCharacterInspector() {
   ui.inspector.setAttribute('aria-hidden', 'true');
   ui.statusInspector.classList.remove('open');
   ui.statusInspector.setAttribute('aria-hidden', 'true');
+  hideRoleActionInspector();
+}
+
+function roleActionSummary(description) {
+  const text = String(description || '').trim();
+  if (!text) return '';
+  const sentence = text.split(/(?<=[。！？!?；;])/u)[0] || text;
+  return truncateCardText(sentence, 24);
+}
+
+function showRoleActionInspector(button) {
+  if (!ui.roleActionInspector || !button) return;
+  const name = button.dataset.roleActionName || '';
+  const description = button.dataset.roleActionDescription || '';
+  const cost = button.dataset.roleActionCost || '';
+  const cooldown = Number(button.dataset.roleActionCooldown || 0);
+  const cooldownRemaining = Number(button.dataset.roleActionCooldownRemaining || 0);
+  const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
+  const targetText = targets.length ? targets.join(' / ') : button.dataset.roleActionMode || '';
+  const cooldownText = cooldownRemaining > 0 ? `CD ${cooldownRemaining}` : cooldown > 0 ? `Cooldown ${cooldown}` : '';
+  ui.roleActionInspector.innerHTML = `<header><span>ROLE ACTION</span><strong>${escapeHtml(name)}</strong><b>${escapeHtml(cost)} AP</b></header>
+    <p>${escapeHtml(description)}</p>
+    ${targetText || cooldownText ? `<footer>${escapeHtml([targetText, cooldownText].filter(Boolean).join(' / '))}</footer>` : ''}`;
+  const buttonRect = stageRect(button);
+  const inspectorRect = stageRect(ui.inspector);
+  ui.roleActionInspector.classList.add('open');
+  ui.roleActionInspector.setAttribute('aria-hidden', 'false');
+  const detailWidth = ui.roleActionInspector.offsetWidth;
+  let left = inspectorRect.left - detailWidth - 12;
+  if (left < 12) left = inspectorRect.right + 12;
+  if (left + detailWidth > STAGE_WIDTH - 12) left = Math.max(12, inspectorRect.left - detailWidth - 12);
+  const top = Math.min(STAGE_HEIGHT - ui.roleActionInspector.offsetHeight - 18, Math.max(96, buttonRect.top - 18));
+  ui.roleActionInspector.style.left = `${left}px`;
+  ui.roleActionInspector.style.top = `${top}px`;
+}
+
+function hideRoleActionInspector() {
+  if (!ui.roleActionInspector) return;
+  ui.roleActionInspector.classList.remove('open');
+  ui.roleActionInspector.setAttribute('aria-hidden', 'true');
 }
 
 function syncSelectedInspector() {
@@ -750,9 +1000,8 @@ function hideOpponentHoverInspector(element) {
   if (suppressedOpponentInspectorId === element.dataset.id) {
     suppressedOpponentInspectorId = null;
   }
-  if (inspectedCardId !== element.dataset.id) return;
-  inspectedCardId = selectedAttacker || null;
-  syncSelectedInspector();
+  // Character inspectors stay open until the player closes them by clicking
+  // elsewhere / canceling. Moving the cursor away from a card must not close it.
 }
 
 function suppressOpponentHoverInspector(element) {
@@ -772,15 +1021,25 @@ function suppressOpponentHoverInspector(element) {
 
 function showShieldInspector() {
   if (!game || dealing) return;
-  hideCharacterInspector();
   const active = game.players.find(player => player.id === game.activePlayerId);
   const shield = active?.sharedShield || 0;
+  const shieldPhysicalDefense = Number(active?.sharedShieldPhysicalDefense || 0);
+  const shieldMagicalDefense = Number(active?.sharedShieldMagicalDefense || 0);
   const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && shield > 0;
   const lightState = shield > 0 && shield <= 2 ? 'current' : !canReinforceShield && game.shieldDeploymentsThisTurn < 2 ? 'next' : '';
   const reinforcedState = shield > 2 ? 'current' : canReinforceShield ? 'next' : '';
   const stateLabel = shield > 0 ? i18n.t('shieldCurrent', { value: shield }) : i18n.t('shieldNone');
   ui.shieldInspector.innerHTML = `<header><span>TACTICAL COMMAND</span><strong>${i18n.t('defenseFormation')}</strong><b>${game.nextShieldCost} AP</b></header>
     <p class="shield-rule-lead">${i18n.t('shieldLead')}</p>
+    <section class="shield-tier shield-status-panel current">
+      <span>SHIELD STATUS</span>
+      <div class="shield-status-grid">
+        <div><small>${i18n.t('shieldStatShield')}</small><b>${shield}</b></div>
+        <div><small>${i18n.t('shieldStatPdef')}</small><b>${shieldPhysicalDefense}</b></div>
+        <div><small>${i18n.t('shieldStatMdef')}</small><b>${shieldMagicalDefense}</b></div>
+      </div>
+      <p>${i18n.t('shieldDefenseOrder')}</p>
+    </section>
     <div class="shield-tier-list">
       <section class="shield-tier ${lightState}">
         <div><span>FIRST FORM</span><b>${i18n.t('shieldFirst')}</b><em>2 AP / SHIELD 2</em></div>
@@ -809,11 +1068,172 @@ function hideShieldInspector() {
   ui.shieldInspector.setAttribute('aria-hidden', 'true');
 }
 
+function showShieldDomeInspector(dome) {
+  if (!dome?.classList.contains('active') || dealing) return;
+  hideRoleActionInspector();
+  const shield = Number(dome.dataset.shield || 0);
+  if (shield <= 0) return;
+  const pdef = Number(dome.dataset.pdef || 0);
+  const mdef = Number(dome.dataset.mdef || 0);
+  ui.shieldInspector.innerHTML = `<header><span>FIELD OBJECT</span><strong>${i18n.t('sharedShieldObject')}</strong></header>
+    <section class="shield-tier shield-status-panel current">
+      <span>SHIELD STATUS</span>
+      <div class="shield-status-grid">
+        <div><small>${i18n.t('shieldStatShield')}</small><b>${shield}</b></div>
+        <div><small>${i18n.t('shieldStatPdef')}</small><b>${pdef}</b></div>
+        <div><small>${i18n.t('shieldStatMdef')}</small><b>${mdef}</b></div>
+      </div>
+      <p>${i18n.t('shieldDefenseOrder')}</p>
+    </section>`;
+  const rect = stageRect(dome);
+  ui.shieldInspector.classList.add('open');
+  ui.shieldInspector.setAttribute('aria-hidden', 'false');
+  positionInspector(ui.shieldInspector, Math.max(16, rect.left - ui.shieldInspector.offsetWidth - 14), rect);
+}
+
+function showBpInspector() {
+  if (!game || dealing || !ui.bpHud || !ui.bpInspector) return;
+  hideShieldInspector();
+  const active = game.players.find(player => player.id === game.activePlayerId);
+  const bp = active?.battlePoints;
+  const current = bp ? `${bp.current}/${bp.max}` : '0/0';
+  ui.bpInspector.innerHTML = `<header><span>TACTICAL RESOURCE</span><strong>${i18n.t('bpTitle')}</strong><b>${current}</b></header>
+    <p class="shield-rule-lead">${i18n.t('bpLead')}</p>
+    <div class="shield-tier-list bp-rule-list">
+      <section class="shield-tier current"><div><span>BASE</span><b>${i18n.t('bpRuleTurnStart')}</b><em>+1 BP</em></div></section>
+      <section class="shield-tier"><div><span>ATTACK</span><b>${i18n.t('bpRuleDamage')}</b><em>+1 BP</em></div></section>
+      <section class="shield-tier"><div><span>SHIELD</span><b>${i18n.t('bpRuleBreakShield')}</b><em>+1 BP</em></div></section>
+      <section class="shield-tier"><div><span>COMMAND</span><b>${i18n.t('bpRuleFullShield')}</b><em>+1 BP</em></div></section>
+    </div>
+    <ul class="shield-rule-notes">
+      <li>${i18n.t('bpNote1')}</li>
+      <li>${i18n.t('bpNote2')}</li>
+    </ul>`;
+  const rect = stageRect(ui.bpHud);
+  ui.bpInspector.classList.add('open');
+  ui.bpInspector.setAttribute('aria-hidden', 'false');
+  positionInspector(ui.bpInspector, Math.max(16, rect.left - ui.bpInspector.offsetWidth - 14), rect);
+}
+
+function hideBpInspector() {
+  if (!ui.bpInspector) return;
+  ui.bpInspector.classList.remove('open');
+  ui.bpInspector.setAttribute('aria-hidden', 'true');
+}
+
+function roleActionTargetKinds(action) {
+  if (Array.isArray(action?.targetKinds)) return action.targetKinds;
+  if (Array.isArray(action?.validTargetKinds)) return action.validTargetKinds;
+  return [];
+}
+
+function canRoleActionTargetCard(action, element) {
+  const targets = roleActionTargetKinds(action);
+  if (!element || element.classList.contains('defeated')) return false;
+  if (action?.roleActionId === 'guard-oath' && element.dataset.id === action.characterId) return false;
+  if (action?.roleActionId === 'star-reading') return canStarReadingTarget(element.dataset.id);
+  if (targets.includes('SelfCard')) return element.dataset.id === action.characterId;
+  if (targets.includes('EnemyCard')) return element.dataset.side === 'opponent';
+  if (targets.includes('AllyCard')) return element.dataset.side === 'active';
+  return false;
+}
+
+function roleActionCardTargetSelector(action) {
+  const targets = roleActionTargetKinds(action);
+  const selectors = [];
+  if (targets.includes('SelfCard') && !targets.includes('AllyCard'))
+    selectors.push(`.fighter-card[data-id="${CSS.escape(action.characterId)}"]:not(.defeated)`);
+  if (targets.includes('AllyCard')) {
+    if (action?.roleActionId === 'guard-oath')
+      selectors.push(`.fighter-card[data-side="active"]:not(.defeated):not([data-id="${CSS.escape(action.characterId)}"])`);
+    else if (action?.roleActionId === 'star-reading')
+      selectors.push('.fighter-card[data-side="active"]:not(.defeated).attack-spent');
+    else
+      selectors.push('.fighter-card[data-side="active"]:not(.defeated)');
+  }
+  if (targets.includes('EnemyCard')) selectors.push('.fighter-card[data-side="opponent"]:not(.defeated)');
+  return selectors.join(',');
+}
+
+function canStarReadingTarget(id) {
+  const card = findCard(id);
+  if (!card || !card.isAlive || card.attackType !== 'Magical' || !card.hasActed) return false;
+  return !(card.statuses || []).some(status => status.id === 'attack-sealed');
+}
+
+function roleActionTargetInstructionKey(targetKinds = []) {
+  if (targetKinds.includes('EnemyCard')) return 'roleActionSelectEnemy';
+  if (targetKinds.includes('AllyCard') || targetKinds.includes('SelfCard'))
+    return 'roleActionSelectAlly';
+  return 'roleActionSelectTarget';
+}
+
+function cancelAiming({ rerender = true } = {}) {
+  const hadAiming = Boolean(selectedAttacker || pendingRoleAction || inspectedCardId || ui.preview.classList.contains('open'));
+  selectedAttacker = null;
+  selectedDefender = null;
+  inspectedCardId = null;
+  pendingRoleAction = null;
+  closePreview();
+  hideAttackArrow();
+  hideCharacterInspector();
+  if (hadAiming && rerender) render();
+}
+
+function beginRoleActionTargeting(characterId, roleActionId, targetKinds, { renderFirst = true, startArrow = true } = {}) {
+  pendingRoleAction = { characterId, roleActionId, targetKinds };
+  selectedAttacker = null;
+  selectedDefender = null;
+  inspectedCardId = null;
+  closePreview();
+  hideCharacterInspector();
+  if (renderFirst) render();
+  if (startArrow) {
+    const caster = characterElementById(characterId);
+    if (caster) startAttackArrow(caster, 'role-action');
+  }
+  updateInstruction();
+}
+
+function inspectPassiveCard(id) {
+  const isSameCard = inspectedCardId === id && !selectedAttacker;
+  selectedAttacker = null;
+  selectedDefender = null;
+  pendingRoleAction = null;
+  closePreview();
+  hideAttackArrow();
+  inspectedCardId = isSameCard ? null : id;
+  if (!isSameCard) sound.emit('ui.card-select');
+  render();
+}
+
 function onCardClick(element) {
   if (busy) return;
   const id = element.dataset.id;
+  if (pendingRoleAction) {
+    if (!canRoleActionTargetCard(pendingRoleAction, element)) {
+      cancelAiming();
+      return;
+    }
+    useRoleAction(pendingRoleAction.characterId, pendingRoleAction.roleActionId, id);
+    return;
+  }
   if (element.dataset.side === 'active') {
-    if (!element.classList.contains('can-act')) { sound.emit('ui.invalid-action'); showToast(i18n.t('cannotAct')); return; }
+    if (game?.pendingRoleActionUpgrade?.canChoose) {
+      if (!element.classList.contains('upgrade-selectable')) {
+        sound.emit('ui.invalid-action');
+        showToast(i18n.t('roleActionUpgradeInvalid'));
+        return;
+      }
+      selectedAttacker = null; selectedDefender = null; inspectedCardId = id; closePreview();
+      sound.emit('ui.card-select');
+      render();
+      return;
+    }
+    if (!element.classList.contains('can-act')) {
+      inspectPassiveCard(id);
+      return;
+    }
     const isSelecting = selectedAttacker !== id;
     selectedAttacker = isSelecting ? id : null; selectedDefender = null; inspectedCardId = isSelecting ? id : null; closePreview();
     if (isSelecting) {
@@ -846,9 +1266,9 @@ function renderPreview() {
   ui.previewDefender.textContent = defender ? i18n.characterName(defender.key) : '—';
   setForecast(ui.previewDamage, preview.attack, i18n.t('damageDealt'), art.forDamageType(preview.attack.damageType));
   setForecast(ui.previewCounter, preview.counter, i18n.t('counterTaken'), 'event.counter');
-  ui.previewSkill.className = `preview-skill ${preview.skillConditionPossible ? '' : 'inactive'}`;
-  const localizedSkill = i18n.skill(preview.skillId);
-  ui.previewSkill.innerHTML = `<strong>${escapeHtml(localizedSkill.name)}</strong><p>${escapeHtml(i18n.message(preview.skillForecast))}</p>`;
+  ui.previewTrait.className = `preview-trait ${preview.traitConditionPossible ? '' : 'inactive'}`;
+  const localizedTrait = i18n.trait(preview.traitId);
+  ui.previewTrait.innerHTML = `<strong>${escapeHtml(localizedTrait.name)}</strong><p>${escapeHtml(i18n.message(preview.traitForecast))}</p>`;
   ui.previewNotes.innerHTML = preview.notes.map(note => `<li>${escapeHtml(i18n.message(note))}</li>`).join('');
   art.hydrate(ui.preview);
   ui.preview.classList.add('open'); ui.preview.setAttribute('aria-hidden', 'false');
@@ -896,7 +1316,7 @@ async function endTurn() {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
     sound.emit('turn.change');
-    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
     ui.curtainPlayer.textContent = i18n.playerName(game.activePlayerName); ui.curtain.classList.remove('play'); void ui.curtain.offsetWidth; ui.curtain.classList.add('play');
     await wait(620); render(); await wait(430); ui.curtain.classList.remove('play');
     await playNewLogEvents(game);
@@ -914,15 +1334,103 @@ async function deployShield() {
   sound.emit('ui.shield-command');
   busy = true;
   ui.shieldButton.disabled = true;
-  selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
+  selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
   try {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/shield', { method: 'POST', body: '{}' });
     sound.emit('ui.ap-spend');
     game = payload.data; lastGameJson = JSON.stringify(game);
     render();
+    await playNewLogEvents(game, { applyFinalVisualState: false });
+  } catch (error) {
+    showToast(error.message);
+    if (game) render();
+  }
+  finally {
+    busy = false;
+    ui.shieldButton.disabled = false;
+  }
+}
+
+async function selectReward(instanceId) {
+  if (busy || !game?.rewardWindow?.canChoose || !instanceId) return;
+  sound.emit('ui.confirm');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/reward/select', { method: 'POST', body: JSON.stringify({ instanceId }) });
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
+  finally { busy = false; if (game) render(); }
+}
+
+async function resetRewardWindow() {
+  if (busy || !game?.rewardWindow?.canChoose) return;
+  sound.emit('ui.panel-toggle');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/reward/reset', { method: 'POST', body: '{}' });
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
+    await playNewLogEvents(game);
+  } catch (error) { showToast(error.message); }
+  finally { busy = false; if (game) render(); }
+}
+
+async function skipRewardWindow() {
+  if (busy || !game?.rewardWindow?.canChoose) return;
+  sound.emit('ui.cancel');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/reward/skip', { method: 'POST', body: '{}' });
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
+    await playNewLogEvents(game);
+  } catch (error) { showToast(error.message); }
+  finally { busy = false; if (game) render(); }
+}
+
+async function selectRoleActionUpgrade(characterId, roleActionId) {
+  if (busy || !game?.pendingRoleActionUpgrade?.canChoose) return;
+  sound.emit('ui.confirm');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/role-action/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ characterId, roleActionId })
+    });
+    game = payload.data; lastGameJson = JSON.stringify(game);
+    pendingRoleAction = null;
+    inspectedCardId = characterId;
+    render();
+    await playNewLogEvents(game);
+  } catch (error) { showToast(error.message); }
+  finally { busy = false; if (game) render(); }
+}
+
+async function useRoleAction(characterId, roleActionId, targetCharacterId = null) {
+  if (busy || !game?.canControl) return;
+  sound.emit('ui.confirm');
+  busy = true;
+  pendingRoleAction = null;
+  selectedAttacker = null;
+  selectedDefender = null;
+  hideAttackArrow();
+  hideRoleActionInspector();
+  try {
+    pendingVisualBaselines = captureCharacterVisualBaselines(game);
+    const payload = await gameApi('/game/role-action/use', {
+      method: 'POST',
+      body: JSON.stringify({ characterId, roleActionId, targetCharacterId })
+    });
+    sound.emit('ui.ap-spend');
+    game = payload.data; lastGameJson = JSON.stringify(game);
+    pendingRoleAction = null;
+    selectedAttacker = null; selectedDefender = null; inspectedCardId = characterId; closePreview();
+    render();
+    await playNewLogEvents(game, { applyFinalVisualState: false });
+  } catch (error) {
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  }
   finally { busy = false; if (game) render(); }
 }
 
@@ -933,7 +1441,7 @@ async function newGame() {
     sound.emit('game.restart');
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
     if (sessionMode === 'online' && room) room.dealStarted = false;
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
     dealing = true; render();
     await playDealSequence();
   }
@@ -949,7 +1457,7 @@ async function startLocalGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -1104,23 +1612,25 @@ function dealCardTo(target, index) {
 }
 
 const eventIcon = Object.freeze({
-  physical: 'event.physical', magical: 'event.magical', counter: 'event.counter', skill: 'event.skill',
+  physical: 'event.physical', magical: 'event.magical', counter: 'event.counter', trait: 'event.trait',
   status: 'event.status-tick', heal: 'event.heal', shield: 'event.shield', death: 'event.death'
 });
 
 const eventLabelKey = Object.freeze({
   [eventIcon.physical]: 'eventPhysical', [eventIcon.magical]: 'eventMagical', [eventIcon.counter]: 'eventCounter',
-  [eventIcon.skill]: 'eventSkill', [eventIcon.status]: 'eventStatus', [eventIcon.heal]: 'eventHeal',
+  [eventIcon.trait]: 'eventTrait', [eventIcon.status]: 'eventStatus', [eventIcon.heal]: 'eventHeal',
   [eventIcon.shield]: 'eventShield', [eventIcon.death]: 'eventDeath'
 });
 
 function eventLabel(iconId) {
-  return i18n.t(eventLabelKey[iconId] || 'eventSkill');
+  return i18n.t(eventLabelKey[iconId] || 'eventTrait');
 }
 
 function effectLabel(arg) {
-  if (!arg) return i18n.t('eventSkill');
-  return arg.kind === 'status' ? i18n.status({ id: arg.value, magnitude: 0 }).name : i18n.skill(arg.value).name;
+  if (!arg) return i18n.t('eventTrait');
+  if (arg.kind === 'status') return i18n.status({ id: arg.value, magnitude: 0 }).name;
+  if (arg.kind === 'roleAction') return i18n.roleAction(arg.value).name;
+  return i18n.trait(arg.value).name;
 }
 
 function resetEventCursor(state = game) {
@@ -1202,7 +1712,7 @@ function eventBurst(target, iconId, options = {}) {
     : '';
   const amount = options.amount === undefined || options.amount === null ? '' : `<b>${escapeHtml(options.amount)}</b>`;
   const title = options.title || eventLabel(iconId);
-  el.className = `event-burst ${options.tone || 'skill'}`;
+  el.className = `event-burst ${options.tone || 'trait'}`;
   el.style.left = `${point.x}px`; el.style.top = `${point.y}px`;
   el.innerHTML = `${art.icon(iconId, { size: 'lg', label: title, className: 'event-burst-primary' })}${secondary}<span class="event-burst-copy"><strong>${escapeHtml(title)}</strong>${amount}</span>`;
   ui.fx.appendChild(el); art.hydrate(el);
@@ -1268,8 +1778,12 @@ async function playLogEntry(entry, state) {
   const target = characterElementFromLog(state, entry);
   const effect = logArgObject(entry, 'effect');
   const status = logArgObject(entry, 'status');
-  const skill = logArgObject(entry, 'skill');
-  const effectIcon = effect?.kind === 'status' ? art.forStatus(effect.value) : art.forSkill(effect?.value);
+  const trait = logArgObject(entry, 'trait');
+  const effectIcon = effect?.kind === 'status'
+    ? art.forStatus(effect.value)
+    : effect?.kind === 'roleAction'
+      ? eventIcon.trait
+      : art.forTrait(effect?.value);
   const amount = Number(logArg(entry, 'amount') || 0);
 
   switch (key) {
@@ -1294,33 +1808,40 @@ async function playLogEntry(entry, state) {
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'shield-complacency', magnitude: 0 }).name, secondaryIconId: art.forStatus('shield-complacency'), amount: `-${amount}`, tone: 'status' }); break;
     case 'note.magicBonus':
       sound.emit('status.magic-bonus');
-      await eventBurst(target, eventIcon.skill, { title: i18n.skill('stargazers-aegis').name, secondaryIconId: art.forSkill('stargazers-aegis'), amount: `+${amount}`, tone: 'skill' }); break;
+      await eventBurst(target, eventIcon.trait, { title: i18n.trait('stargazers-aegis').name, secondaryIconId: art.forTrait('stargazers-aegis'), amount: `+${amount}`, tone: 'trait' }); break;
+    case 'note.chargedMagic':
+      sound.emit('status.magic-bonus');
+      await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'charged', magnitude: amount }).name, secondaryIconId: art.forStatus('charged'), amount: `+${amount}`, tone: 'magic' }); break;
+    case 'note.searingBrand':
+      sound.emit('status.magic-bonus');
+      await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'searing-brand', magnitude: amount }).name, secondaryIconId: art.forStatus('searing-brand'), amount: `+${amount}`, tone: 'magic' }); break;
     case 'note.guardRedirect':
       await playGuardRedirectEvent(entry, state, { emitVoice: true }); break;
     case 'log.effectDamage': {
       const type = logArg(entry, 'damageType') || 'Physical';
       if (effect?.kind === 'status' && effect.value === 'burning') sound.emit('status.burning-tick');
-      else if (effect?.kind === 'skill' && effect.value === 'aftershock-axe') sound.emit('skill.aftershock-axe');
-      else if (effect?.kind === 'skill' && effect.value === 'predatory-instinct') {
-        sound.emit('skill.predatory-instinct');
+      else if (effect?.kind === 'trait' && effect.value === 'aftershock-axe') sound.emit('trait.aftershock-axe');
+      else if (effect?.kind === 'trait' && effect.value === 'predatory-instinct') {
+        sound.emit('trait.predatory-instinct');
         sound.emit('combat.absolute-damage');
       }
-      else if (effect?.kind === 'skill') sound.emit('combat.skill-damage');
+      else if (effect?.kind === 'trait') sound.emit('combat.trait-damage');
+      else if (effect?.kind === 'roleAction') sound.emit('combat.trait-damage');
       else if (type === 'Absolute' && amount > 0) sound.emit('combat.absolute-damage');
       else if (type === 'Physical' && amount > 0) sound.emit('combat.physical-hit');
       if (effect?.kind === 'status')
         await eventBurst(target, eventIcon.status, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'status' });
       else
-        await eventBurst(characterElementByKey(state, logArg(entry, 'source')), eventIcon.skill, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'skill' });
-      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: `-${amount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'skill' });
+        await eventBurst(characterElementByKey(state, logArg(entry, 'source')), eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'trait' });
+      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: `-${amount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'trait' });
       if (target && amount > 0) damageFloat(target, amount, type);
-      emitDamageTakenVoice(characterKey, amount, state, { source: effect?.kind === 'status' ? 'status' : 'skill', damageType: type, skillId: effect?.kind === 'skill' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
+      emitDamageTakenVoice(characterKey, amount, state, { source: effect?.kind === 'status' ? 'status' : effect?.kind === 'roleAction' ? 'role-action' : 'trait', damageType: type, traitId: effect?.kind === 'trait' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
       await wait(340); break;
     }
     case 'log.collateralDamage':
-      if (effect?.value === 'guard') sound.emit('skill.guard-collateral');
+      if (effect?.value === 'guard') sound.emit('trait.guard-collateral');
       else if (amount > 0) sound.emit('combat.physical-hit');
-      await eventBurst(target, eventIcon.skill, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: `-${amount}`, tone: 'skill' });
+      await eventBurst(target, eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: `-${amount}`, tone: 'trait' });
       if (target && amount > 0) damageFloat(target, amount, 'Physical');
       if (effect?.value !== 'guard')
         emitDamageTakenVoice(characterKey, amount, state, { source: 'collateral', damageType: 'Physical', statusId: effect?.value });
@@ -1344,10 +1865,10 @@ async function playLogEntry(entry, state) {
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'harvest', magnitude: 0 }).name, secondaryIconId: art.forStatus('harvest'), tone: 'status' }); break;
     case 'log.sowing':
       sound.emit('status.sowing');
-      await eventBurst(target, eventIcon.skill, { title: i18n.skill('spring-harvest').name, secondaryIconId: art.forSkill('spring-harvest'), tone: 'skill' }); break;
-    case 'log.skillFailed':
-      if (skill?.value === 'weakening-spores') sound.emit('skill.weakness-failed');
-      await eventBurst(target, eventIcon.skill, { title: effectLabel(skill), secondaryIconId: art.forSkill(skill?.value), amount: '×', tone: 'skill' }); break;
+      await eventBurst(target, eventIcon.trait, { title: i18n.trait('spring-harvest').name, secondaryIconId: art.forTrait('spring-harvest'), tone: 'trait' }); break;
+    case 'log.traitFailed':
+      if (trait?.value === 'weakening-spores') sound.emit('trait.weakness-failed');
+      await eventBurst(target, eventIcon.trait, { title: effectLabel(trait), secondaryIconId: art.forTrait(trait?.value), amount: '×', tone: 'trait' }); break;
     case 'log.defeated':
       sound.emit('combat.character-defeated');
       emitVoice('death', characterKey);
@@ -1371,7 +1892,7 @@ async function playLogEntry(entry, state) {
   }
 }
 
-async function playNewLogEvents(state) {
+async function playNewLogEvents(state, options = {}) {
   const entries = (state?.log || []).filter(entry => entry.sequence > lastAnimatedLogSequence).sort((a, b) => a.sequence - b.sequence);
   const pendingGuardRedirects = [];
   let shouldRenderAfter = false;
@@ -1400,7 +1921,8 @@ async function playNewLogEvents(state) {
       lastAnimatedLogSequence = Math.max(lastAnimatedLogSequence, guardEntry.sequence || 0);
     }
   }
-  const shouldApplyFinalVisualState = Boolean(pendingVisualBaselines) || shouldRenderAfter;
+  const shouldApplyFinalVisualState = options.applyFinalVisualState !== false
+    && (Boolean(pendingVisualBaselines) || shouldRenderAfter);
   pendingVisualBaselines = null;
   if (shouldApplyFinalVisualState && state === game) render();
 }
@@ -1510,7 +2032,20 @@ function renderGameOver() {
     setTimeout(() => sound.emit('game.result-panel'), 180);
   }
 }
-function updateInstruction() { const card = findCard(selectedAttacker); const name = card ? i18n.characterName(card.key) : ''; ui.instruction.innerHTML = card ? `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('currentSelected', { name }))}</strong><small>${i18n.t('selectUpperEnemy')}</small></div>` : `<span class="instruction-icon">◆</span><div><strong>${i18n.t('selectCard')}</strong><small>${i18n.t('selectTarget')}</small></div>`; }
+function updateInstruction() {
+  if (game?.pendingRoleActionUpgrade?.canChoose) {
+    ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('roleActionUpgradeInstruction'))}</strong><small>${escapeHtml(i18n.t('roleActionUpgradeHint'))}</small></div>`;
+    return;
+  }
+  if (pendingRoleAction) {
+    const action = i18n.roleAction(pendingRoleAction.roleActionId);
+    ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('roleActionTargetInstruction', { name: action.name }))}</strong><small>${escapeHtml(i18n.t(roleActionTargetInstructionKey(pendingRoleAction.targetKinds)))}</small></div>`;
+    return;
+  }
+  const card = findCard(selectedAttacker);
+  const name = card ? i18n.characterName(card.key) : '';
+  ui.instruction.innerHTML = card ? `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('currentSelected', { name }))}</strong><small>${i18n.t('selectUpperEnemy')}</small></div>` : `<span class="instruction-icon">◆</span><div><strong>${i18n.t('selectCard')}</strong><small>${i18n.t('selectTarget')}</small></div>`;
+}
 function findCard(id) { return game?.players.flatMap(player => player.characters).find(card => card.id === id); }
 function closePreview() { ui.preview.classList.remove('open'); ui.preview.setAttribute('aria-hidden', 'true'); }
 
@@ -1738,7 +2273,7 @@ async function pollOnlineState() {
     pendingVisualBaselines = isNewGame ? null : captureCharacterVisualBaselines(game);
     game = payload.data; lastGameJson = json;
     if (isNewGame) lastApSnapshot = null;
-    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; closePreview(); render();
+    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview(); render();
     if (isNewGame) {
       resetEventCursor(game);
       sound.emit('game.restart');
@@ -1784,6 +2319,101 @@ ui.shieldButton.addEventListener('mouseenter', showShieldInspector);
 ui.shieldButton.addEventListener('mouseleave', hideShieldInspector);
 ui.shieldButton.addEventListener('focus', showShieldInspector);
 ui.shieldButton.addEventListener('blur', hideShieldInspector);
+[ui.activeShieldDome, ui.opponentShieldDome].forEach(dome => {
+  dome?.addEventListener('mouseenter', () => showShieldDomeInspector(dome));
+  dome?.addEventListener('mouseleave', hideShieldInspector);
+  dome?.addEventListener('focus', () => showShieldDomeInspector(dome));
+  dome?.addEventListener('blur', hideShieldInspector);
+});
+ui.bpHud?.addEventListener('mouseenter', showBpInspector);
+ui.bpHud?.addEventListener('mouseleave', hideBpInspector);
+ui.bpHud?.addEventListener('focusin', showBpInspector);
+ui.bpHud?.addEventListener('focusout', hideBpInspector);
+ui.rewardOptions.addEventListener('click', event => {
+  const card = event.target instanceof Element ? event.target.closest('.reward-card[data-reward-instance]') : null;
+  if (!card || card.disabled) return;
+  selectReward(card.dataset.rewardInstance);
+});
+ui.rewardReset.addEventListener('click', resetRewardWindow);
+ui.rewardSkip.addEventListener('click', skipRewardWindow);
+ui.inspector.addEventListener('click', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
+  if (!button || button.disabled) return;
+  const characterId = button.dataset.characterId;
+  const roleActionId = button.dataset.roleActionId;
+  if (!characterId || !roleActionId) return;
+
+  if (button.classList.contains('choice')) {
+    selectRoleActionUpgrade(characterId, roleActionId);
+    return;
+  }
+
+  const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
+  const isTargetedRoleAction = button.dataset.roleActionMode === 'Targeted';
+  if (isTargetedRoleAction && targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind))) {
+    beginRoleActionTargeting(characterId, roleActionId, targets);
+    sound.emit('ui.card-select');
+    showToast(i18n.t(roleActionTargetInstructionKey(targets)));
+    return;
+  }
+
+  useRoleAction(characterId, roleActionId);
+});
+ui.inspector.addEventListener('mouseover', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
+  if (button) showRoleActionInspector(button);
+});
+ui.inspector.addEventListener('mouseout', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
+  if (!button) return;
+  const next = event.relatedTarget instanceof Element ? event.relatedTarget.closest('.role-action-button[data-role-action-id]') : null;
+  if (next === button) return;
+  hideRoleActionInspector();
+});
+ui.inspector.addEventListener('focusin', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
+  if (button) showRoleActionInspector(button);
+});
+ui.inspector.addEventListener('focusout', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
+  if (button) hideRoleActionInspector();
+});
+ui.inspector.addEventListener('dragstart', event => {
+  hideRoleActionInspector();
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id][draggable="true"]') : null;
+  if (!button || button.disabled || button.classList.contains('choice')) {
+    event.preventDefault();
+    return;
+  }
+  const characterId = button.dataset.characterId;
+  const roleActionId = button.dataset.roleActionId;
+  if (!characterId || !roleActionId) {
+    event.preventDefault();
+    return;
+  }
+  const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
+  const isTargetedRoleAction = button.dataset.roleActionMode === 'Targeted';
+  if (!isTargetedRoleAction || !targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind))) {
+    event.preventDefault();
+    return;
+  }
+  beginRoleActionTargeting(characterId, roleActionId, targets, { renderFirst: false, startArrow: false });
+  roleActionDragActive = true;
+  event.dataTransfer.setData('text/plain', `${characterId}:${roleActionId}`);
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setDragImage(dragGhost, 0, 0);
+  startAttackArrow(characterElementById(characterId) || button, 'role-action');
+  ui.app.classList.add('dragging-attack');
+  document.body.classList.add('dragging-attack');
+  updateInstruction();
+});
+ui.inspector.addEventListener('dragend', () => {
+  document.querySelectorAll('.drop-ready').forEach(element => element.classList.remove('drop-ready'));
+  ui.app.classList.remove('dragging-attack');
+  document.body.classList.remove('dragging-attack');
+  if (roleActionDragActive) cancelAiming();
+  else hideAttackArrow();
+});
 document.querySelector('#new-game').addEventListener('click', newGame);
 document.querySelector('#play-again').addEventListener('click', newGame);
 ui.startTrigger.addEventListener('click', startLocalGame);
@@ -1806,7 +2436,7 @@ ui.languageToggle.addEventListener('click', () => {
   sound.emit('ui.language-toggle');
   i18n.toggle();
   applyStaticTranslations();
-  hideCharacterInspector(); hideShieldInspector();
+  hideCharacterInspector(); hideShieldInspector(); hideBpInspector();
   if (room) renderRoom();
   if (game) render();
   if (preview && selectedAttacker && selectedDefender && ui.preview.classList.contains('open')) renderPreview();
@@ -1831,22 +2461,27 @@ document.addEventListener('click', event => {
   setAudioMenuOpen(false);
 });
 document.addEventListener('click', event => {
-  if (!selectedAttacker || busy || dealing) return;
+  if ((!selectedAttacker && !inspectedCardId && !pendingRoleAction) || busy || dealing) return;
   const interactive = event.target instanceof Element
-    ? event.target.closest('.fighter-card,.preview-panel,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.character-inspector,.shield-inspector,.game-over,.start-screen,.deal-sequence')
+    ? event.target.closest('.fighter-card,.preview-panel,.reward-window,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.battle-point-hud,.character-inspector,.status-inspector,.shield-inspector,.bp-inspector,.game-over,.start-screen,.deal-sequence')
     : null;
   if (interactive) return;
-  selectedAttacker = null;
-  selectedDefender = null;
-  inspectedCardId = null;
-  closePreview();
-  hideAttackArrow();
-  render();
+  cancelAiming();
 });
 document.querySelector('#toggle-log').addEventListener('click', () => { sound.emit('ui.panel-toggle'); ui.log.classList.toggle('open'); });
+document.addEventListener('mousemove', event => {
+  if (!pendingRoleAction || roleActionDragActive || !dragArrowOrigin) return;
+  const selector = roleActionCardTargetSelector(pendingRoleAction);
+  const target = event.target instanceof Element && selector ? event.target.closest(selector) : null;
+  const point = clientToStage(event.clientX, event.clientY);
+  updateAttackArrow(point.x, point.y, target);
+});
 document.addEventListener('dragover', event => {
   if (!dragArrowOrigin) return;
-  const target = event.target instanceof Element ? event.target.closest('.fighter-card[data-side="opponent"]:not(.defeated)') : null;
+  const selector = roleActionDragActive
+    ? roleActionCardTargetSelector(pendingRoleAction)
+    : '.fighter-card[data-side="opponent"]:not(.defeated)';
+  const target = event.target instanceof Element && selector ? event.target.closest(selector) : null;
   const point = clientToStage(event.clientX, event.clientY);
   updateAttackArrow(point.x, point.y, target);
 });
@@ -1855,8 +2490,8 @@ window.addEventListener('resize', () => {
   if (!game || dealing) return;
   const viewer = game.players.find(player => player.id === game.viewerPlayerId);
   const opponent = game.players.find(player => player.id !== game.viewerPlayerId);
-  renderPersistentShield(ui.activeShieldDome, ui.activeCards, viewer.sharedShield);
-  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent.sharedShield);
+  renderPersistentShield(ui.activeShieldDome, ui.activeCards, viewer);
+  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent);
 });
 window.visualViewport?.addEventListener('resize', () => {
   resizeGameStage();
@@ -1866,7 +2501,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     setAudioMenuOpen(false);
     if (ui.preview.classList.contains('open')) sound.emit('ui.preview-cancel');
-    selectedAttacker = null; selectedDefender = null; inspectedCardId = null; hideAttackArrow(); closePreview(); render();
+    cancelAiming();
   }
 });
 

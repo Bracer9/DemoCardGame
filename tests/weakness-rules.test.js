@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const statusSource = fs.readFileSync('Domain/StatusEffects.cs', 'utf8');
-const skillSource = fs.readFileSync('Domain/Skills.cs', 'utf8');
+const traitSource = fs.readFileSync('Domain/Traits.cs', 'utf8');
 const previewSource = fs.readFileSync('Api/AttackPreviewService.cs', 'utf8');
 const assetManifest = JSON.parse(fs.readFileSync('wwwroot/config/ui-assets.json', 'utf8'));
 
@@ -33,11 +33,11 @@ test('weakening spores dispels one attack buff immediately and keeps delayed wea
   assert.doesNotMatch(harvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsAttackBuff => true/);
-  assert.match(skillSource, /status\.IsBuff[\s\S]*?status\.IsDispellable/);
-  assert.match(skillSource, /context\.Next\(attackBuffs\.Count\)/);
-  assert.match(skillSource, /Statuses\.Remove\(attackBuff\)/);
-  assert.match(skillSource, /new PendingWeaknessStatus\(owner\.Id, exchange\.Defender\.PlayerId\)/);
-  assert.match(skillSource, /status\.Id == "magic-power"/);
+  assert.match(traitSource, /status\.IsBuff[\s\S]*?status\.IsDispellable/);
+  assert.match(traitSource, /context\.Next\(attackBuffs\.Count\)/);
+  assert.match(traitSource, /Statuses\.Remove\(attackBuff\)/);
+  assert.match(traitSource, /new PendingWeaknessStatus\(owner\.Id, exchange\.Defender\.PlayerId\)/);
+  assert.match(traitSource, /status\.Id == "magic-power"/);
   assert.doesNotMatch(statusSource, /ExtendedWeaknessStatus/);
   assert.doesNotMatch(previewSource, /weaknessEnragedMonster/);
   assert.equal(assetManifest.bindings.statuses['magic-power'], 'status.magic-power');

@@ -1,17 +1,22 @@
 namespace TinyPixelFights.Domain;
 
-public sealed record SkillMetadata(
+public sealed record TraitMetadata(
     string Id,
-    SkillKind Kind);
+    TraitTriggerKind TriggerKind,
+    TraitScopeKind ScopeKind,
+    TraitEffectKind EffectKind);
 
 public sealed class DamagePacket
 {
     public required CharacterState SourceCharacter { get; init; }
-    public required CharacterState TargetCharacter { get; init; }
+    public required CharacterState TargetCharacter { get; set; }
     public required DamageType DamageType { get; init; }
     public required DamageSource Source { get; init; }
     public required int Amount { get; set; }
     public bool ReceivesMagicPowerBonus { get; init; }
+    public bool IgnoresSharedShield { get; set; }
+    public bool IgnoresTargetDefense { get; set; }
+    public int ShieldDefenseReduced { get; set; }
     public int DefenseReduced { get; set; }
     public int ShieldAbsorbed { get; set; }
     public List<CollateralDamage> Collateral { get; } = [];
@@ -31,9 +36,9 @@ public sealed record AttackExchange(
     int AttackDamageDealt,
     int CounterDamageDealt);
 
-public abstract class CharacterSkill
+public abstract class CharacterTrait
 {
-    public abstract SkillMetadata Metadata { get; }
+    public abstract TraitMetadata Metadata { get; }
     public virtual int IncomingModifierPriority => 100;
 
     public virtual bool IsReady(GameState state, CharacterState owner)
@@ -41,22 +46,13 @@ public abstract class CharacterSkill
         if (!owner.IsAlive || state.Phase != GamePhase.Playing)
             return false;
 
-        if (Metadata.Kind == SkillKind.Passive)
-            return true;
-
-        return owner.PlayerId == state.ActivePlayerId
-            && !owner.HasActed
-            && owner.Definition.Cost <= state.ActionPoints;
+        return true;
     }
 
     public virtual LocalizedText? UnavailableReason(GameState state, CharacterState owner)
     {
         if (!owner.IsAlive) return L10n.Text("reason.defeated");
         if (state.Phase == GamePhase.Finished) return L10n.Text("reason.matchFinished");
-        if (Metadata.Kind == SkillKind.Passive) return null;
-        if (owner.PlayerId != state.ActivePlayerId) return L10n.Text("reason.opponentTurn");
-        if (owner.HasActed) return L10n.Text("reason.alreadyActed");
-        if (owner.Definition.Cost > state.ActionPoints) return L10n.Text("reason.notEnoughAp");
         return null;
     }
 
@@ -66,13 +62,20 @@ public abstract class CharacterSkill
     public virtual void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet) { }
     public virtual void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange) { }
     public virtual void OnAllyDefeated(GameEngineContext context, CharacterState owner, CharacterState defeatedAlly) { }
+    public virtual void OnCharacterDefeated(GameEngineContext context, CharacterState owner, CharacterState defeatedCharacter)
+    {
+        if (owner.PlayerId == defeatedCharacter.PlayerId)
+            OnAllyDefeated(context, owner, defeatedCharacter);
+    }
 }
 
-public sealed class SaintsPrayerSkill : CharacterSkill
+public sealed class SaintsPrayerTrait : CharacterTrait
 {
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "saints-prayer",
-        SkillKind.Passive);
+        TraitTriggerKind.TurnStart,
+        TraitScopeKind.Team,
+        TraitEffectKind.Heal);
 
     public override void OnTurnStart(GameEngineContext context, CharacterState owner)
     {
@@ -94,12 +97,14 @@ public sealed class SaintsPrayerSkill : CharacterSkill
     }
 }
 
-public sealed class StargazersAegisSkill : CharacterSkill
+public sealed class StargazersAegisTrait : CharacterTrait
 {
     public override int IncomingModifierPriority => 10;
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "stargazers-aegis",
-        SkillKind.Passive);
+        TraitTriggerKind.Continuous,
+        TraitScopeKind.Team,
+        TraitEffectKind.DamageModifier);
 
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -109,7 +114,7 @@ public sealed class StargazersAegisSkill : CharacterSkill
         {
             packet.Amount++;
             packet.Notes.Add(L10n.Text("note.magicBonus",
-                ("effect", L10n.Skill("stargazers-aegis")),
+                ("effect", L10n.Trait("stargazers-aegis")),
                 ("character", L10n.Character(owner.Definition.Key)),
                 ("amount", L10n.Raw(1))));
         }
@@ -132,32 +137,37 @@ public sealed class StargazersAegisSkill : CharacterSkill
     }
 }
 
-public sealed class SpringHarvestSkill : CharacterSkill
+public sealed class SpringHarvestTrait : CharacterTrait
 {
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "spring-harvest",
-        SkillKind.Passive);
+        TraitTriggerKind.OnAttackDeclared,
+        TraitScopeKind.Self,
+        TraitEffectKind.Status);
 
     public override bool IsReady(GameState state, CharacterState owner) =>
         base.IsReady(state, owner)
         && owner.PlayerId == state.ActivePlayerId
         && !owner.HasActed
         && owner.Definition.Cost <= state.ActionPoints
-        && state.ActionsTakenThisTurn == 0
+        && state.ActiveAttacksTakenThisTurn == 0
         && owner.Statuses.All(status => status.Id != "harvest" || status.Expired);
 
     public override LocalizedText? UnavailableReason(GameState state, CharacterState owner)
     {
-        var baseReason = base.UnavailableReason(state, owner);
-        if (baseReason is not null) return baseReason;
+        if (!owner.IsAlive) return L10n.Text("reason.defeated");
+        if (state.Phase == GamePhase.Finished) return L10n.Text("reason.matchFinished");
+        if (owner.PlayerId != state.ActivePlayerId) return L10n.Text("reason.opponentTurn");
+        if (owner.HasActed) return L10n.Text("reason.alreadyActed");
+        if (owner.Definition.Cost > state.ActionPoints) return L10n.Text("reason.notEnoughAp");
         if (owner.Statuses.Any(status => status.Id == "harvest" && !status.Expired))
             return L10n.Text("reason.harvestActive");
-        return state.ActionsTakenThisTurn == 0 ? null : L10n.Text("reason.notFirstAttack");
+        return state.ActiveAttacksTakenThisTurn == 0 ? null : L10n.Text("reason.notFirstAttack");
     }
 
     public override void OnAttackDeclared(GameEngineContext context, CharacterState owner, CharacterState target)
     {
-        if (context.State.ActionsTakenThisTurn != 0
+        if (context.State.ActiveAttacksTakenThisTurn != 0
             || owner.Statuses.Any(status => status.Id == "harvest" && !status.Expired))
             return;
 
@@ -168,30 +178,33 @@ public sealed class SpringHarvestSkill : CharacterSkill
     }
 }
 
-public sealed class SearingMarkSkill : CharacterSkill
+public sealed class SearingMarkTrait : CharacterTrait
 {
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "searing-mark",
-        SkillKind.Active);
+        TraitTriggerKind.OnAttackResolved,
+        TraitScopeKind.Enemy,
+        TraitEffectKind.Status);
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
         if (!exchange.Defender.IsAlive || !context.Roll(0.50))
             return;
 
-        exchange.Defender.Statuses.RemoveAll(status => status.Id == "burning");
-        exchange.Defender.Statuses.Add(new BurningStatus(owner.Id, exchange.Defender.PlayerId));
+        GameEngine.AddBurning(exchange.Defender, owner.Id);
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
             ("status", L10n.Status("burning"))), "magic");
     }
 }
 
-public sealed class WeakeningSporesSkill : CharacterSkill
+public sealed class WeakeningSporesTrait : CharacterTrait
 {
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "weakening-spores",
-        SkillKind.Active);
+        TraitTriggerKind.OnAttackResolved,
+        TraitScopeKind.Enemy,
+        TraitEffectKind.Dispel);
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
@@ -201,8 +214,8 @@ public sealed class WeakeningSporesSkill : CharacterSkill
         var chance = exchange.AttackDamageDealt > 0 ? 1.0 : 0.50;
         if (!context.Roll(chance))
         {
-            context.Log(L10n.Text("log.skillFailed",
-                ("skill", L10n.Skill("weakening-spores")),
+            context.Log(L10n.Text("log.traitFailed",
+                ("trait", L10n.Trait("weakening-spores")),
                 ("character", L10n.Character(owner.Definition.Key))), "status");
             return;
         }
@@ -233,13 +246,15 @@ public sealed class WeakeningSporesSkill : CharacterSkill
     }
 }
 
-public sealed class AftershockAxeSkill : CharacterSkill
+public sealed class AftershockAxeTrait : CharacterTrait
 {
     public const int TriggerDamage = 3;
 
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "aftershock-axe",
-        SkillKind.Active);
+        TraitTriggerKind.OnAttackResolved,
+        TraitScopeKind.EnemyTeam,
+        TraitEffectKind.Damage);
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
@@ -255,23 +270,43 @@ public sealed class AftershockAxeSkill : CharacterSkill
             return;
 
         var target = neighbours[context.Next(neighbours.Count)];
-        context.DealSkillDamage(target, 1, DamageType.Physical, owner.Id, "aftershock-axe");
+        context.DealTraitDamage(target, 1, DamageType.Physical, owner.Id, "aftershock-axe");
     }
 }
 
-public sealed class PredatoryInstinctSkill : CharacterSkill
+public sealed class PredatoryInstinctTrait : CharacterTrait
 {
     public const int AbsoluteDamage = 3;
     public const int PrincessBonusDamage = 1;
+    public const int PrincessBacklashMultiplier = 2;
 
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "predatory-instinct",
-        SkillKind.Active);
+        TraitTriggerKind.OnAttackResolved,
+        TraitScopeKind.Enemy,
+        TraitEffectKind.Damage);
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (packet.Source != DamageSource.ActiveAttack
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.TargetCharacter.Definition.Key != "princess")
+            return;
+
+        packet.IgnoresSharedShield = true;
+        packet.Notes.Add(L10n.Text("note.beautyPrincessBypass",
+            ("character", L10n.Character(packet.TargetCharacter.Definition.Key))));
+    }
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
+        if (exchange.Defender.Definition.Key == "princess")
+        {
+            DealPrincessBacklash(context, owner, exchange.AttackDamageDealt);
+            return;
+        }
+
         if (!exchange.Defender.IsAlive
-            || exchange.Defender.Definition.Key == "princess"
             || exchange.AttackDamageDealt != 0)
             return;
 
@@ -281,28 +316,49 @@ public sealed class PredatoryInstinctSkill : CharacterSkill
         context.DealAbsoluteDamage(exchange.Defender, damage, owner.Id, "predatory-instinct");
     }
 
-    public override void OnAllyDefeated(
+    private static void DealPrincessBacklash(GameEngineContext context, CharacterState owner, int princessDamage)
+    {
+        var requested = Math.Max(0, princessDamage * PrincessBacklashMultiplier);
+        if (requested <= 0)
+            return;
+
+        var dealt = Math.Min(requested, Math.Max(0, owner.CurrentHp - 1));
+        if (dealt <= 0)
+            return;
+
+        owner.CurrentHp -= dealt;
+        context.Log(L10n.Text("log.effectDamage",
+            ("effect", L10n.Trait("predatory-instinct")),
+            ("source", L10n.Character(owner.Definition.Key)),
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("amount", L10n.Raw(dealt)),
+            ("damageType", L10n.Damage(DamageType.Absolute))), "trait");
+    }
+
+    public override void OnCharacterDefeated(
         GameEngineContext context,
         CharacterState owner,
-        CharacterState defeatedAlly)
+        CharacterState defeatedCharacter)
     {
-        if (defeatedAlly.Definition.Key != "princess"
+        if (defeatedCharacter.Definition.Key != "princess"
             || owner.Statuses.Any(status => status.Id == "beast-rage" && !status.Expired))
             return;
 
-        owner.Statuses.Add(new BeastRageStatus(defeatedAlly.Id));
+        owner.Statuses.Add(new BeastRageStatus(defeatedCharacter.Id));
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(owner.Definition.Key)),
             ("status", L10n.Status("beast-rage"))), "buff");
     }
 }
 
-public sealed class InterposingShieldSkill : CharacterSkill
+public sealed class InterposingShieldTrait : CharacterTrait
 {
     public override int IncomingModifierPriority => 20;
-    public override SkillMetadata Metadata { get; } = new(
+    public override TraitMetadata Metadata { get; } = new(
         "interposing-shield",
-        SkillKind.Passive);
+        TraitTriggerKind.OnDamaged,
+        TraitScopeKind.Ally,
+        TraitEffectKind.Shield);
 
     public override bool IsReady(GameState state, CharacterState owner) =>
         base.IsReady(state, owner) && !owner.GuardConsumed;
@@ -333,26 +389,26 @@ public sealed class InterposingShieldSkill : CharacterSkill
     }
 }
 
-public sealed class SkillRegistry
+public sealed class TraitRegistry
 {
-    private readonly IReadOnlyDictionary<string, CharacterSkill> _skills;
+    private readonly IReadOnlyDictionary<string, CharacterTrait> _traits;
 
-    public SkillRegistry()
+    public TraitRegistry()
     {
-        CharacterSkill[] skills =
+        CharacterTrait[] traits =
         [
-            new SaintsPrayerSkill(),
-            new StargazersAegisSkill(),
-            new SpringHarvestSkill(),
-            new SearingMarkSkill(),
-            new WeakeningSporesSkill(),
-            new AftershockAxeSkill(),
-            new PredatoryInstinctSkill(),
-            new InterposingShieldSkill()
+            new SaintsPrayerTrait(),
+            new StargazersAegisTrait(),
+            new SpringHarvestTrait(),
+            new SearingMarkTrait(),
+            new WeakeningSporesTrait(),
+            new AftershockAxeTrait(),
+            new PredatoryInstinctTrait(),
+            new InterposingShieldTrait()
         ];
 
-        _skills = skills.ToDictionary(skill => skill.Metadata.Id);
+        _traits = traits.ToDictionary(trait => trait.Metadata.Id);
     }
 
-    public CharacterSkill Get(string id) => _skills[id];
+    public CharacterTrait Get(string id) => _traits[id];
 }

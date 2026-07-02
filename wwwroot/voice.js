@@ -127,7 +127,7 @@ class VoiceDirector {
     if (conditions.amountAtLeast !== undefined && Number(cue.amount || 0) < Number(conditions.amountAtLeast)) return false;
     if (conditions.damageTypes?.length && !conditions.damageTypes.includes(cue.damageType)) return false;
     if (conditions.statusIds?.length && !conditions.statusIds.includes(cue.statusId)) return false;
-    if (conditions.skillIds?.length && !conditions.skillIds.includes(cue.skillId)) return false;
+    if (conditions.traitIds?.length && !conditions.traitIds.includes(cue.traitId)) return false;
     if (conditions.tags?.length && !conditions.tags.every(tag => cue.tags?.includes(tag))) return false;
     return true;
   }

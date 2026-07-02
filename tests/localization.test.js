@@ -77,16 +77,16 @@ test('structured domain messages render independently in Japanese and Chinese', 
     }
   };
   assert.match(i18n.message(exchange), /農民.*姫.*物理/u);
-  assert.equal(i18n.skill('predatory-instinct').name, '美女と野獣');
-  assert.match(i18n.skill('predatory-instinct').card, /姫死亡後攻撃\+2/u);
+  assert.equal(i18n.trait('predatory-instinct').name, '美女と野獣');
+  assert.match(i18n.trait('predatory-instinct').card, /姫死亡後攻撃\+2/u);
   assert.equal(i18n.status({ id: 'beast-rage', magnitude: 2 }).name, '野獣の怒り');
   i18n.setLanguage('zh');
   const chinese = i18n.message(exchange);
   assert.match(chinese, /农民.*公主.*物理/u);
   assert.doesNotMatch(chinese, /[\u3040-\u30ff]/u);
-  assert.equal(i18n.skill('interposing-shield').name, '替身之盾');
+  assert.equal(i18n.trait('interposing-shield').name, '替身之盾');
   assert.equal(i18n.status({ id: 'shield-complacency', magnitude: 2 }).description.includes('-2'), true);
-  const beauty = i18n.skill('predatory-instinct');
+  const beauty = i18n.trait('predatory-instinct');
   assert.equal(beauty.name, '美女与野兽');
   assert.match(beauty.card, /公主阵亡后攻击\+2/u);
   assert.match(beauty.description, /基础攻击\+2/u);
@@ -109,7 +109,7 @@ test('all localization IDs referenced by C# exist in both resources', () => {
   const source = cs.join('\n');
   const ids = {
     messages: [...source.matchAll(/"((?:message|error|reason|preview|log|note)\.[a-zA-Z0-9.]+)"/g)].map(match => match[1]),
-    skills: [...source.matchAll(/L10n\.Skill\("([^"]+)"\)/g)].map(match => match[1]),
+    traits: [...source.matchAll(/L10n\.Trait\("([^"]+)"\)/g)].map(match => match[1]),
     statuses: [...source.matchAll(/L10n\.Status\("([^"]+)"\)/g)].map(match => match[1])
   };
   for (const locale of ['ja', 'zh']) {
