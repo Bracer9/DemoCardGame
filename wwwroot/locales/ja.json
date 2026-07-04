@@ -138,7 +138,43 @@
     "heroDraftConfirm": "決定",
     "heroDraftAtk": "攻",
     "heroDraftHp": "HP",
-    "heroDraftCost": "COST"
+    "heroDraftCost": "COST",
+    "soldierDraftTitleOpening": "随伴兵を選択",
+    "soldierDraftSubtitleOpening": "初期隊伍に加える兵士を最大2人選びます。",
+    "soldierDraftTitleRecruit": "兵士招募",
+    "soldierDraftSubtitleRecruit": "兵士を1人選んで加えます。所持済みなら強化を押し、同名兵士を選んで昇格できます。",
+    "soldierDraftOwnedHint": "所持済み：強化で同名兵士を昇格",
+    "soldierDraftUpgrade": "強化",
+    "soldierDraftUpgradeTargetHint": "手札の同名兵士を選んで昇格してください。",
+    "soldierDraftFullUpgradeOnly": "隊伍が満員です。同名兵士の強化、または退出のみ可能です。",
+    "soldierDraftSubtitleFull": "隊伍が満員です。所持済みで最高ランクでない同名兵士を選ぶと強化できます。不要なら退出してください。",
+    "soldierDraftSubtitleFullUpgradeReady": "隊伍が満員です。強化を押し、光っている手札の同名兵士を選んでください。",
+    "soldierDraftExit": "退出",
+    "soldierDraftExitHint": "兵士を加えない",
+    "soldierDraftMaxRank": "最高ランク",
+    "deputyTitle": "副官",
+    "deputyShort": "副",
+    "assignDeputy": "副官に任命",
+    "deputySelectHero": "副官を付ける味方英雄を選択してください。",
+    "deputyTargetInstruction": "副官の宿主を選択",
+    "deputyTargetHint": "副官を持たない味方英雄をクリックしてください。",
+    "deputyConfirm": "「{soldier}」を「{hero}」の副官にしますか？\n\nこの兵士は手札から離れ、行動できなくなります。\n副官効果：{deputy}",
+    "deputyConfirmTitle": "副官任命",
+    "deputyConfirmEffect": "副官効果：{deputy}",
+    "deputyConfirmNotice": "この兵士は手札を離れ、英雄の副官として支援します。",
+    "deputyStat.Attack": "攻撃",
+    "deputyStat.MaxHp": "最大HP",
+    "deputyStat.PhysicalDefense": "物防",
+    "deputyStat.MagicalDefense": "魔防",
+    "deputyDisabled.not-soldier": "兵士のみ副官にできます。",
+    "deputyDisabled.already-deputy": "この兵士はすでに副官です。",
+    "deputyDisabled.not-rank2": "Rank2兵士のみ副官にできます。",
+    "deputyDisabled.not-in-battle": "この兵士は戦場にいません。",
+    "deputyDisabled.not-playing": "今は副官に任命できません。",
+    "deputyDisabled.opponent-turn": "自分のターンのみ副官に任命できます。",
+    "deputyDisabled.already-acted": "この兵士はこのターンすでに行動しました。",
+    "deputyDisabled.no-deputy-definition": "この兵士にはまだ副官効果がありません。",
+    "deputyDisabled.no-legal-hero": "任命できる英雄がいません。"
   },
   "players": {
     "player.1": "プレイヤー1",
@@ -152,7 +188,11 @@
     "knight": "騎士",
     "druid": "ドルイド",
     "barbarian": "バーバリアン",
-    "monster": "モンスター"
+    "monster": "モンスター",
+    "cleric": "クレリック",
+    "shieldmaiden": "シールドメイデン",
+    "duelist": "デュエリスト",
+    "arcanist": "アルカニスト"
   },
   "damageTypes": {
     "Physical": "物理",
@@ -169,6 +209,28 @@
     "reward-skip": "報酬スキップ",
     "role-action-cleanse": "ロールアクションで浄化成功",
     "role-action-dark-pact": "闇の契約で瀕死"
+  },
+  "deputies": {
+    "deputy-cleric": {
+      "name": "戦場医護",
+      "stat": "最大HP +2",
+      "passive": "自分のターンに1回、宿主のロールアクションが治療または浄化に成功した後、対象に護咒を付与。"
+    },
+    "deputy-shieldmaiden": {
+      "name": "盾陣補佐",
+      "stat": "物防 +1",
+      "passive": "自分のターンに1回、宿主が共有シールドを強化した後、HP割合が最も低い味方に堅守を付与。"
+    },
+    "deputy-duelist": {
+      "name": "決闘副手",
+      "stat": "攻撃 +1",
+      "passive": "自分のターンに1回、宿主が汎用デバフを持つ対象へ攻撃する前、強攻を得る。"
+    },
+    "deputy-arcanist": {
+      "name": "秘術参謀",
+      "stat": "魔防 +1",
+      "passive": "自分のターンに1回、宿主が魔法ダメージを与えるか指定デバフを付与した後、咏唱を得る。"
+    }
   },
   "rewards": {
     "dummy-reward-a": {
@@ -190,6 +252,10 @@
     "hero-recruit": {
       "name": "新英雄招募",
       "description": "4人の候補から1人を隊伍に加える。隊伍は最大4人。"
+    },
+    "soldier-recruit": {
+      "name": "兵士招募",
+      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。"
     }
   },
   "roleActions": {
@@ -240,7 +306,7 @@
     },
     "searing-brand": {
       "name": "灼熱の刻印",
-      "description": "敵1体に炎上（ターンダメージ）1層と空虚（受ける魔法ダメージ増加）1層を付与。",
+      "description": "敵1体に炎上（ターンダメージ）1層と空虚（受ける魔法ダメージ増加）を付与。",
       "button": "刻印"
     },
     "star-reading": {
@@ -272,6 +338,26 @@
       "name": "野良仕事",
       "description": "豊穣中なら再攻撃可。播種中なら自身を2 HP回復。何もなければ播種。使用後、次の自分のターンは使用不可。",
       "button": "労作"
+    },
+    "mend": {
+      "name": "修復術",
+      "description": "対象を3 HP回復。浄化可能なデバフがあれば先に1つ浄化し、護呪（魔法ダメージ半減）2層を付与。",
+      "button": "修復"
+    },
+    "aegis-formation": {
+      "name": "聖盾陣",
+      "description": "共有盾がなければ1を得る。既にあれば共有盾+2。",
+      "button": "盾陣"
+    },
+    "crimson-lunge": {
+      "name": "緋色の突き",
+      "description": "対象に戦慄（反撃不可）を付与。通用デバフがあれば脆弱（受ける物理ダメージ増加）も付与。",
+      "button": "突き"
+    },
+    "astral-focus": {
+      "name": "星界集中",
+      "description": "味方対象には詠唱（魔法ダメージ2倍）、敵対象には空虚（受ける魔法ダメージ増加）を付与。",
+      "button": "集中"
     }
   },
   "statuses": {
@@ -405,6 +491,26 @@
       "name": "契約",
       "timing": "次の主動攻撃",
       "description": "次の主動攻撃+{magnitude}。発動後に解除。"
+    },
+    "strong-attack": {
+      "name": "強攻",
+      "timing": "層数で継続",
+      "description": "主動物理ダメージが上昇。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+    },
+    "mighty-strike": {
+      "name": "猛撃",
+      "timing": "層数で継続",
+      "description": "次の主動物理ダメージが2倍。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+    },
+    "spell-ward": {
+      "name": "護呪",
+      "timing": "層数で継続",
+      "description": "受ける魔法ダメージが半減。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+    },
+    "vulnerable": {
+      "name": "脆弱",
+      "timing": "ターン終了まで",
+      "description": "受ける物理ダメージが増加。"
     }
   },
   "messages": {
@@ -500,6 +606,17 @@
     "log.traitFailed": "{trait}は発動しなかった。",
     "message.roleActionUnlocked": "ロールアクションを解放しました。",
     "message.roleActionUsed": "ロールアクションを発動しました。",
+    "message.deputyAssigned": "副官を任命しました。",
+    "error.assignDeputy.not-soldier": "兵士のみ副官にできます。",
+    "error.assignDeputy.already-deputy": "この兵士はすでに副官です。",
+    "error.assignDeputy.not-rank2": "Rank2兵士のみ副官にできます。",
+    "error.assignDeputy.not-in-battle": "この兵士は戦場にいません。",
+    "error.assignDeputy.not-playing": "今は副官に任命できません。",
+    "error.assignDeputy.opponent-turn": "自分のターンのみ副官に任命できます。",
+    "error.assignDeputy.already-acted": "この兵士はこのターンすでに行動しました。",
+    "error.assignDeputy.no-deputy-definition": "この兵士にはまだ副官効果がありません。",
+    "error.assignDeputy.no-legal-hero": "任命できる英雄がいません。",
+    "error.assignDeputy.invalidHero": "この英雄には任命できません。",
     "error.pendingRoleActionUpgrade": "先に解放するロールアクションを選んでください。",
     "error.noPendingRoleActionUpgrade": "現在選択待ちのロールアクション強化はありません。",
     "error.noRoleActionUpgradeTarget": "ロールアクションを解放できる英雄がいません。",
@@ -511,6 +628,8 @@
     "error.roleActionRequiresShield": "味方に共有盾が必要です。",
     "log.roleActionUpgradePending": "{player}が英雄のロールアクション選択を開始した。",
     "log.roleActionUnlocked": "{character}が{roleAction}を解放した。",
+    "log.deputyAssigned": "{soldier}が{hero}の副官になった：{deputy}。",
+    "log.deputyTriggered": "副官「{deputy}」が発動：{target}に{status}を付与。",
     "log.roleActionCleanse": "{character}の{status}を浄化した。",
     "log.roleActionHeal": "{actor}が職業行動を発動し、{target}が{amount} HP回復。",
     "log.royalCommand": "{character}が王令を下す：このターンAP+2、次の自分のターン開始時AP-1。",
@@ -536,11 +655,16 @@
     "note.erosionMagical": "{character}の摩耗（魔法ダメージ低下）：魔法ダメージが{before}から{after}へ。",
     "note.fortifyPhysical": "{character}の堅守（物理ダメージ半減）：物理ダメージが{before}から{after}へ。",
     "note.guardOathPhysical": "{character}の守護の誓約：物理ダメージが{before}から{after}へ。",
+    "note.strongAttack": "{character}の強攻：物理ダメージが{before}から{after}へ。",
+    "note.mightyStrikePhysical": "{character}の猛撃：物理ダメージが{before}から{after}へ。",
+    "note.spellWardMagical": "{character}の護呪：魔法ダメージが{before}から{after}へ。",
+    "note.vulnerablePhysical": "{character}の脆弱：物理ダメージが{before}から{after}へ。",
     "preview.roleAction.arcaneChannel": "詠唱（魔法ダメージ2倍）により魔法ダメージ×{value}。",
     "preview.roleAction.searingBrand": "空虚（受ける魔法ダメージ増加）により対象が受ける魔法ダメージ{value}。",
     "preview.roleAction.searingBrandCounter": "空虚（受ける魔法ダメージ増加）により攻撃側が受ける魔法反撃ダメージ{value}。",
     "preview.roleAction.darkPact": "契約により{value}絶対ダメージを追加。",
     "preview.roleAction.warCryShieldBreak": "戦吼：共有盾を破壊すると追加で{value}絶対ダメージ。",
+    "preview.trait.duelSenseBonus": "決闘嗅覚：追加で{value}絶対ダメージ。",
     "log.arcaneChannel": "{character}は秘術に集中した。",
     "log.starReading": "{actor}が星を読み、{target}はもう一度主動攻撃できる。",
     "log.fateMark": "{actor}が{target}に運命の印を刻んだ。",
@@ -559,15 +683,25 @@
     "log.roleActionNoCleanse": "{actor}は{target}を浄化しようとしたが、解除できるデバフはなかった。",
     "log.roleActionNoDispel": "{actor}は{target}を弱めようとしたが、解除できるバフはなかった。",
     "message.heroDraftSelected": "英雄が隊伍に加わりました。",
+    "message.soldierDraftSelected": "兵士が隊伍に加わりました。",
+    "message.soldierRankUp": "兵士が昇格しました。",
+    "message.soldierRecruitExited": "兵士招募を退出しました。",
     "error.pendingHeroDraft": "先に英雄選択を完了してください。",
     "error.noHeroDraft": "現在、英雄選択はありません。",
     "error.heroDraftInvalidChoice": "この候補英雄は選択できません。",
     "error.heroAlreadyOwned": "その英雄はすでに隊伍にいます。",
+    "error.teamFull": "隊伍は満員です。",
+    "error.noSoldierRecruitTarget": "現在、招募できる兵士はいません。",
+    "error.soldierUpgradeInvalid": "この兵士は昇格できません。",
     "error.noHeroRecruitTarget": "招募できる英雄がいません。",
     "error.heroDraftResetUnavailable": "現在の英雄選択はリセットできません。",
     "log.heroDraftOpened": "{player}が初期英雄を選択します。",
     "log.heroRecruitOpened": "{player}が新英雄を招募します。",
-    "log.heroDraftSelected": "{player}が{character}を選びました。"
+    "log.heroDraftSelected": "{player}が{character}を選びました。",
+    "log.soldierDraftSelected": "{player}が{character}を招募しました。",
+    "log.soldierRankUp": "{character}がRank {rank}へ昇格しました。",
+    "log.aegisFormation": "{character}が盾陣を整えた。共有盾{shield}。",
+    "log.crimsonLunge": "{actor}が{target}へ緋色の突きを放った。"
   },
   "abilityKinds": {
     "Trait": "特性",
@@ -594,8 +728,8 @@
     },
     "stargazers-aegis": {
       "name": "星読みの加護",
-      "description": "味方がダメージを受ける時、30%でそのダメージを半減。味方の魔法と炎上ダメージ+1。",
-      "card": "30%で味方の被ダメージ半減。魔法と炎上+1。"
+      "description": "味方がダメージを受ける時、30%でそのダメージを半減。味方の魔法と炎上（ターンダメージ）ダメージ+1。",
+      "card": "30%で味方の被ダメージ半減。魔法と炎上（ターンダメージ）+1。"
     },
     "spring-harvest": {
       "name": "春種秋収",
@@ -610,7 +744,7 @@
     "weakening-spores": {
       "name": "衰弱の胞子",
       "description": "有効打なら100%、無効打なら50%で発動。対象の解除可能なBuffをランダムに1つ即座に解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与する。",
-      "card": "発動時、Buffを1つ解除して力尽きと摩耗を付与。"
+      "card": "発動時、Buffを1つ解除して力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。"
     },
     "aftershock-axe": {
       "name": "戦斧の余波",
@@ -626,6 +760,38 @@
       "name": "身代わりの盾",
       "description": "騎士以外の味方が主動物理ダメージを受ける時、全隊共有で1回発動。騎士がそのダメージの1/3切り上げを肩代わりし、騎士自身の物防で軽減する。",
       "card": "全隊共有1回。騎士が味方への主動物理ダメージの一部を肩代わり。"
+    },
+    "field-medic": {
+      "name": "戦場医療",
+      "description": "味方への主動回復または浄化成功時、対象に護呪（魔法ダメージ半減）を付与。",
+      "card": "回復/浄化後に護呪。",
+      "ranks": {
+        "1": {
+          "description": "味方への主動回復または浄化成功時、対象に護呪（魔法ダメージ半減）を付与。対象の現在HPが半分未満なら追加で3 HP回復。",
+          "card": "回復/浄化後に護呪。低HPなら追加回復。"
+        }
+      }
+    },
+    "shield-drill": {
+      "name": "盾陣訓練",
+      "description": "自分のターンに1回、共有盾が増えるか味方が堅守（物理ダメージ半減）を得た時、現在HP割合が最も低い味方に堅守を付与。同率ならHPが最も低い英雄を優先。",
+      "card": "加盾や堅守獲得で低HP味方に堅守。"
+    },
+    "duel-sense": {
+      "name": "決闘嗅覚",
+      "description": "自分のターンに1回、共有盾のない敵へ主動攻撃する前、自身に強攻（物理ダメージ増加）1層を付与。",
+      "card": "盾なし敵への攻撃前に強攻。",
+      "ranks": {
+        "1": {
+          "description": "自分のターンに1回、共有盾のない敵へ主動攻撃する前、自身に強攻（物理ダメージ増加）1層を付与し、追加で2絶対ダメージ。",
+          "card": "盾なし敵への攻撃前に強攻し、絶対ダメージ追加。"
+        }
+      }
+    },
+    "arcane-resonance": {
+      "name": "秘術共鳴",
+      "description": "自分のターンに1回、味方の魔法ダメージまたは魔法系状態連鎖に反応し、自身に詠唱（魔法ダメージ2倍）を付与。",
+      "card": "魔法連鎖で詠唱（魔法ダメージ2倍）を得る。"
     }
   }
 }

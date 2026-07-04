@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 4,
   "basePath": "/assets/ui",
   "icons": {
     "event.physical": {
@@ -182,9 +182,33 @@
       "fallback": "◇",
       "tone": "shield"
     },
+    "trait.field-medic": {
+      "category": "trait",
+      "source": "traits/field-medic.png",
+      "fallback": "+",
+      "tone": "heal"
+    },
+    "trait.shield-drill": {
+      "category": "trait",
+      "source": "traits/shield-drill.png",
+      "fallback": "◇",
+      "tone": "shield"
+    },
+    "trait.duel-sense": {
+      "category": "trait",
+      "source": "traits/duel-sense.png",
+      "fallback": "⚔",
+      "tone": "physical"
+    },
+    "trait.arcane-resonance": {
+      "category": "trait",
+      "source": "traits/arcane-resonance.png",
+      "fallback": "✦",
+      "tone": "arcane"
+    },
     "status.chant": {
       "category": "status",
-      "source": null,
+      "source": "statuses/chant.png",
       "fallback": "唱",
       "tone": "arcane"
     },
@@ -196,13 +220,13 @@
     },
     "status.trembling": {
       "category": "status",
-      "source": null,
+      "source": "statuses/trembling.png",
       "fallback": "戦",
       "tone": "debuff"
     },
     "status.chant-pending": {
       "category": "status",
-      "source": null,
+      "source": "statuses/chant.png",
       "fallback": "唱",
       "tone": "pending"
     },
@@ -222,6 +246,18 @@
       "category": "status",
       "source": null,
       "fallback": "P",
+      "tone": "physical"
+    },
+    "status.spell-ward": {
+      "category": "status",
+      "source": "statuses/spell-ward.png",
+      "fallback": "◇",
+      "tone": "arcane"
+    },
+    "status.strong-attack": {
+      "category": "status",
+      "source": "statuses/strong-attack.png",
+      "fallback": "↑",
       "tone": "physical"
     }
   },
@@ -265,6 +301,8 @@
       "attack-sealed": "status.attack-sealed",
       "trembling": "status.trembling",
       "chant-pending": "status.chant-pending",
+      "spell-ward": "status.spell-ward",
+      "strong-attack": "status.strong-attack",
       "marked": "status.marked",
       "prey": "status.prey",
       "pact": "status.pact"
@@ -277,7 +315,33 @@
       "weakening-spores": "trait.weakening-spores",
       "aftershock-axe": "trait.aftershock-axe",
       "predatory-instinct": "trait.predatory-instinct",
-      "interposing-shield": "trait.interposing-shield"
+      "interposing-shield": "trait.interposing-shield",
+      "field-medic": "trait.field-medic",
+      "shield-drill": "trait.shield-drill",
+      "duel-sense": "trait.duel-sense",
+      "arcane-resonance": "trait.arcane-resonance"
+    },
+    "roleActions": {
+      "saintly-prayer": "trait.saints-prayer",
+      "royal-command": "trait.saints-prayer",
+      "guard-oath": "trait.interposing-shield",
+      "raise-bulwark": "trait.interposing-shield",
+      "arcane-channel": "trait.searing-mark",
+      "searing-brand": "trait.searing-mark",
+      "cleansing-herbs": "trait.weakening-spores",
+      "weakening-spores-action": "trait.weakening-spores",
+      "war-cry": "trait.aftershock-axe",
+      "challenge": "trait.aftershock-axe",
+      "star-reading": "trait.stargazers-aegis",
+      "fate-mark": "trait.stargazers-aegis",
+      "predatory-gaze": "trait.predatory-instinct",
+      "dark-pact": "trait.predatory-instinct",
+      "supply-basket": "trait.spring-harvest",
+      "field-work": "trait.spring-harvest",
+      "mend": "trait.field-medic",
+      "aegis-formation": "trait.shield-drill",
+      "crimson-lunge": "trait.duel-sense",
+      "astral-focus": "trait.arcane-resonance"
     }
   }
 }

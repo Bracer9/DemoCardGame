@@ -26,6 +26,10 @@
   const playerName = value => lookup('players', value) ?? value;
   const damageType = value => lookup('damageTypes', value) ?? value;
   const bpReason = value => lookup('bpReasons', value) ?? value;
+  const deputy = id => {
+    const value = lookup('deputies', id) || {};
+    return { id, name: value.name ?? id, stat: value.stat ?? '', passive: value.passive ?? '', button: value.button ?? value.name ?? id };
+  };
   const reward = id => {
     const value = lookup('rewards', id) || {};
     return { id, name: value.name ?? id, description: value.description ?? '' };
@@ -36,9 +40,15 @@
   };
   const traitKind = value => lookup('abilityKinds', value) ?? value;
   const traitTrigger = value => lookup('traitTriggers', value) ?? value;
-  const trait = id => {
+  const trait = (id, rank = 0) => {
     const value = lookup('traits', id) || {};
-    return { id, name: value.name ?? id, description: value.description ?? '', card: value.card ?? value.description ?? '' };
+    const rankKey = String(Math.max(0, Number(rank) || 0));
+    const ranked = value.ranks?.[rankKey]
+      ?? (Number(rank) >= 2 ? value.ranks?.["2"] : undefined)
+      ?? (Number(rank) >= 1 ? value.ranks?.["1"] : undefined)
+      ?? {};
+    const description = ranked.description ?? value.description ?? '';
+    return { id, name: value.name ?? id, description, card: ranked.card ?? value.card ?? description };
   };
   const status = value => {
     const localized = lookup('statuses', value.id) || {};
@@ -58,6 +68,7 @@
       case 'player': return playerName(arg.value);
       case 'damageType': return damageType(arg.value);
       case 'bpReason': return bpReason(arg.value);
+      case 'deputy': return deputy(arg.value).name;
       case 'reward': return reward(arg.value).name;
       case 'roleAction': return roleAction(arg.value).name;
       case 'trait': return trait(arg.value).name;
@@ -85,6 +96,6 @@
   window.TinyPixelI18n = {
     load, t, message, toggle, setLanguage,
     get language() { return language; },
-    characterName, playerName, damageType, bpReason, reward, roleAction, traitKind, traitTrigger, trait, status
+    characterName, playerName, damageType, bpReason, reward, deputy, roleAction, traitKind, traitTrigger, trait, status
   };
 })();

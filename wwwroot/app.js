@@ -8,7 +8,8 @@ const ui = {
   previewDamage: document.querySelector('#preview-damage'), previewCounter: document.querySelector('#preview-counter'), previewTrait: document.querySelector('#preview-trait'),
   previewNotes: document.querySelector('#preview-notes'), confirm: document.querySelector('#confirm-attack'), cancelPreview: document.querySelector('#cancel-preview'), log: document.querySelector('#battle-log'),
   rewardWindow: document.querySelector('#reward-window'), rewardOptions: document.querySelector('#reward-options'), rewardReset: document.querySelector('#reward-reset'), rewardSkip: document.querySelector('#reward-skip'), rewardWaiting: document.querySelector('#reward-waiting'),
-  heroDraftWindow: document.querySelector('#hero-draft-window'), heroDraftOptions: document.querySelector('#hero-draft-options'), heroDraftTitle: document.querySelector('#hero-draft-title'), heroDraftSubtitle: document.querySelector('#hero-draft-subtitle'), heroDraftWaiting: document.querySelector('#hero-draft-waiting'), heroDraftReset: document.querySelector('#hero-draft-reset'),
+  heroDraftWindow: document.querySelector('#hero-draft-window'), heroDraftOptions: document.querySelector('#hero-draft-options'), heroDraftTitle: document.querySelector('#hero-draft-title'), heroDraftSubtitle: document.querySelector('#hero-draft-subtitle'), heroDraftWaiting: document.querySelector('#hero-draft-waiting'), heroDraftUpgrade: document.querySelector('#hero-draft-upgrade'), heroDraftConfirm: document.querySelector('#hero-draft-confirm'), heroDraftReset: document.querySelector('#hero-draft-reset'),
+  deputyConfirm: document.querySelector('#deputy-confirm-modal'), deputyConfirmTitle: document.querySelector('#deputy-confirm-title'), deputyConfirmSoldier: document.querySelector('#deputy-confirm-soldier'), deputyConfirmHero: document.querySelector('#deputy-confirm-hero'), deputyConfirmEffect: document.querySelector('#deputy-confirm-effect'), deputyConfirmNote: document.querySelector('#deputy-confirm-note'), deputyConfirmOk: document.querySelector('#deputy-confirm-ok'), deputyConfirmCancel: document.querySelector('#deputy-confirm-cancel'),
   toast: document.querySelector('#toast'), curtain: document.querySelector('#turn-curtain'), curtainPlayer: document.querySelector('#curtain-player'), fx: document.querySelector('#fx-layer'),
   gameOver: document.querySelector('#game-over'), resultTitle: document.querySelector('#result-title'), resultCopy: document.querySelector('#result-copy'),
   inspector: document.querySelector('#character-inspector'), apHud: document.querySelector('#action-point-hud'),
@@ -190,7 +191,11 @@ let selectedDefender = null;
 let inspectedCardId = null;
 let suppressedOpponentInspectorId = null;
 let selectedHeroDraftKey = null;
+let selectedHeroDraftKeys = [];
+let soldierUpgradeKey = null;
 let pendingRoleAction = null;
+let pendingDeputy = null;
+let pendingDeputyConfirm = null;
 let preview = null;
 let busy = false;
 let hasStarted = false;
@@ -447,10 +452,13 @@ function render() {
   ui.app.classList.toggle('role-action-upgrade-pending', Boolean(game.pendingRoleActionUpgrade?.canChoose));
   ui.app.classList.toggle('hero-draft-pending', Boolean(game.heroDraft));
   ui.app.classList.toggle('hero-draft-opening', game.heroDraft?.kind === 'Opening' || game.heroDraft?.kind === 'TestOpening');
+  ui.app.classList.toggle('soldier-draft-pending', game.heroDraft?.kind === 'SoldierOpening' || game.heroDraft?.kind === 'SoldierRecruit');
+  ui.app.classList.toggle('soldier-upgrade-targeting', Boolean(soldierUpgradeKey));
   ui.app.classList.toggle('hero-draft-can-choose', Boolean(game.heroDraft?.canChoose));
   ui.app.classList.toggle('dealing', dealing);
   renderHeroDraftBanner();
   ui.app.classList.toggle('role-action-targeting', Boolean(pendingRoleAction));
+  ui.app.classList.toggle('deputy-targeting', Boolean(pendingDeputy));
   ui.app.classList.toggle('attacker-selected', Boolean(selectedAttacker));
   ui.endTurn.disabled = !game.canControl || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft);
   ui.endTurn.classList.toggle('queued', endTurnQueued);
@@ -519,17 +527,25 @@ function renderHeroDraftWindow() {
   const draft = game?.heroDraft;
   if (!ui.heroDraftWindow) return;
   const isOpening = draft?.kind === 'Opening' || draft?.kind === 'TestOpening';
+  const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
   const open = Boolean(draft) && !isOpening;
   ui.heroDraftWindow.classList.toggle('open', open);
   ui.heroDraftWindow.setAttribute('aria-hidden', String(!open));
   if (!draft || isOpening) {
     selectedHeroDraftKey = null;
+    selectedHeroDraftKeys = [];
+    soldierUpgradeKey = null;
     ui.heroDraftOptions.innerHTML = '';
+    if (ui.heroDraftUpgrade) ui.heroDraftUpgrade.hidden = true;
+    if (ui.heroDraftConfirm) ui.heroDraftConfirm.hidden = true;
     if (ui.heroDraftReset) ui.heroDraftReset.hidden = true;
     return;
   }
 
   const candidates = draft.candidates || [];
+  selectedHeroDraftKeys = selectedHeroDraftKeys.filter(key => candidates.some(candidate => candidate.key === key));
+  if (soldierUpgradeKey && (!candidates.some(candidate => candidate.key === soldierUpgradeKey) || draft.kind !== 'SoldierRecruit'))
+    soldierUpgradeKey = null;
   if (!candidates.some(candidate => candidate.key === selectedHeroDraftKey))
     selectedHeroDraftKey = null;
 
@@ -537,39 +553,132 @@ function renderHeroDraftWindow() {
   selectedDefender = null;
   inspectedCardId = null;
   pendingRoleAction = null;
+  pendingDeputy = null;
   hideAttackArrow();
   if (!selectedHeroDraftKey) hideCharacterInspector();
   hideShieldInspector();
   hideBpInspector();
   closePreview();
 
-  ui.heroDraftTitle.textContent = i18n.t(isOpening ? 'heroDraftTitleOpening' : 'heroDraftTitleRecruit');
-  ui.heroDraftSubtitle.textContent = i18n.t(isOpening ? 'heroDraftSubtitleOpening' : 'heroDraftSubtitleRecruit');
+  const titleKey = isSoldierDraft
+    ? (draft.kind === 'SoldierOpening' ? 'soldierDraftTitleOpening' : 'soldierDraftTitleRecruit')
+    : (isOpening ? 'heroDraftTitleOpening' : 'heroDraftTitleRecruit');
+  const subtitleKey = isSoldierDraft
+    ? (draft.kind === 'SoldierOpening' ? 'soldierDraftSubtitleOpening' : 'soldierDraftSubtitleRecruit')
+    : (isOpening ? 'heroDraftSubtitleOpening' : 'heroDraftSubtitleRecruit');
+  ui.heroDraftTitle.textContent = i18n.t(titleKey);
+  const handFull = viewerActiveCharacterCount() >= 4;
+  const upgradeKey = selectedRecruitSoldierUpgradeKey();
+  ui.heroDraftSubtitle.textContent = draft.kind === 'SoldierRecruit' && handFull
+    ? i18n.t(upgradeKey ? 'soldierDraftSubtitleFullUpgradeReady' : 'soldierDraftSubtitleFull')
+    : i18n.t(subtitleKey);
   ui.heroDraftWaiting.textContent = draft.canChoose ? '' : i18n.t('heroDraftWaiting');
   ui.heroDraftWaiting.hidden = draft.canChoose;
   ui.heroDraftOptions.innerHTML = candidates.map(candidate => {
-    const selected = candidate.key === selectedHeroDraftKey;
+    const selected = isSoldierDraft
+      ? selectedHeroDraftKeys.includes(candidate.key)
+      : candidate.key === selectedHeroDraftKey;
+    const ownedSoldier = isSoldierDraft ? findOwnedSoldier(candidate.key) : null;
     return `<div class="hero-draft-choice ${selected ? 'selected' : ''}" data-hero-key="${escapeHtml(candidate.key)}">
-      <button class="hero-draft-card" type="button" data-hero-key="${escapeHtml(candidate.key)}" ${draft.canChoose ? '' : 'disabled'}>
+      <button class="hero-draft-card" type="button" data-hero-key="${escapeHtml(candidate.key)}" data-card-type="${escapeHtml(candidate.cardType || '')}" ${draft.canChoose ? '' : 'disabled'}>
         <img src="${escapeHtml(candidate.coloredAssetUrl || candidate.assetUrl)}" alt="${escapeHtml(i18n.characterName(candidate.key))}">
         <strong>${escapeHtml(i18n.characterName(candidate.key))}</strong>
         <em>${escapeHtml(i18n.damageType(candidate.attackType))}</em>
       </button>
-      ${selected && draft.canChoose ? `<button class="hero-draft-recruit-confirm" type="button" data-hero-key="${escapeHtml(candidate.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>` : ''}
+      ${ownedSoldier ? `<small class="hero-draft-owned">${escapeHtml(i18n.t(ownedSoldier.soldierRank >= 2 ? 'soldierDraftMaxRank' : 'soldierDraftOwnedHint'))}</small>` : ''}
+      ${!isSoldierDraft && selected && draft.canChoose ? `<button class="hero-draft-recruit-confirm" type="button" data-hero-key="${escapeHtml(candidate.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>` : ''}
     </div>`;
   }).join('');
+  const selectedOwnedSoldier = draft.kind === 'SoldierRecruit' && selectedHeroDraftKeys.length === 1
+    ? findOwnedSoldier(selectedHeroDraftKeys[0])
+    : null;
+  if (ui.heroDraftUpgrade) {
+    ui.heroDraftUpgrade.hidden = !(draft.canChoose && selectedOwnedSoldier && Number(selectedOwnedSoldier.soldierRank || 0) < 2);
+    ui.heroDraftUpgrade.disabled = !draft.canChoose || !selectedOwnedSoldier || Number(selectedOwnedSoldier.soldierRank || 0) >= 2;
+    ui.heroDraftUpgrade.textContent = i18n.t('soldierDraftUpgrade');
+  }
+  if (ui.heroDraftConfirm) {
+    ui.heroDraftConfirm.hidden = !isSoldierDraft;
+    ui.heroDraftConfirm.disabled = !draft.canChoose
+      || selectedHeroDraftKeys.length === 0
+      || (draft.kind === 'SoldierRecruit' && handFull);
+    ui.heroDraftConfirm.textContent = i18n.t('heroDraftConfirm');
+  }
   if (ui.heroDraftReset) {
     const resetCost = Number(draft.nextResetCost || 0);
     const viewer = game.players.find(player => player.id === game.viewerPlayerId);
     const canAffordReset = Number(viewer?.battlePoints?.current || 0) >= resetCost;
-    ui.heroDraftReset.hidden = false;
-    ui.heroDraftReset.disabled = !draft.canChoose || !canAffordReset;
-    ui.heroDraftReset.innerHTML = `<span>${escapeHtml(i18n.t('rewardReset'))}</span><b>${escapeHtml(resetCost === 0 ? i18n.t('rewardResetFree') : i18n.t('rewardResetCost', { cost: resetCost }))}</b>`;
+    const isSoldierRecruit = draft.kind === 'SoldierRecruit';
+    ui.heroDraftReset.hidden = isSoldierDraft && !isSoldierRecruit;
+    ui.heroDraftReset.disabled = !draft.canChoose || (!isSoldierRecruit && !canAffordReset);
+    ui.heroDraftReset.innerHTML = isSoldierRecruit
+      ? `<span>${escapeHtml(i18n.t('soldierDraftExit'))}</span><b>${escapeHtml(i18n.t('soldierDraftExitHint'))}</b>`
+      : `<span>${escapeHtml(i18n.t('rewardReset'))}</span><b>${escapeHtml(resetCost === 0 ? i18n.t('rewardResetFree') : i18n.t('rewardResetCost', { cost: resetCost }))}</b>`;
   }
   if (selectedHeroDraftKey) {
     const selectedCard = [...ui.heroDraftOptions.querySelectorAll('.hero-draft-card[data-hero-key]')]
       .find(card => card.dataset.heroKey === selectedHeroDraftKey);
     if (selectedCard) showHeroDraftCandidateInspector(selectedHeroDraftKey, selectedCard);
+  }
+}
+
+function syncHeroDraftSelectionUi() {
+  const draft = game?.heroDraft;
+  if (!draft || !ui.heroDraftOptions) return;
+  const isSoldierDraft = draft.kind === 'SoldierOpening' || draft.kind === 'SoldierRecruit';
+  const handFull = viewerActiveCharacterCount() >= 4;
+  const selectedOwnedSoldier = draft.kind === 'SoldierRecruit' && selectedHeroDraftKeys.length === 1
+    ? findOwnedSoldier(selectedHeroDraftKeys[0])
+    : null;
+
+  ui.heroDraftOptions.querySelectorAll('.hero-draft-choice[data-hero-key]').forEach(choice => {
+    const key = choice.dataset.heroKey;
+    choice.querySelector('.hero-draft-card')?.classList.add('hero-draft-entered');
+    const selected = isSoldierDraft
+      ? selectedHeroDraftKeys.includes(key)
+      : key === selectedHeroDraftKey;
+    choice.classList.toggle('selected', selected);
+
+    const existingConfirm = choice.querySelector(':scope > .hero-draft-recruit-confirm');
+    if (!isSoldierDraft && selected && draft.canChoose && !existingConfirm) {
+      const button = document.createElement('button');
+      button.className = 'hero-draft-recruit-confirm';
+      button.type = 'button';
+      button.dataset.heroKey = key;
+      button.textContent = i18n.t('heroDraftConfirm');
+      choice.appendChild(button);
+    } else if ((isSoldierDraft || !selected || !draft.canChoose) && existingConfirm) {
+      existingConfirm.remove();
+    }
+  });
+
+  const subtitleKey = isSoldierDraft
+    ? (draft.kind === 'SoldierOpening' ? 'soldierDraftSubtitleOpening' : 'soldierDraftSubtitleRecruit')
+    : 'heroDraftSubtitleRecruit';
+  const upgradeKey = selectedRecruitSoldierUpgradeKey();
+  ui.heroDraftSubtitle.textContent = draft.kind === 'SoldierRecruit' && handFull
+    ? i18n.t(upgradeKey ? 'soldierDraftSubtitleFullUpgradeReady' : 'soldierDraftSubtitleFull')
+    : i18n.t(subtitleKey);
+
+  if (ui.heroDraftUpgrade) {
+    ui.heroDraftUpgrade.hidden = !(draft.canChoose && selectedOwnedSoldier && Number(selectedOwnedSoldier.soldierRank || 0) < 2);
+    ui.heroDraftUpgrade.disabled = !draft.canChoose || !selectedOwnedSoldier || Number(selectedOwnedSoldier.soldierRank || 0) >= 2;
+    ui.heroDraftUpgrade.textContent = i18n.t('soldierDraftUpgrade');
+  }
+  if (ui.heroDraftConfirm) {
+    ui.heroDraftConfirm.hidden = !isSoldierDraft;
+    ui.heroDraftConfirm.disabled = !draft.canChoose
+      || selectedHeroDraftKeys.length === 0
+      || (draft.kind === 'SoldierRecruit' && handFull);
+    ui.heroDraftConfirm.textContent = i18n.t('heroDraftConfirm');
+  }
+
+  if (selectedHeroDraftKey) {
+    const selectedCard = [...ui.heroDraftOptions.querySelectorAll('.hero-draft-card[data-hero-key]')]
+      .find(card => card.dataset.heroKey === selectedHeroDraftKey);
+    if (selectedCard) showHeroDraftCandidateInspector(selectedHeroDraftKey, selectedCard);
+  } else {
+    hideCharacterInspector();
   }
 }
 
@@ -768,8 +877,15 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
     classes.push('upgrade-selectable');
   if (pendingRoleAction && isActiveSide && visuallyAlive)
     classes.push('role-action-target');
+  if (pendingDeputy && isActiveSide && visuallyAlive && card.cardType === 'Hero' && !card.deputy)
+    classes.push('deputy-target', 'role-action-target');
   if (isLowHpForSelect({ ...card, currentHp: visualCurrentHp })) classes.push('low-hp');
   if (isActiveSide && game?.canControl && visuallyAlive && !hasAvailableAction) classes.push('acted');
+  const soldierUpgradePreviewKey = selectedRecruitSoldierUpgradeKey();
+  if ((soldierUpgradeKey || soldierUpgradePreviewKey) && isActiveSide && visuallyAlive && card.cardType === 'Soldier' && card.key === (soldierUpgradeKey || soldierUpgradePreviewKey) && Number(card.soldierRank || 0) < 2) {
+    classes.push('soldier-upgrade-candidate');
+    if (soldierUpgradeKey) classes.push('soldier-upgrade-target', 'role-action-target');
+  }
   if (!visuallyAlive) classes.push('defeated');
   if (visualIsDraftCandidate) classes.push('draft-candidate');
   if (visualIsDraftCandidate && inspectedCardId === card.id) classes.push('draft-inspected', 'selected');
@@ -783,7 +899,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
   const statuses = visibleStatuses.map(status => `<span class="status-chip ${status.isBuff ? '' : 'debuff'}" title="${escapeHtml(status.description)}">${art.icon(art.forStatus(status.id), { size: 'xs', label: status.name })}<span>${escapeHtml(status.name)}</span></span>`).join('');
   const trait = primaryTrait(card);
-  const localizedTrait = i18n.trait(trait?.id);
+  const localizedTrait = i18n.trait(trait?.id, card.soldierRank);
   localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
   const traitClass = trait?.isReady !== false ? 'ready' : 'disabled';
   const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
@@ -793,12 +909,16 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
   const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}">`;
   const costCrystals = Array.from({ length: Math.max(0, card.cost) }, () => '<i class="cost-crystal" aria-hidden="true"></i>').join('');
+  const deputyBadge = card.deputy
+    ? `<span class="deputy-badge" title="${escapeHtml(i18n.deputy(card.deputy.effectId).name)}">${escapeHtml(i18n.t('deputyShort'))}</span>`
+    : '';
   const draftConfirm = (game?.heroDraft?.kind === 'Opening' || game?.heroDraft?.kind === 'TestOpening') && game.heroDraft.canChoose
     && isActiveSide && visualIsDraftCandidate && inspectedCardId === card.id
     ? `<button class="hero-draft-confirm-card" type="button" data-hero-key="${escapeHtml(card.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>`
     : '';
-  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}" data-id="${card.id}" data-key="${card.key}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
+  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
     ${draftConfirm}
+    ${deputyBadge}
     <div class="card-name">${escapeHtml(i18n.characterName(card.key))}</div><div class="cost-orb" aria-label="Cost ${card.cost}">${costCrystals}</div>
     <div class="type-rune ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</div>
     <div class="portrait-wrap">${portraitMarkup}</div>
@@ -984,7 +1104,7 @@ function showCharacterInspector(element) {
   const auraStatuses = sortAuraDisplayStatuses(translatedStatuses.filter(isAuraDisplayStatus));
   const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
   const trait = primaryTrait(card);
-  const localizedTrait = i18n.trait(trait?.id);
+  const localizedTrait = i18n.trait(trait?.id, card.soldierRank);
   localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
   const visibleStatusMarkup = visibleStatuses.map(status => `<li class="${status.isBuff ? 'buff' : 'debuff'}">
         <div class="effect-title">${art.icon(art.forStatus(status.id), { size: 'md', label: status.name })}<div><b>${escapeHtml(status.name)}</b><em>${status.isBuff ? i18n.t('buff') : i18n.t('debuff')}${status.isAura ? ` / ${i18n.t('aura')}` : ''}${status.isDispellable === false ? ` / ${i18n.t('notDispellable')}` : ''}</em></div></div>
@@ -1013,6 +1133,7 @@ function showCharacterInspector(element) {
     && Array.isArray(card.roleActionChoices) && card.roleActionChoices.length > 0;
   const visibleRoleActions = isUpgradeChoiceMode ? card.roleActionChoices : card.roleActions;
   const showRoleActions = !game?.heroDraft;
+  const deputyMarkup = deputyInspectorMarkup(card);
   const roleActionMarkup = Array.isArray(visibleRoleActions) && visibleRoleActions.length
     ? visibleRoleActions.map(action => {
         const localized = i18n.roleAction(action.id);
@@ -1031,6 +1152,7 @@ function showCharacterInspector(element) {
           data-role-action-cost="${escapeHtml(action.cost)}" data-role-action-summary="${escapeHtml(summary)}"
           data-role-action-cooldown="${escapeHtml(cooldownTurns)}" data-role-action-cooldown-remaining="${escapeHtml(cooldownRemaining)}"
           ${draggable ? 'draggable="true"' : ''} ${disabled ? 'disabled' : ''}>
+          ${art.icon(art.forRoleAction(action.id), { size: 'sm', label: localized.name, className: 'role-action-icon' })}
           <span>${escapeHtml(localized.button || localized.name)}</span><small>${escapeHtml(costLabel)}</small>
           <em>${escapeHtml(summary)}</em>
         </button>`;
@@ -1049,6 +1171,7 @@ function showCharacterInspector(element) {
       <div class="inspector-trait-heading">${art.icon(art.forTrait(trait?.id), { size: 'md', label: localizedTrait.name })}<div><span>TRAIT / ${escapeHtml(localizedTrait.kind)}</span><b>${escapeHtml(localizedTrait.name)}</b><p>${escapeHtml(localizedTrait.description)}</p></div></div>
       ${trait?.unavailableReason ? `<small>${escapeHtml(i18n.message(trait.unavailableReason))}</small>` : ''}
     </section>
+    ${deputyMarkup}
     ${showRoleActions ? `<section class="inspector-role-actions">
       <div class="inspector-section-label">${escapeHtml(isUpgradeChoiceMode ? i18n.t('roleActionChooseTitle') : i18n.t('roleActionTitle'))}</div>
       <div class="role-action-list">${roleActionMarkup}</div>
@@ -1084,11 +1207,45 @@ function hideCharacterInspector() {
   hideRoleActionInspector();
 }
 
+function deputyStatText(statKind, value) {
+  const label = i18n.t(`deputyStat.${statKind}`) || statKind;
+  return `${label} +${Number(value || 0)}`;
+}
+
+function deputyInspectorMarkup(card) {
+  if (card?.deputy) {
+    const deputy = i18n.deputy(card.deputy.effectId);
+    return `<section class="inspector-deputy">
+      <div class="inspector-section-label">${escapeHtml(i18n.t('deputyTitle'))}</div>
+      <div class="deputy-current">
+        <b>${escapeHtml(deputy.name)}</b>
+        <small>${escapeHtml(i18n.characterName(card.deputy.soldierKey))} / ${escapeHtml(deputyStatText(card.deputy.statKind, card.deputy.statValue))}</small>
+        <p>${escapeHtml(deputy.passive)}</p>
+      </div>
+    </section>`;
+  }
+
+  if (!card?.deputyPreview || card.cardType !== 'Soldier') return '';
+  const deputy = i18n.deputy(card.deputyPreview.effectId);
+  const disabled = !card.canAssignAsDeputy;
+  const reason = card.assignDeputyDisabledReason ? i18n.t(`deputyDisabled.${card.assignDeputyDisabledReason}`) : '';
+  return `<section class="inspector-deputy">
+    <div class="inspector-section-label">${escapeHtml(i18n.t('deputyTitle'))}</div>
+    <button class="deputy-assign-button ${disabled ? 'disabled' : 'enabled'}" type="button"
+      data-soldier-id="${escapeHtml(card.id)}" data-deputy-id="${escapeHtml(card.deputyPreview.effectId)}"
+      ${disabled ? 'disabled' : ''}>
+      <span>${escapeHtml(i18n.t('assignDeputy'))}</span>
+      <small>${escapeHtml(deputyStatText(card.deputyPreview.statKind, card.deputyPreview.statValue))}</small>
+      <em>${escapeHtml(disabled ? reason : deputy.passive)}</em>
+    </button>
+  </section>`;
+}
+
 function roleActionSummary(description) {
   const text = String(description || '').trim();
   if (!text) return '';
-  const sentence = text.split(/(?<=[。！？!?；;])/u)[0] || text;
-  return truncateCardText(sentence, 24);
+  const sentence = text.split(/(?<=[。！？!?])/u)[0] || text;
+  return truncateCardText(sentence, 48);
 }
 
 function showRoleActionInspector(button) {
@@ -1285,9 +1442,9 @@ function canRoleActionTargetCard(action, element) {
   if (!element || element.classList.contains('defeated')) return false;
   if (action?.roleActionId === 'guard-oath' && element.dataset.id === action.characterId) return false;
   if (action?.roleActionId === 'star-reading') return canStarReadingTarget(element.dataset.id);
-  if (targets.includes('SelfCard')) return element.dataset.id === action.characterId;
-  if (targets.includes('EnemyCard')) return element.dataset.side === 'opponent';
-  if (targets.includes('AllyCard')) return element.dataset.side === 'active';
+  if (targets.includes('SelfCard') && element.dataset.id === action.characterId) return true;
+  if (targets.includes('EnemyCard') && element.dataset.side === 'opponent') return true;
+  if (targets.includes('AllyCard') && element.dataset.side === 'active') return true;
   return false;
 }
 
@@ -1322,11 +1479,12 @@ function roleActionTargetInstructionKey(targetKinds = []) {
 }
 
 function cancelAiming({ rerender = true } = {}) {
-  const hadAiming = Boolean(selectedAttacker || pendingRoleAction || inspectedCardId || ui.preview.classList.contains('open'));
+  const hadAiming = Boolean(selectedAttacker || pendingRoleAction || pendingDeputy || inspectedCardId || ui.preview.classList.contains('open'));
   selectedAttacker = null;
   selectedDefender = null;
   inspectedCardId = null;
   pendingRoleAction = null;
+  pendingDeputy = null;
   closePreview();
   hideAttackArrow();
   hideCharacterInspector();
@@ -1335,6 +1493,7 @@ function cancelAiming({ rerender = true } = {}) {
 
 function beginRoleActionTargeting(characterId, roleActionId, targetKinds, { renderFirst = true, startArrow = true } = {}) {
   pendingRoleAction = { characterId, roleActionId, targetKinds };
+  pendingDeputy = null;
   selectedAttacker = null;
   selectedDefender = null;
   inspectedCardId = null;
@@ -1348,21 +1507,122 @@ function beginRoleActionTargeting(characterId, roleActionId, targetKinds, { rend
   updateInstruction();
 }
 
-function inspectPassiveCard(id) {
-  const isSameCard = inspectedCardId === id && !selectedAttacker;
+function beginDeputyTargeting(soldierId) {
+  pendingDeputy = { soldierId };
   selectedAttacker = null;
   selectedDefender = null;
+  inspectedCardId = null;
   pendingRoleAction = null;
   closePreview();
   hideAttackArrow();
+  hideCharacterInspector();
+  sound.emit('ui.card-select');
+  render();
+  showToast(i18n.t('deputySelectHero'));
+}
+
+function canAssignDeputyToCard(element) {
+  return Boolean(pendingDeputy
+    && element?.dataset?.side === 'active'
+    && element.dataset.cardType === 'Hero'
+    && !findCard(element.dataset.id)?.deputy
+    && !element.classList.contains('defeated'));
+}
+
+async function assignDeputy(soldierId, heroId) {
+  const soldier = findCard(soldierId);
+  const hero = findCard(heroId);
+  const deputy = i18n.deputy(soldier?.deputyPreview?.effectId);
+  openDeputyConfirm({ soldierId, heroId, soldier, hero, deputy });
+}
+
+function openDeputyConfirm({ soldierId, heroId, soldier, hero, deputy }) {
+  pendingDeputyConfirm = { soldierId, heroId };
+  const soldierName = i18n.characterName(soldier?.key);
+  const heroName = i18n.characterName(hero?.key);
+  ui.deputyConfirmTitle.textContent = i18n.t('deputyConfirmTitle');
+  ui.deputyConfirmSoldier.textContent = soldierName;
+  ui.deputyConfirmHero.textContent = heroName;
+  ui.deputyConfirmEffect.textContent = i18n.t('deputyConfirmEffect', { deputy: deputy.name });
+  ui.deputyConfirmNote.textContent = i18n.t('deputyConfirmNotice');
+  ui.deputyConfirmOk.textContent = i18n.t('assignDeputy');
+  ui.deputyConfirmCancel.textContent = i18n.t('close');
+  ui.deputyConfirm.classList.add('open');
+  ui.deputyConfirm.setAttribute('aria-hidden', 'false');
+  sound.emit('ui.card-select');
+}
+
+function closeDeputyConfirm() {
+  pendingDeputyConfirm = null;
+  ui.deputyConfirm.classList.remove('open');
+  ui.deputyConfirm.setAttribute('aria-hidden', 'true');
+}
+
+async function confirmDeputyAssignment() {
+  if (!pendingDeputyConfirm || busy) return;
+  const { soldierId, heroId } = pendingDeputyConfirm;
+
+  busy = true;
+  ui.deputyConfirmOk.disabled = true;
+  try {
+    const payload = await gameApi('/game/deputy/assign', { method: 'POST', body: JSON.stringify({ soldierId, heroId }) });
+    game = payload.data;
+    lastGameJson = JSON.stringify(game);
+    pendingDeputy = null;
+    closeDeputyConfirm();
+    inspectedCardId = heroId;
+    render();
+    await playNewLogEvents(game);
+  } catch (error) {
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  } finally {
+    busy = false;
+    ui.deputyConfirmOk.disabled = false;
+  }
+}
+
+function inspectPassiveCard(id) {
+  const isSameCard = inspectedCardId === id && !selectedAttacker;
+  const card = findCard(id);
+  selectedAttacker = null;
+  selectedDefender = null;
+  pendingRoleAction = null;
+  pendingDeputy = null;
+  closePreview();
+  hideAttackArrow();
   inspectedCardId = isSameCard ? null : id;
-  if (!isSameCard) sound.emit('ui.card-select');
+  if (!isSameCard) {
+    sound.emit('ui.card-select');
+    if (card?.zone === 'DraftCandidate') emitSelectVoice(card);
+  }
   render();
 }
 
 function onCardClick(element) {
   if (busy) return;
   const id = element.dataset.id;
+  if (pendingDeputy) {
+    if (!canAssignDeputyToCard(element)) {
+      pendingDeputy = null;
+      render();
+      return;
+    }
+    assignDeputy(pendingDeputy.soldierId, id);
+    return;
+  }
+  if (soldierUpgradeKey) {
+    if (element.dataset.side === 'active'
+      && element.dataset.cardType === 'Soldier'
+      && element.dataset.key === soldierUpgradeKey
+      && Number(element.dataset.soldierRank || 0) < 2) {
+      upgradeSoldierFromDraft(soldierUpgradeKey, id);
+    } else {
+      sound.emit('ui.invalid-action');
+      showToast(i18n.t('soldierDraftUpgradeTargetHint'));
+    }
+    return;
+  }
   if (pendingRoleAction) {
     if (!canRoleActionTargetCard(pendingRoleAction, element)) {
       cancelAiming();
@@ -1444,7 +1704,7 @@ async function executeAttack() {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/attack', { method: 'POST', body: JSON.stringify({ attackerId, defenderId }) });
     sound.emit('ui.ap-spend');
-    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; preview = null; render();
+    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingDeputy = null; preview = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; ui.confirm.disabled = false; }
@@ -1469,7 +1729,7 @@ async function endTurn() {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
     sound.emit('turn.change');
-    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     ui.curtainPlayer.textContent = i18n.playerName(game.activePlayerName); ui.curtain.classList.remove('play'); void ui.curtain.offsetWidth; ui.curtain.classList.add('play');
     await wait(620); render(); await wait(430); ui.curtain.classList.remove('play');
     await playNewLogEvents(game);
@@ -1487,7 +1747,7 @@ async function deployShield() {
   sound.emit('ui.shield-command');
   busy = true;
   ui.shieldButton.disabled = true;
-  selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
+  selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview(); hideCharacterInspector(); hideShieldInspector();
   try {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
     const payload = await gameApi('/game/shield', { method: 'POST', body: '{}' });
@@ -1511,7 +1771,7 @@ async function selectReward(instanceId) {
   busy = true;
   try {
     const payload = await gameApi('/game/reward/select', { method: 'POST', body: JSON.stringify({ instanceId }) });
-    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; pendingDeputy = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; if (game) render(); }
@@ -1523,7 +1783,7 @@ async function resetRewardWindow() {
   busy = true;
   try {
     const payload = await gameApi('/game/reward/reset', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; pendingDeputy = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; if (game) render(); }
@@ -1535,7 +1795,7 @@ async function skipRewardWindow() {
   busy = true;
   try {
     const payload = await gameApi('/game/reward/skip', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; render();
+    game = payload.data; lastGameJson = JSON.stringify(game); pendingRoleAction = null; pendingDeputy = null; render();
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; if (game) render(); }
@@ -1560,6 +1820,7 @@ async function selectHeroDraft(characterKey, { animateOpening = false } = {}) {
     });
     game = payload.data; lastGameJson = JSON.stringify(game);
     pendingRoleAction = null;
+    pendingDeputy = null;
     selectedHeroDraftKey = null;
     selectedAttacker = null;
     selectedDefender = null;
@@ -1576,6 +1837,10 @@ async function selectHeroDraft(characterKey, { animateOpening = false } = {}) {
 }
 
 async function resetHeroDraft() {
+  if (game?.heroDraft?.kind === 'SoldierRecruit') {
+    await cancelSoldierRecruitDraft();
+    return;
+  }
   if (busy || !game?.heroDraft?.canChoose || game.heroDraft.kind !== 'Recruit') return;
   sound.emit('ui.confirm');
   busy = true;
@@ -1593,6 +1858,126 @@ async function resetHeroDraft() {
   }
 }
 
+function findOwnedSoldier(key) {
+  const viewer = game?.players?.find(player => player.id === game.viewerPlayerId);
+  const matches = viewer?.characters?.filter(card => card.isInBattle && card.cardType === 'Soldier' && card.key === key) || [];
+  return matches.find(card => Number(card.soldierRank || 0) < 2) || matches[0] || null;
+}
+
+function viewerActiveCharacterCount() {
+  const viewer = game?.players?.find(player => player.id === game.viewerPlayerId);
+  return viewer?.characters?.filter(card => card.isInBattle).length || 0;
+}
+
+function selectedRecruitSoldierUpgradeKey() {
+  if (game?.heroDraft?.kind !== 'SoldierRecruit' || selectedHeroDraftKeys.length !== 1) return null;
+  const key = selectedHeroDraftKeys[0];
+  const owned = findOwnedSoldier(key);
+  return owned && Number(owned.soldierRank || 0) < 2 ? key : null;
+}
+
+async function selectSoldierDraft() {
+  if (busy || !game?.heroDraft?.canChoose || !selectedHeroDraftKeys.length) return;
+  if (game.heroDraft.kind === 'SoldierRecruit' && viewerActiveCharacterCount() >= 4) {
+    sound.emit('ui.invalid-action');
+    showToast(i18n.t('soldierDraftFullUpgradeOnly'));
+    return;
+  }
+  sound.emit('ui.confirm');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/hero-draft/soldier/select', {
+      method: 'POST',
+      body: JSON.stringify({ characterKeys: selectedHeroDraftKeys })
+    });
+    game = payload.data; lastGameJson = JSON.stringify(game);
+    selectedHeroDraftKey = null;
+    selectedHeroDraftKeys = [];
+    soldierUpgradeKey = null;
+    render();
+    await playNewLogEvents(game);
+  } catch (error) {
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  } finally {
+    busy = false;
+    if (game) render();
+  }
+}
+
+async function upgradeSoldierFromDraft(characterKey, targetCharacterId) {
+  if (busy || !game?.heroDraft?.canChoose || game.heroDraft.kind !== 'SoldierRecruit') return;
+  sound.emit('ui.confirm');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/hero-draft/soldier/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ characterKey, targetCharacterId })
+    });
+    game = payload.data; lastGameJson = JSON.stringify(game);
+    selectedHeroDraftKey = null;
+    selectedHeroDraftKeys = [];
+    soldierUpgradeKey = null;
+    render();
+    animateSoldierRankUp(targetCharacterId);
+    await playNewLogEvents(game);
+  } catch (error) {
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  } finally {
+    busy = false;
+    if (game) render();
+  }
+}
+
+async function cancelSoldierRecruitDraft() {
+  if (busy || !game?.heroDraft?.canChoose || game.heroDraft.kind !== 'SoldierRecruit') return;
+  sound.emit('ui.cancel');
+  busy = true;
+  try {
+    const payload = await gameApi('/game/hero-draft/soldier/cancel', { method: 'POST', body: '{}' });
+    game = payload.data; lastGameJson = JSON.stringify(game);
+    selectedHeroDraftKey = null;
+    selectedHeroDraftKeys = [];
+    soldierUpgradeKey = null;
+    render();
+    await playNewLogEvents(game);
+  } catch (error) {
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  } finally {
+    busy = false;
+    if (game) render();
+  }
+}
+
+function animateSoldierRankUp(targetCharacterId) {
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`.fighter-card[data-id="${CSS.escape(String(targetCharacterId))}"]`);
+    if (!card) return;
+    card.classList.remove('soldier-rank-up-flash');
+    void card.offsetWidth;
+    card.classList.add('soldier-rank-up-flash');
+    setTimeout(() => card.classList.remove('soldier-rank-up-flash'), 1100);
+  });
+}
+
+function beginSoldierUpgradeTargeting() {
+  const draft = game?.heroDraft;
+  if (!draft?.canChoose || draft.kind !== 'SoldierRecruit' || selectedHeroDraftKeys.length !== 1) return;
+  const key = selectedHeroDraftKeys[0];
+  const owned = findOwnedSoldier(key);
+  if (!owned || Number(owned.soldierRank || 0) >= 2) {
+    sound.emit('ui.invalid-action');
+    showToast(i18n.t('soldierDraftMaxRank'));
+    return;
+  }
+  soldierUpgradeKey = key;
+  sound.emit('ui.card-select');
+  showToast(i18n.t('soldierDraftUpgradeTargetHint'));
+  render();
+}
+
 async function selectRoleActionUpgrade(characterId, roleActionId) {
   if (busy || !game?.pendingRoleActionUpgrade?.canChoose) return;
   sound.emit('ui.confirm');
@@ -1604,6 +1989,7 @@ async function selectRoleActionUpgrade(characterId, roleActionId) {
     });
     game = payload.data; lastGameJson = JSON.stringify(game);
     pendingRoleAction = null;
+    pendingDeputy = null;
     inspectedCardId = characterId;
     render();
     await playNewLogEvents(game);
@@ -1629,6 +2015,7 @@ async function useRoleAction(characterId, roleActionId, targetCharacterId = null
     sound.emit('ui.ap-spend');
     game = payload.data; lastGameJson = JSON.stringify(game);
     pendingRoleAction = null;
+    pendingDeputy = null;
     selectedAttacker = null; selectedDefender = null; inspectedCardId = characterId; closePreview();
     render();
     await playNewLogEvents(game, { applyFinalVisualState: false });
@@ -1646,7 +2033,7 @@ async function newGame() {
     sound.emit('game.restart');
     const payload = await gameApi(sessionMode === 'test' ? '/game/test/new' : '/game/new', { method: 'POST', body: '{}' });
     if (sessionMode === 'online' && room) room.dealStarted = false;
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     await playDealSequence();
   }
@@ -1662,7 +2049,7 @@ async function startLocalGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -1685,7 +2072,7 @@ async function startTestGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/test/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -1964,6 +2351,18 @@ function eventBurst(target, iconId, options = {}) {
   return wait(options.hold || 450);
 }
 
+async function roleActionBurst(roleActionId, target, options = {}) {
+  const action = i18n.roleAction(roleActionId);
+  const roleActionIcon = art.forRoleAction(roleActionId);
+  await eventBurst(target, options.iconId || roleActionIcon, {
+    title: action.name,
+    secondaryIconId: options.secondaryIconId || (options.iconId ? roleActionIcon : null),
+    amount: options.amount,
+    tone: options.tone || 'trait',
+    hold: options.hold
+  });
+}
+
 async function playExchangeEvent(entry, state, options = {}) {
   const attackerCharacter = characterFromLogData(state, entry, 'attacker');
   const defenderCharacter = characterFromLogData(state, entry, 'defender');
@@ -2032,7 +2431,7 @@ async function playLogEntry(entry, state) {
   const effectIcon = effect?.kind === 'status'
     ? art.forStatus(effect.value)
     : effect?.kind === 'roleAction'
-      ? eventIcon.trait
+      ? art.forRoleAction(effect.value)
       : art.forTrait(effect?.value);
   const amount = Number(logArg(entry, 'amount') || 0);
 
@@ -2104,9 +2503,18 @@ async function playLogEntry(entry, state) {
     case 'log.healed':
       emitSoundThrottled('status.blessing-heal', 450);
       await eventBurst(target, eventIcon.heal, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: `+${amount}`, tone: 'heal' }); break;
+    case 'log.roleActionCleanse':
+      sound.emit('status.expired');
+      await eventBurst(target, eventIcon.status, { title: effectLabel(status), secondaryIconId: art.forStatus(status?.value), amount: '×', tone: 'status' }); break;
+    case 'log.roleActionHeal':
+      emitSoundThrottled('status.blessing-heal', 450);
+      await roleActionBurst('mend', characterElementFromLog(state, entry, 'actor'), { iconId: eventIcon.heal, tone: 'heal', hold: 260 });
+      await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.heal, { title: i18n.roleAction('mend').name, amount: `+${amount}`, tone: 'heal' }); break;
     case 'log.statusApplied':
       if (status?.value === 'burning') sound.emit('status.burning-applied');
-      if (status?.value === 'exhaustion' || status?.value === 'erosion' || status?.value === 'void' || status?.value === 'trembling') sound.emit('status.debuff-applied');
+      if (status?.value === 'chant') sound.emit('status.magic-bonus');
+      if (status?.value === 'spell-ward' || status?.value === 'fortify' || status?.value === 'strong-attack') sound.emit('status.buff-applied');
+      if (status?.value === 'exhaustion' || status?.value === 'erosion' || status?.value === 'void' || status?.value === 'trembling' || status?.value === 'vulnerable') sound.emit('status.debuff-applied');
       if (status?.value === 'beast-rage') sound.emit('status.beast-rage');
       await eventBurst(target, eventIcon.status, { title: effectLabel(status), secondaryIconId: art.forStatus(status?.value), tone: 'status' }); break;
     case 'log.attackBuffRemoved':
@@ -2118,6 +2526,33 @@ async function playLogEntry(entry, state) {
     case 'log.sowing':
       sound.emit('status.sowing');
       await eventBurst(target, eventIcon.trait, { title: i18n.trait('spring-harvest').name, secondaryIconId: art.forTrait('spring-harvest'), tone: 'trait' }); break;
+    case 'log.supplyBasket':
+      emitSoundThrottled('status.blessing-heal', 450);
+      sound.emit('status.buff-applied');
+      await roleActionBurst('supply-basket', characterElementFromLog(state, entry, 'actor'), { iconId: eventIcon.heal, tone: 'heal', hold: 240 });
+      await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.heal, { title: i18n.roleAction('supply-basket').name, secondaryIconId: art.forStatus('fortify'), amount: `+${amount}`, tone: 'heal' }); break;
+    case 'log.fieldWorkDouble':
+      sound.emit('status.buff-applied');
+      await roleActionBurst('field-work', target, { secondaryIconId: art.forStatus('harvest'), tone: 'trait' }); break;
+    case 'log.fieldWorkRest':
+      emitSoundThrottled('status.blessing-heal', 450);
+      await roleActionBurst('field-work', target, { iconId: eventIcon.heal, amount: `+${amount}`, tone: 'heal' }); break;
+    case 'log.fieldWorkSowing':
+      sound.emit('status.sowing');
+      await roleActionBurst('field-work', target, { secondaryIconId: art.forStatus('harvest-pending'), tone: 'trait' }); break;
+    case 'log.aegisFormation': {
+      sound.emit('shield.reinforce');
+      const visual = teamVisual(playerForCharacterFromLog(state, entry));
+      await roleActionBurst('aegis-formation', characterElementFromLog(state, entry), { iconId: eventIcon.shield, amount: `+${logArg(entry, 'shield') || ''}`, tone: 'shield', hold: 220 });
+      await eventBurst(visual?.point, eventIcon.shield, { title: i18n.roleAction('aegis-formation').name, amount: `+${logArg(entry, 'shield') || ''}`, tone: 'shield' });
+      if (visual?.dome) await playShieldFormationAnimation(visual.dome);
+      break;
+    }
+    case 'log.crimsonLunge':
+      sound.emit('combat.trait-damage');
+      sound.emit('status.debuff-applied');
+      await roleActionBurst('crimson-lunge', characterElementFromLog(state, entry, 'actor'), { secondaryIconId: art.forStatus('trembling'), tone: 'physical', hold: 240 });
+      await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.status, { title: i18n.roleAction('crimson-lunge').name, secondaryIconId: art.forStatus('trembling'), tone: 'status' }); break;
     case 'log.traitFailed':
       if (trait?.value === 'weakening-spores') sound.emit('status.debuff-applied');
       await eventBurst(target, eventIcon.trait, { title: effectLabel(trait), secondaryIconId: art.forTrait(trait?.value), amount: '×', tone: 'trait' }); break;
@@ -2295,6 +2730,10 @@ function updateInstruction() {
   if (pendingRoleAction) {
     const action = i18n.roleAction(pendingRoleAction.roleActionId);
     ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('roleActionTargetInstruction', { name: action.name }))}</strong><small>${escapeHtml(i18n.t(roleActionTargetInstructionKey(pendingRoleAction.targetKinds)))}</small></div>`;
+    return;
+  }
+  if (pendingDeputy) {
+    ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('deputyTargetInstruction'))}</strong><small>${escapeHtml(i18n.t('deputyTargetHint'))}</small></div>`;
     return;
   }
   const card = findCard(selectedAttacker);
@@ -2597,9 +3036,38 @@ ui.heroDraftOptions?.addEventListener('click', event => {
   }
   const card = event.target instanceof Element ? event.target.closest('.hero-draft-card[data-hero-key]') : null;
   if (!card || card.disabled) return;
-  selectedHeroDraftKey = card.dataset.heroKey;
+  const key = card.dataset.heroKey;
+  const draft = game?.heroDraft;
+  const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
+  if (isSoldierDraft) {
+    soldierUpgradeKey = null;
+    if (selectedHeroDraftKeys.includes(key)) {
+      selectedHeroDraftKeys = selectedHeroDraftKeys.filter(item => item !== key);
+      selectedHeroDraftKey = null;
+      card.classList.add('hover-suppressed');
+      hideCharacterInspector();
+    } else {
+      const max = Number(draft?.maxSelections || 1);
+      selectedHeroDraftKeys = max <= 1 ? [key] : [...selectedHeroDraftKeys, key].slice(0, max);
+      selectedHeroDraftKey = key;
+      card.classList.remove('hover-suppressed');
+    }
+  } else {
+    selectedHeroDraftKey = key;
+    card.classList.remove('hover-suppressed');
+  }
   sound.emit('ui.card-select');
-  renderHeroDraftWindow();
+  syncHeroDraftSelectionUi();
+});
+ui.heroDraftOptions?.addEventListener('animationend', event => {
+  if (event.animationName === 'rewardCardEnter' && event.target instanceof Element) {
+    event.target.classList.add('hero-draft-entered');
+  }
+});
+ui.heroDraftOptions?.addEventListener('mouseout', event => {
+  const card = event.target instanceof Element ? event.target.closest('.hero-draft-card.hover-suppressed') : null;
+  if (!card || card.contains(event.relatedTarget)) return;
+  card.classList.remove('hover-suppressed');
 });
 ui.heroDraftOptions?.addEventListener('mouseover', event => {
   const card = event.target instanceof Element ? event.target.closest('.hero-draft-card[data-hero-key]') : null;
@@ -2613,9 +3081,29 @@ ui.heroDraftOptions?.addEventListener('mouseleave', () => {
   if (!selectedHeroDraftKey) hideCharacterInspector();
 });
 ui.heroDraftReset?.addEventListener('click', resetHeroDraft);
+ui.heroDraftConfirm?.addEventListener('click', selectSoldierDraft);
+ui.heroDraftUpgrade?.addEventListener('click', beginSoldierUpgradeTargeting);
 ui.rewardReset.addEventListener('click', resetRewardWindow);
 ui.rewardSkip.addEventListener('click', skipRewardWindow);
+ui.deputyConfirmOk?.addEventListener('click', confirmDeputyAssignment);
+ui.deputyConfirmCancel?.addEventListener('click', () => {
+  sound.emit('ui.cancel');
+  closeDeputyConfirm();
+});
+ui.deputyConfirm?.addEventListener('click', event => {
+  if (event.target === ui.deputyConfirm || event.target?.classList?.contains('deputy-confirm-backdrop')) {
+    sound.emit('ui.cancel');
+    closeDeputyConfirm();
+  }
+});
 ui.inspector.addEventListener('click', event => {
+  const deputyButton = event.target instanceof Element ? event.target.closest('.deputy-assign-button[data-soldier-id]') : null;
+  if (deputyButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!deputyButton.disabled) beginDeputyTargeting(deputyButton.dataset.soldierId);
+    return;
+  }
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
   if (!button || button.disabled) return;
   const characterId = button.dataset.characterId;
@@ -2647,8 +3135,10 @@ ui.inspector.addEventListener('mouseout', event => {
   if (!button) return;
   const next = event.relatedTarget instanceof Element ? event.relatedTarget.closest('.role-action-button[data-role-action-id]') : null;
   if (next === button) return;
+  if (event.relatedTarget instanceof Element && ui.roleActionInspector?.contains(event.relatedTarget)) return;
   hideRoleActionInspector();
 });
+ui.roleActionInspector?.addEventListener('mouseleave', hideRoleActionInspector);
 ui.inspector.addEventListener('focusin', event => {
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
   if (button) showRoleActionInspector(button);
@@ -2743,7 +3233,7 @@ document.addEventListener('click', event => {
 document.addEventListener('click', event => {
   if ((!selectedAttacker && !inspectedCardId && !pendingRoleAction) || busy || dealing) return;
   const interactive = event.target instanceof Element
-    ? event.target.closest('.fighter-card,.preview-panel,.reward-window,.hero-draft-window,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.battle-point-hud,.character-inspector,.status-inspector,.shield-inspector,.bp-inspector,.game-over,.start-screen,.deal-sequence')
+    ? event.target.closest('.fighter-card,.preview-panel,.reward-window,.hero-draft-window,.deputy-confirm-modal,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.battle-point-hud,.character-inspector,.status-inspector,.shield-inspector,.bp-inspector,.game-over,.start-screen,.deal-sequence')
     : null;
   if (interactive) return;
   cancelAiming();

@@ -84,7 +84,7 @@ public sealed class SaintsPrayerTrait : CharacterTrait
 
         foreach (var ally in context.State.FindOwner(owner).Characters.Where(character => character.IsAlive))
         {
-            var cap = ally.Definition.MaxHp + 2;
+            var cap = context.GetMaxHp(ally) + 2;
             if (ally.CurrentHp >= cap)
                 continue;
 
@@ -411,6 +411,67 @@ public sealed class InterposingShieldTrait : CharacterTrait
     }
 }
 
+public sealed class FieldMedicTrait : CharacterTrait
+{
+    public override TraitMetadata Metadata { get; } = new(
+        "field-medic",
+        TraitTriggerKind.ManualCheck,
+        TraitScopeKind.Ally,
+        TraitEffectKind.Status);
+}
+
+public sealed class ShieldDrillTrait : CharacterTrait
+{
+    public override TraitMetadata Metadata { get; } = new(
+        "shield-drill",
+        TraitTriggerKind.ManualCheck,
+        TraitScopeKind.Ally,
+        TraitEffectKind.Status);
+}
+
+public sealed class DuelSenseTrait : CharacterTrait
+{
+    public override TraitMetadata Metadata { get; } = new(
+        "duel-sense",
+        TraitTriggerKind.OnAttackDeclared,
+        TraitScopeKind.Self,
+        TraitEffectKind.Status);
+
+    public override void OnAttackDeclared(GameEngineContext context, CharacterState owner, CharacterState target)
+    {
+        var targetOwner = context.State.FindOwner(target);
+        if (owner.PlayerId != context.State.ActivePlayerId
+            || owner.TraitsUsedThisTurn.Contains(Metadata.Id)
+            || targetOwner.SharedShield > 0)
+            return;
+
+        var strongAttack = owner.Statuses.OfType<StrongAttackStatus>().FirstOrDefault(status => !status.Expired);
+        if (strongAttack is not null)
+            strongAttack.AddTurns();
+        else
+            owner.Statuses.Add(new StrongAttackStatus(owner.Id, owner.PlayerId));
+        if (owner.SoldierRank >= 1)
+        {
+            owner.Statuses.RemoveAll(status => status.Id == "duel-sense-strike");
+            owner.Statuses.Add(new DuelSenseStrikeStatus(owner.Id));
+        }
+        owner.TraitsUsedThisTurn.Add(Metadata.Id);
+        context.Log(L10n.Text("log.statusApplied",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("status", L10n.Status("strong-attack"))), "buff");
+    }
+}
+
+public sealed class ArcaneResonanceTrait : CharacterTrait
+{
+    public override TraitMetadata Metadata { get; } = new(
+        "arcane-resonance",
+        TraitTriggerKind.ManualCheck,
+        TraitScopeKind.Self,
+        TraitEffectKind.Status);
+}
+
 public sealed class TraitRegistry
 {
     private readonly IReadOnlyDictionary<string, CharacterTrait> _traits;
@@ -426,7 +487,11 @@ public sealed class TraitRegistry
             new WeakeningSporesTrait(),
             new AftershockAxeTrait(),
             new PredatoryInstinctTrait(),
-            new InterposingShieldTrait()
+            new InterposingShieldTrait(),
+            new FieldMedicTrait(),
+            new ShieldDrillTrait(),
+            new DuelSenseTrait(),
+            new ArcaneResonanceTrait()
         ];
 
         _traits = traits.ToDictionary(trait => trait.Metadata.Id);

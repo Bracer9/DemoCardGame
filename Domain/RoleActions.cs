@@ -163,7 +163,31 @@ public sealed class RoleActionRegistry
                 [RoleActionTargetKind.SelfCard],
                 1,
                 ["harvest", "charge", "support"],
-                CooldownTurns: 1))
+                CooldownTurns: 1)),
+            new(new RoleActionMetadata(
+                "mend",
+                RoleActionActivationMode.Targeted,
+                [RoleActionTargetKind.AllyCard],
+                1,
+                ["heal", "cleanse", "ward"])),
+            new(new RoleActionMetadata(
+                "aegis-formation",
+                RoleActionActivationMode.Immediate,
+                [RoleActionTargetKind.OwnShield],
+                1,
+                ["shield", "guard"])),
+            new(new RoleActionMetadata(
+                "crimson-lunge",
+                RoleActionActivationMode.Targeted,
+                [RoleActionTargetKind.EnemyCard],
+                1,
+                ["trembling", "vulnerable", "physical"])),
+            new(new RoleActionMetadata(
+                "astral-focus",
+                RoleActionActivationMode.Targeted,
+                [RoleActionTargetKind.AllyCard, RoleActionTargetKind.EnemyCard],
+                1,
+                ["chant", "void", "magic"]))
         ];
 
         _actions = actions.ToDictionary(action => action.Metadata.Id);

@@ -205,7 +205,30 @@
         </header>
         <div id="hero-draft-options" class="hero-draft-options"></div>
         <footer class="hero-draft-actions">
+          <button id="hero-draft-upgrade" class="hero-draft-recruit-confirm hero-draft-upgrade-confirm" type="button"></button>
+          <button id="hero-draft-confirm" class="hero-draft-recruit-confirm hero-draft-footer-confirm" type="button"></button>
           <button id="hero-draft-reset" class="reward-control reward-reset" type="button"></button>
+        </footer>
+      </section>
+    </aside>
+
+    <aside id="deputy-confirm-modal" class="deputy-confirm-modal" aria-hidden="true">
+      <div class="deputy-confirm-backdrop" aria-hidden="true"></div>
+      <section class="deputy-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="deputy-confirm-title">
+        <header>
+          <small>TACTICAL APPOINTMENT</small>
+          <h2 id="deputy-confirm-title"></h2>
+        </header>
+        <div class="deputy-confirm-route">
+          <span id="deputy-confirm-soldier"></span>
+          <b>→</b>
+          <span id="deputy-confirm-hero"></span>
+        </div>
+        <p id="deputy-confirm-effect" class="deputy-confirm-effect"></p>
+        <p id="deputy-confirm-note" class="deputy-confirm-note"></p>
+        <footer>
+          <button id="deputy-confirm-cancel" class="deputy-confirm-action cancel" type="button"></button>
+          <button id="deputy-confirm-ok" class="deputy-confirm-action ok" type="button"></button>
         </footer>
       </section>
     </aside>

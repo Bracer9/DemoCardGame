@@ -98,7 +98,8 @@ public enum CharacterZone
 {
     Battlefield,
     DraftCandidate,
-    Defeated
+    Defeated,
+    Deputy
 }
 
 public sealed record LocalizedArg(string Kind, object? Value);
@@ -122,4 +123,5 @@ public static class L10n
     public static LocalizedArg Reward(string id) => new("reward", id);
     public static LocalizedArg BpReason(string id) => new("bpReason", id);
     public static LocalizedArg Ui(string key) => new("ui", key);
+    public static LocalizedArg Deputy(string id) => new("deputy", id);
 }

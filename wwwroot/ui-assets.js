@@ -35,6 +35,7 @@
     forLogTone(tone) { return this.binding('logTones', tone, 'event.trait'); }
     forStatus(id) { return this.binding('statuses', id, `status.${id || 'unknown'}`); }
     forTrait(id) { return this.binding('traits', id, `trait.${id || 'unknown'}`); }
+    forRoleAction(id) { return this.binding('roleActions', id, `role-action.${id || 'unknown'}`); }
 
     resolveSource(source) {
       if (!source) return null;

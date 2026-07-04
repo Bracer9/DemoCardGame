@@ -24,11 +24,13 @@ public sealed record BattlePointView(
 
 public sealed record CharacterView(
     Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack,
-    string CardType,
+    string CardType, int SoldierRank,
     string AttackType, int PhysicalDefense, int BasePhysicalDefense, int MagicalDefense, int BaseMagicalDefense,
     int CurrentHp, int MaxHp, bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
     IReadOnlyList<TraitView> Traits, IReadOnlyList<RoleActionView> RoleActions,
-    IReadOnlyList<RoleActionView> RoleActionChoices, IReadOnlyList<StatusView> Statuses);
+    IReadOnlyList<RoleActionView> RoleActionChoices, IReadOnlyList<StatusView> Statuses,
+    DeputyView? Deputy, DeputyPreviewView? DeputyPreview,
+    bool CanAssignAsDeputy, string? AssignDeputyDisabledReason);
 
 public sealed record TraitView(
     string Id,
@@ -50,11 +52,16 @@ public sealed record RoleActionView(
     bool Enabled,
     LocalizedText? DisabledReason);
 public sealed record StatusView(string Id, bool IsBuff, int Magnitude, bool IsAura = false, bool IsDispellable = true);
+public sealed record DeputyView(Guid SoldierId, string SoldierKey, string EffectId, string StatKind, int StatValue);
+public sealed record DeputyPreviewView(string EffectId, string StatKind, int StatValue);
 public sealed record AttackRequest(Guid AttackerId, Guid DefenderId);
 public sealed record SelectRewardRequest(string InstanceId);
 public sealed record SelectHeroDraftRequest(string CharacterKey);
+public sealed record SelectSoldierDraftRequest(IReadOnlyList<string> CharacterKeys);
+public sealed record UpgradeSoldierDraftRequest(string CharacterKey, Guid TargetCharacterId);
 public sealed record SelectRoleActionUpgradeRequest(Guid CharacterId, string RoleActionId);
 public sealed record UseRoleActionRequest(Guid CharacterId, string RoleActionId, Guid? TargetCharacterId);
+public sealed record AssignDeputyRequest(Guid SoldierId, Guid HeroId);
 public sealed record ApiEnvelope<T>(T Data, CombatOutcome? Combat = null, LocalizedText? Message = null);
 
 public sealed record PendingRoleActionUpgradeView(Guid PlayerId, string RewardId, bool CanChoose);
@@ -65,10 +72,13 @@ public sealed record HeroDraftView(
     bool CanChoose,
     int ResetCount,
     int NextResetCost,
+    int MaxSelections,
+    IReadOnlyList<string> SelectedKeys,
     IReadOnlyList<HeroDraftCandidateView> Candidates);
 
 public sealed record HeroDraftCandidateView(
     string Key,
+    string CardType,
     string AssetUrl,
     string ColoredAssetUrl,
     int Cost,
@@ -162,6 +172,8 @@ public sealed class GameViewFactory
             state.PendingHeroDraft.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId,
             state.PendingHeroDraft.ResetCount,
             GameEngine.GetRewardResetCost(state.PendingHeroDraft.ResetCount),
+            state.PendingHeroDraft.MaxSelections,
+            state.PendingHeroDraft.SelectedKeys.ToArray(),
             state.PendingHeroDraft.CandidateKeys
                 .Where(definitions.ContainsKey)
                 .Select(key =>
@@ -169,6 +181,7 @@ public sealed class GameViewFactory
                     var definition = definitions[key];
                     return new HeroDraftCandidateView(
                         definition.Key,
+                        definition.CardType.ToString(),
                         $"/assets/{definition.AssetFile}",
                         $"/assets/{definition.ColoredAssetFile}",
                         definition.Cost,
@@ -203,7 +216,8 @@ public sealed class GameViewFactory
                     option.RewardId,
                     option.Cost,
                     definition.Rarity,
-                    player.BattlePoints.Current >= option.Cost);
+                    player.BattlePoints.Current >= option.Cost
+                    && (definition.Kind != RewardKind.HeroRecruit || player.ActiveCharacterCount < 4));
             }).ToArray());
     }
 
@@ -275,15 +289,41 @@ public sealed class GameViewFactory
                 .ToArray()
             : [];
 
+        var deputyDefinition = DeputyCatalog.FindById(character.DeputyEffectId);
+        var deputySoldier = character.DeputySoldierId is null
+            ? null
+            : state.Players.SelectMany(item => item.Characters)
+                .FirstOrDefault(item => item.Id == character.DeputySoldierId);
+        var deputy = deputyDefinition is null || deputySoldier is null
+            ? null
+            : new DeputyView(
+                deputySoldier.Id,
+                deputySoldier.Definition.Key,
+                deputyDefinition.Id,
+                deputyDefinition.StatKind.ToString(),
+                deputyDefinition.StatValue);
+        var deputyPreviewDefinition = character.Definition.CardType == CardType.Soldier
+            ? DeputyCatalog.FindBySoldierKey(character.Definition.Key)
+            : null;
+        var deputyPreview = deputyPreviewDefinition is null
+            ? null
+            : new DeputyPreviewView(
+                deputyPreviewDefinition.Id,
+                deputyPreviewDefinition.StatKind.ToString(),
+                deputyPreviewDefinition.StatValue);
+        var assignDeputyDisabledReason = player.Id == viewerPlayerId
+            ? _engine.GetAssignDeputyDisabledReason(state, character)
+            : "opponent-turn";
+
         return new CharacterView(
             character.Id, character.Definition.Key, $"/assets/{character.Definition.AssetFile}",
-            $"/assets/{character.Definition.ColoredAssetFile}",
+            $"/assets/{GetColoredAssetFile(character)}",
             character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(character),
-            character.Definition.CardType.ToString(),
+            character.Definition.CardType.ToString(), character.SoldierRank,
             character.Definition.AttackType.ToString(),
             _engine.GetPhysicalDefense(character), character.Definition.PhysicalDefense,
             _engine.GetMagicalDefense(character), character.Definition.MagicalDefense,
-            character.CurrentHp, character.Definition.MaxHp,
+            character.CurrentHp, _engine.GetMaxHp(character),
             character.IsAlive, character.IsInBattle, character.Zone.ToString(), character.HasActed, canAct,
             [
                 new TraitView(
@@ -296,6 +336,17 @@ public sealed class GameViewFactory
             ],
             roleActions,
             roleActionChoices,
-            statuses);
+            statuses,
+            deputy,
+            deputyPreview,
+            assignDeputyDisabledReason is null,
+            assignDeputyDisabledReason);
     }
+
+    private static string GetColoredAssetFile(CharacterState character) =>
+        character.Definition.CardType == CardType.Soldier
+        && character.SoldierRank >= 2
+        && character.Definition.Rank2ColoredAssetFile is not null
+            ? character.Definition.Rank2ColoredAssetFile
+            : character.Definition.ColoredAssetFile;
 }

@@ -18,7 +18,12 @@ public sealed class AttackPreviewService
         if (error is not null) return Invalid(attackerId, defenderId, error);
 
         var attackBase = ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(attacker),
-            attacker.Definition.AttackType, DamageSource.ActiveAttack, receivesMagicPowerBonus: true);
+            attacker.Definition.AttackType,
+            DamageSource.ActiveAttack,
+            receivesMagicPowerBonus: true,
+            includePendingDuelSenseStrongAttack: (ShouldForecastDuelSense(state, attacker, defender)
+                    || ShouldForecastDeputyDuelist(state, attacker, defender))
+                && attacker.Statuses.All(status => status.Id != "strong-attack" || status.Expired));
         var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
@@ -32,6 +37,9 @@ public sealed class AttackPreviewService
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
             attack = attack with { Min = attack.Min + rageShieldBreakBonus, Max = attack.Max + rageShieldBreakBonus };
+        var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker, defender);
+        if (duelSenseBonus > 0)
+            attack = attack with { Min = attack.Min + duelSenseBonus, Max = attack.Max + duelSenseBonus };
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(defender),
             defender.Definition.AttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
         var counter = ForecastDamage(state, attacker, counterBase, defender.Definition.AttackType, DamageSource.CounterAttack);
@@ -105,6 +113,9 @@ public sealed class AttackPreviewService
         if (rageShieldBreakBonus > 0)
             notes.Add(L10n.Text("preview.roleAction.warCryShieldBreak",
                 ("value", L10n.Raw(rageShieldBreakBonus))));
+        if (duelSenseBonus > 0)
+            notes.Add(L10n.Text("preview.trait.duelSenseBonus",
+                ("value", L10n.Raw(duelSenseBonus))));
         if (attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired))
             notes.Add(L10n.Text("preview.roleAction.fateMark"));
         if (pactBonus > 0)
@@ -230,7 +241,8 @@ public sealed class AttackPreviewService
         int amount,
         DamageType type,
         DamageSource damageSource,
-        bool receivesMagicPowerBonus)
+        bool receivesMagicPowerBonus,
+        bool includePendingDuelSenseStrongAttack = false)
     {
         var damage = Math.Max(0, amount);
         foreach (var status in source.Statuses.Where(status => !status.Expired))
@@ -240,11 +252,18 @@ public sealed class AttackPreviewService
             damage = status.Id switch
             {
                 "chant" when type == DamageType.Magical => damage * 2,
+                "mighty-strike" when damageSource == DamageSource.ActiveAttack && type == DamageType.Physical =>
+                    damage * 2,
+                "strong-attack" when damageSource == DamageSource.ActiveAttack && type == DamageType.Physical =>
+                    Math.Max(1, (int)Math.Ceiling(damage * 1.5)),
                 "exhaustion" when type == DamageType.Physical => Math.Max(1, damage / 2),
                 "erosion" when type == DamageType.Magical => Math.Max(1, damage / 2),
                 _ => damage
             };
         }
+
+        if (includePendingDuelSenseStrongAttack && damageSource == DamageSource.ActiveAttack && type == DamageType.Physical && damage > 0)
+            damage = Math.Max(1, (int)Math.Ceiling(damage * 1.5));
 
         if (type == DamageType.Magical
             && damageSource == DamageSource.ActiveAttack
@@ -254,6 +273,27 @@ public sealed class AttackPreviewService
 
         return Math.Max(0, damage);
     }
+
+    private static bool ShouldForecastDuelSense(GameState state, CharacterState attacker, CharacterState defender) =>
+        attacker.Definition.Key != "duelist"
+            || attacker.TraitsUsedThisTurn.Contains("duel-sense")
+            ? false
+            : state.FindOwner(defender).SharedShield <= 0;
+
+    private static bool ShouldForecastDeputyDuelist(GameState state, CharacterState attacker, CharacterState defender) =>
+        attacker.DeputyEffectId == "deputy-duelist"
+        && !state.FindOwner(attacker).DeputyPassivesUsedThisTurn.Contains($"{attacker.Id:N}:deputy-duelist")
+        && defender.Statuses.Any(IsCommonDebuff);
+
+    private static int ForecastDuelSenseAbsoluteBonus(GameState state, CharacterState attacker, CharacterState defender) =>
+        ShouldForecastDuelSense(state, attacker, defender) && attacker.SoldierRank >= 1
+            ? DuelSenseStrikeStatus.AbsoluteDamage
+            : 0;
+
+    private static bool IsCommonDebuff(StatusEffect status) =>
+        !status.Expired
+        && !status.IsBuff
+        && status.Id is "burning" or "void" or "exhaustion" or "erosion" or "trembling" or "vulnerable";
 
     private static int ForecastIncomingStatusDamage(
         CharacterState target,
@@ -269,7 +309,9 @@ public sealed class AttackPreviewService
             damage = status.Id switch
             {
                 "void" when type == DamageType.Magical => Math.Max(1, (int)Math.Ceiling(damage * 1.25)),
+                "vulnerable" when type == DamageType.Physical => Math.Max(1, (int)Math.Ceiling(damage * 1.25)),
                 "fortify" when type == DamageType.Physical => Math.Max(1, damage / 2),
+                "spell-ward" when type == DamageType.Magical => Math.Max(1, damage / 2),
                 "guard-oath" when source == DamageSource.ActiveAttack && type == DamageType.Physical =>
                     Math.Max(0, damage - GuardOathStatus.PhysicalReduction),
                 _ => damage

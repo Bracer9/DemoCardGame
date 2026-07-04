@@ -23,7 +23,7 @@
     "mage": 1,
     "oracle": 1,
     "knight": 1.5,
-    "druid": 2,
+    "druid": 3,
     "barbarian": 0.5,
     "monster": 3
   },

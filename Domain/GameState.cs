@@ -18,10 +18,15 @@ public sealed class CharacterState
     }
     public bool GuardConsumed { get; set; }
     public bool DefeatLogged { get; set; }
+    public int SoldierRank { get; set; }
     public List<StatusEffect> Statuses { get; } = [];
     public List<string> RoleActionIds { get; } = [];
     public HashSet<string> RoleActionsUsedThisTurn { get; } = [];
     public Dictionary<string, int> RoleActionCooldowns { get; } = [];
+    public HashSet<string> TraitsUsedThisTurn { get; } = [];
+    public Guid? DeputySoldierId { get; set; }
+    public Guid? DeputyHostHeroId { get; set; }
+    public string? DeputyEffectId { get; set; }
     public bool IsInBattle => Zone == CharacterZone.Battlefield;
     public bool IsDraftCandidate => Zone == CharacterZone.DraftCandidate;
     public bool IsAlive => (IsInBattle || IsDraftCandidate) && CurrentHp > 0;
@@ -37,7 +42,9 @@ public enum HeroDraftKind
 {
     Opening,
     Recruit,
-    TestOpening
+    TestOpening,
+    SoldierOpening,
+    SoldierRecruit
 }
 
 public sealed class PendingHeroDraftState
@@ -45,7 +52,9 @@ public sealed class PendingHeroDraftState
     public required Guid PlayerId { get; set; }
     public required HeroDraftKind Kind { get; init; }
     public int ResetCount { get; set; }
+    public int MaxSelections { get; init; } = 1;
     public List<string> CandidateKeys { get; } = [];
+    public List<string> SelectedKeys { get; } = [];
 }
 
 public sealed class PlayerState
@@ -60,6 +69,7 @@ public sealed class PlayerState
     public Guid? SharedShieldDefenseExpireOnTurnStartPlayerId { get; set; }
     public int ShieldDeploymentsThisTurn { get; set; }
     public int PendingActionPointDebt { get; set; }
+    public HashSet<string> DeputyPassivesUsedThisTurn { get; } = [];
     public int ActiveCharacterCount => Characters.Count(character => character.IsInBattle);
     public bool IsDefeated => Characters.All(character => !character.IsAlive);
 }

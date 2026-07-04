@@ -133,6 +133,33 @@ app.MapPost("/api/online/game/hero-draft/reset", (HttpRequest httpRequest,
             views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardReset")));
     })));
 
+app.MapPost("/api/online/game/hero-draft/soldier/select", (SelectSoldierDraftRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.SelectSoldierDraft(state, state.Players[index].Id, request.CharacterKeys);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.soldierDraftSelected")));
+    })));
+
+app.MapPost("/api/online/game/hero-draft/soldier/upgrade", (UpgradeSoldierDraftRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.UpgradeSoldierFromDraft(state, state.Players[index].Id, request.CharacterKey, request.TargetCharacterId);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.soldierRankUp")));
+    })));
+
+app.MapPost("/api/online/game/hero-draft/soldier/cancel", (HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.CancelSoldierRecruitDraft(state, state.Players[index].Id);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.soldierRecruitExited")));
+    })));
+
 app.MapPost("/api/online/game/role-action/upgrade", (SelectRoleActionUpgradeRequest request, HttpRequest httpRequest,
     OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
     session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
@@ -149,6 +176,15 @@ app.MapPost("/api/online/game/role-action/use", (UseRoleActionRequest request, H
         engine.UseRoleAction(state, request.CharacterId, request.RoleActionId, request.TargetCharacterId);
         return Results.Ok(new ApiEnvelope<GameView>(
             views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.roleActionUsed")));
+    })));
+
+app.MapPost("/api/online/game/deputy/assign", (AssignDeputyRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.AssignDeputy(state, request.SoldierId, request.HeroId);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.deputyAssigned")));
     })));
 
 app.MapGet("/api/game/state", (GameSession session, GameViewFactory views) =>
@@ -307,6 +343,45 @@ app.MapPost("/api/game/hero-draft/reset", (GameSession session, GameEngine engin
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
 });
 
+app.MapPost("/api/game/hero-draft/soldier/select", (SelectSoldierDraftRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.SelectSoldierDraft(state, state.ActivePlayerId, request.CharacterKeys);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.soldierDraftSelected")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/hero-draft/soldier/upgrade", (UpgradeSoldierDraftRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.UpgradeSoldierFromDraft(state, state.ActivePlayerId, request.CharacterKey, request.TargetCharacterId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.soldierRankUp")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/hero-draft/soldier/cancel", (GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.CancelSoldierRecruitDraft(state, state.ActivePlayerId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.soldierRecruitExited")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
 app.MapPost("/api/game/role-action/upgrade", (SelectRoleActionUpgradeRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
 {
     try
@@ -328,6 +403,19 @@ app.MapPost("/api/game/role-action/use", (UseRoleActionRequest request, GameSess
         {
             engine.UseRoleAction(state, request.CharacterId, request.RoleActionId, request.TargetCharacterId);
             return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.roleActionUsed")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/deputy/assign", (AssignDeputyRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.AssignDeputy(state, request.SoldierId, request.HeroId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.deputyAssigned")));
         });
     }
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }

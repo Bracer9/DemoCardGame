@@ -39,9 +39,9 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 状态 | 类型 | 规则 | 叠加 |
 | --- | --- | --- | --- |
 | 强攻 | Buff | 主动物理 / 普通攻击伤害 ×1.5，向上取整。 | 按 turn 叠加持续时间，效果不叠加。 |
-| 猛击 | Buff | 下一次主动物理 / 普通攻击伤害 ×2。 | 按次数叠加，效果不叠加。 |
+| 猛击 | Buff | 下一次主动物理 / 普通攻击伤害 ×2。 | 按次数叠加，效果不叠加；己方 turn 结束时消耗 1 层。 |
 | 魔涌 | Buff | 魔法伤害 / 普通攻击伤害 ×1.5，向上取整。 | 按 turn 叠加持续时间，效果不叠加。 |
-| 咏唱 | Buff | 下一次魔法伤害 ×2。 | 按次数叠加，效果不叠加。 |
+| 咏唱 | Buff | 下一次魔法伤害 ×2。 | 按次数叠加，效果不叠加；己方 turn 结束时消耗 1 层。 |
 | 坚守 | Buff | 受到物理伤害 ×0.5。 | 按 turn 叠加持续时间，效果不叠加。 |
 | 护咒 | Buff | 受到魔法伤害 ×0.5。 | 按 turn 叠加持续时间，效果不叠加。 |
 | 脆弱 | Debuff | 受到物理伤害 ×1.25，向上取整。 | 按 turn 叠加持续时间，效果不叠加。 |
@@ -65,6 +65,9 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 狂战士 | `aftershock-axe` | 战斧余波 | OnAttackResolved | EnemyTeam | 主动攻击对目标造成至少 3 点 HP 伤害时，对被攻击目标相邻的存活敌人造成“已造成伤害 1/3，向上取整”的物理伤害。若没有邻居则不造成额外伤害。 | 事件伤害 |
 | 怪物 | `predatory-instinct` | 美女与野兽 | OnAttackResolved / OnCharacterDefeated | Enemy / Self | 对非公主目标主动攻击造成 0 点 HP 伤害时，追击当前怪物攻击力点绝对伤害；若我方公主存活，追击 +1。攻击公主时造成当前怪物攻击力点绝对伤害，攻击后怪物受到造成伤害 2 倍的自伤，但不会因此死亡。任意公主死亡后，怪物获得野兽之怒：基础攻击 +2。 | 特殊 Trait / 野兽之怒 |
 | 骑士 | `interposing-shield` | 替身之盾 | OnDamaged | Ally | 对骑士以外我方角色受到的主动物理攻击，全队共享 1 次：我方将受到 1 点及以上主动物理伤害时，骑士承担目标受到伤害的 1/3，向上取整；该承担伤害会再受骑士自身物防影响。 | Aura / 反应规则 |
+| 修女 | `field-medic` | 战地医护 | ManualCheck | Ally | 我方主动治疗或净化成功时，目标获得护咒。Rank1 后，若目标当前 HP 低于一半，额外回复 3 HP。 | 护咒 / 治疗 |
+| 盾姬 | `shield-drill` | 盾阵训练 | ManualCheck | Ally | 每个己方 turn 1 次，我方共享盾增加或我方角色获得坚守时，当前 HP 比例最低的存活友军获得坚守；同率时优先 HP 绝对值最低的英雄。 | 坚守 |
+| 决斗者 | `duel-sense` | 决斗嗅觉 | OnAttackDeclared | Self | 每个己方 turn 1 次，主动攻击没有共有盾的敌人前，自身获得 1 层强攻。Rank1 后，本次攻击额外造成 2 点绝对伤害。 | 强攻 / 绝对伤害 |
 
 ## 4. Trait 相关状态
 
@@ -91,7 +94,7 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 狂战士 | `war-cry` | 战吼 | Click | SelfCard | 1 AP | No | 0 | 自身获得狂怒：物防 / 魔防 -2，持续到下个己方 turn；本 turn 主动攻击次数 +1；若击破共有盾，对攻击对象追加当前攻击力点绝对伤害。 | 特殊强化 / 行动次数 |
 | 狂战士 | `challenge` | 破势 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得战栗，1 turn 不能反击。 | 战栗 |
 | 魔法师 | `arcane-channel` | 秘术蓄能 | Click | SelfCard | 2 AP | No | 0 | 本 turn 不能再主动攻击；下个己方 turn 获得 2 层咏唱。 | 咏唱 |
-| 魔法师 | `searing-brand` | 灼热刻印 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得 1 层燃烧，并获得 1 层空虚。 | 燃烧 + 空虚 |
+| 魔法师 | `searing-brand` | 灼热刻印 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得 1 层燃烧，并获得空虚。 | 燃烧 + 空虚 |
 | 占卜师 | `star-reading` | 星读 | TargetSelect | AllyCard | 1 AP | No | 0 | 只能选择已经主动攻击过的我方魔法攻击单位。目标本 turn 可以再次主动攻击 1 次。 | 行动次数系统 |
 | 占卜师 | `fate-mark` | 命运标记 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得命运标记：下一次主动攻击我方时，50% 伤害减半，50% 伤害 +1，随后解除。 | 特殊印记 |
 | 怪物 | `predatory-gaze` | 捕食凝视 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得猎物：本 turn 每次受到 0 点 HP 伤害时，追加 2 点绝对伤害。 | 特殊印记 |
@@ -100,6 +103,10 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 农民 | `field-work` | 田间劳作 | Click | SelfCard | 1 AP | No | 1 | 如果已有丰收，本 turn 攻击次数 +1；如果处于播种中，回复自己 2 HP；如果两者都没有，获得播种。 | 特殊循环 |
 | 德鲁伊 | `cleansing-herbs` | 净化草药 | TargetSelect | AllyCard | 1 AP | No | 0 | 移除目标 1 个可净化 Debuff，优先移除伤害型 Debuff；成功时目标 HP +1，可突破上限。 | 净化 / 治疗 |
 | 德鲁伊 | `weakening-spores-action` | 衰弱孢子 | TargetSelect | EnemyCard | 1 AP | No | 0 | 随机移除目标 1 个可驱散 Buff，并施加 2 turn 力竭和磨损。 | 驱散 + 力竭 + 磨损 |
+| 修女 | `mend` | 修补术 | TargetSelect | AllyCard | 1 AP | No | 0 | 治疗目标 3 HP；若目标有可净化 Debuff，先净化 1 个，并使目标获得 2 层护咒。 | 治疗 / 净化 / 护咒 |
+| 盾姬 | `aegis-formation` | 圣盾阵 | Click | OwnShield | 1 AP | No | 0 | 若无共享盾则获得 1 点；若已有共享盾则 +2。 | 盾规则 |
+| 决斗者 | `crimson-lunge` | 绯红突刺 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得战栗；若已有通用 Debuff，再获得脆弱。 | 战栗 / 脆弱 |
+| 秘术士 | `astral-focus` | 星界聚焦 | TargetSelect | AllyCard, EnemyCard | 1 AP | No | 0 | 我方目标获得 1 层咏唱；敌方目标获得空虚。 | 咏唱 / 空虚 |
 
 ## 6. Role Action 相关状态
 
@@ -108,7 +115,7 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 守护誓约 | 特殊 Buff | `guard-oath` | 受到主动物理攻击时，伤害 -2 并消耗 1 层。可叠层，可驱散；驱散时整类移除。 |
 | 坚守 | 通用 Buff | `supply-basket` | 受到物理伤害 ×0.5；补给篮赋予 2 层，己方 turn 结束时消耗 1 层。 |
 | 战栗 | 通用 Debuff | `challenge` | 无法反击。 |
-| 咏唱 | 通用 Buff | `arcane-channel` | 下一次魔法伤害 ×2。 |
+| 咏唱 | 通用 Buff | `arcane-channel` | 下一次魔法伤害 ×2；己方 turn 结束时消耗 1 层。 |
 | 燃烧 | 通用 Debuff | `searing-brand` | 己方 turn 开始消耗 1 层并受到魔法伤害。 |
 | 空虚 | 通用 Debuff | `searing-brand` | 受到魔法伤害 ×1.25。 |
 | 力竭 | 通用 Debuff | `weakening-spores-action` | 造成物理伤害 ×0.5。 |
@@ -116,6 +123,8 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 命运标记 | 特殊 Debuff | `fate-mark` | 下一次主动攻击我方时随机修正伤害。 |
 | 猎物 | 特殊 Debuff | `predatory-gaze` | 本 turn 0 点 HP 伤害触发绝对伤害。 |
 | 黑暗契约 | 特殊 Buff | `dark-pact` | 下一次主动攻击附加 4 点绝对伤害。 |
+| 决斗追击 | 特殊瞬时 Buff | `duel-sense` Rank1 | 决斗嗅觉触发的本次攻击后，对目标追加 2 点绝对伤害，随后移除。 |
+| 护咒 | 通用 Buff | `field-medic`, `mend` | 受到魔法伤害 ×0.5；己方 turn 结束时消耗 1 层。 |
 
 ## 7. 后端实现位置
 

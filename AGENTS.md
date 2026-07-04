@@ -79,11 +79,18 @@
 - 搜索仍优先使用 `rg`；需要查看上下文时，再用 `tools/read-utf8.mjs` 按行读取。
 - 修改中文文档时，必须保持 UTF-8，不要因为 PowerShell 显示乱码就误判文件内容损坏。
 
+## PowerShell 使用注意
+
+- 当前 shell 是 Windows PowerShell，不要使用 `&&`、`;` 等 Unix 风格命令串联；它们会导致无意义失败并浪费时间。
+- 需要连续执行多个检查时，优先分开 tool call，或用 `multi_tool_use.parallel` 并行执行互不依赖的命令。
+- 小改动只运行必要验证，不要为了省一行 tool call 去拼接复杂 PowerShell。
+- JSON 校验优先使用 Node：`node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('path','utf8'))"`，不要用 PowerShell 读取中文/日文 JSON。
+
 ## 验证与安全
 
 - 修改 JS 后运行：`node --check wwwroot/app.js`。
 - 修改 C# 或整体逻辑后运行：`dotnet build`。
-- 修改 JSON 后至少用 `ConvertFrom-Json` 检查。
+- 修改 JSON 后至少用 Node `JSON.parse` 检查。
 - 不要删除用户资源、音频、图片或未提交改动，除非用户明确要求。
 - 工作区可能已有用户改动；只处理当前任务相关文件。
 - 不要把缓存、素材库临时目录或无关大文件纳入变更。

@@ -121,6 +121,17 @@ public sealed class ChantStatus(Guid sourceCharacterId, int stacks = 1)
     public int Stacks { get; private set; } = Math.Max(1, stacks);
     public override int Magnitude => Stacks;
 
+    public void AddStacks(int stacks = 1) => Stacks += Math.Max(1, stacks);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId != owner.PlayerId)
+            return;
+
+        Stacks--;
+        Expired = Stacks <= 0;
+    }
+
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
         if (Expired
@@ -135,6 +146,46 @@ public sealed class ChantStatus(Guid sourceCharacterId, int stacks = 1)
         if (Stacks <= 0)
             Expired = true;
         packet.Notes.Add(L10n.Text("note.chantMagic",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
+}
+
+public sealed class MightyStrikeStatus(Guid sourceCharacterId, int stacks = 1)
+    : StatusEffect("mighty-strike", true, sourceCharacterId)
+{
+    public int Stacks { get; private set; } = Math.Max(1, stacks);
+    public override int Magnitude => Stacks;
+    public override bool IsAttackBuff => true;
+
+    public void AddStacks(int stacks = 1) => Stacks += Math.Max(1, stacks);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId != owner.PlayerId)
+            return;
+
+        Stacks--;
+        Expired = Stacks <= 0;
+    }
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.Source != DamageSource.ActiveAttack
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount *= 2;
+        Stacks--;
+        if (Stacks <= 0)
+            Expired = true;
+        packet.Notes.Add(L10n.Text("note.mightyStrikePhysical",
             ("character", L10n.Character(owner.Definition.Key)),
             ("characterId", L10n.Raw(owner.Id)),
             ("before", L10n.Raw(before)),
@@ -169,6 +220,27 @@ public sealed class VoidStatus(Guid sourceCharacterId, Guid expirePlayerId)
         var before = packet.Amount;
         packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.25));
         packet.Notes.Add(L10n.Text("note.voidMagic",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
+}
+
+public sealed class VulnerableStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("vulnerable", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+{
+    public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.TargetCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.25));
+        packet.Notes.Add(L10n.Text("note.vulnerablePhysical",
             ("character", L10n.Character(owner.Definition.Key)),
             ("characterId", L10n.Raw(owner.Id)),
             ("before", L10n.Raw(before)),
@@ -218,6 +290,44 @@ public sealed class ErosionStatus(Guid sourceCharacterId, Guid expirePlayerId)
     }
 }
 
+public sealed class StrongAttackStatus(Guid sourceCharacterId, Guid ownerPlayerId, int turns = 1)
+    : StatusEffect("strong-attack", true, sourceCharacterId)
+{
+    private int _remainingTurnEnds = Math.Max(1, turns);
+    public override int Magnitude => _remainingTurnEnds;
+    public override bool IsAttackBuff => true;
+
+    public void AddTurns(int turns = 1) =>
+        _remainingTurnEnds += Math.Max(1, turns);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId != ownerPlayerId)
+            return;
+
+        _remainingTurnEnds--;
+        Expired = _remainingTurnEnds <= 0;
+    }
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.Source != DamageSource.ActiveAttack
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.5));
+        packet.Notes.Add(L10n.Text("note.strongAttack",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
+}
+
 public sealed class HarvestStatus(Guid sourceCharacterId, Guid activePlayerId)
     : StatusEffect("harvest", true, sourceCharacterId)
 {
@@ -257,6 +367,9 @@ public sealed class FortifyStatus(Guid sourceCharacterId, int turns = 1)
     private int _remainingTurnEnds = Math.Max(1, turns);
     public override int Magnitude => _remainingTurnEnds;
 
+    public void AddTurns(int turns = 1) =>
+        _remainingTurnEnds += Math.Max(1, turns);
+
     public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
     {
         if (context.State.ActivePlayerId != owner.PlayerId)
@@ -277,6 +390,42 @@ public sealed class FortifyStatus(Guid sourceCharacterId, int turns = 1)
         var before = packet.Amount;
         packet.Amount = Math.Max(1, packet.Amount / 2);
         packet.Notes.Add(L10n.Text("note.fortifyPhysical",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
+}
+
+public sealed class SpellWardStatus(Guid sourceCharacterId, int turns = 1)
+    : StatusEffect("spell-ward", true, sourceCharacterId)
+{
+    private int _remainingTurnEnds = Math.Max(1, turns);
+    public override int Magnitude => _remainingTurnEnds;
+
+    public void AddTurns(int turns = 1) =>
+        _remainingTurnEnds += Math.Max(1, turns);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId != owner.PlayerId)
+            return;
+
+        _remainingTurnEnds--;
+        Expired = _remainingTurnEnds <= 0;
+    }
+
+    public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.TargetCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Magical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, packet.Amount / 2);
+        packet.Notes.Add(L10n.Text("note.spellWardMagical",
             ("character", L10n.Character(owner.Definition.Key)),
             ("characterId", L10n.Raw(owner.Id)),
             ("before", L10n.Raw(before)),
@@ -393,6 +542,16 @@ public sealed class PactStatus(Guid sourceCharacterId)
     : StatusEffect("pact", true, sourceCharacterId)
 {
     public const int AbsoluteDamage = 4;
+    public override int Magnitude => AbsoluteDamage;
+    public override bool IsAttackBuff => true;
+
+    public void Consume() => Expired = true;
+}
+
+public sealed class DuelSenseStrikeStatus(Guid sourceCharacterId)
+    : StatusEffect("duel-sense-strike", true, sourceCharacterId)
+{
+    public const int AbsoluteDamage = 2;
     public override int Magnitude => AbsoluteDamage;
     public override bool IsAttackBuff => true;
 
