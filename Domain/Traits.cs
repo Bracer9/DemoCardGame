@@ -92,6 +92,7 @@ public sealed class SaintsPrayerTrait : CharacterTrait
             context.Log(L10n.Text("log.healed",
                 ("effect", L10n.Status("blessing")),
                 ("character", L10n.Character(ally.Definition.Key)),
+                ("characterId", L10n.Raw(ally.Id)),
                 ("amount", L10n.Raw(1))), "heal");
         }
     }
@@ -116,6 +117,7 @@ public sealed class StargazersAegisTrait : CharacterTrait
             packet.Notes.Add(L10n.Text("note.magicBonus",
                 ("effect", L10n.Trait("stargazers-aegis")),
                 ("character", L10n.Character(owner.Definition.Key)),
+                ("characterId", L10n.Raw(owner.Id)),
                 ("amount", L10n.Raw(1))));
         }
     }
@@ -125,15 +127,16 @@ public sealed class StargazersAegisTrait : CharacterTrait
         if (packet.Amount <= 0)
             return;
 
-        var chance = packet.DamageType == DamageType.Physical ? 0.25 : 0.50;
-        if (!context.Roll(chance))
+        if (!context.Roll(0.30))
             return;
 
-        packet.Amount = Math.Max(0, packet.Amount - 1);
+        var before = packet.Amount;
+        packet.Amount = Math.Max(0, (int)Math.Ceiling(packet.Amount * 0.5));
         packet.Notes.Add(L10n.Text("note.foresightReduction",
             ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+            ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
             ("damageType", L10n.Damage(packet.DamageType)),
-            ("amount", L10n.Raw(1))));
+            ("amount", L10n.Raw(before - packet.Amount))));
     }
 }
 
@@ -174,7 +177,8 @@ public sealed class SpringHarvestTrait : CharacterTrait
         owner.Statuses.RemoveAll(status => status.Id == "harvest-pending");
         owner.Statuses.Add(new PendingHarvestStatus(owner.Id, owner.PlayerId));
         context.Log(L10n.Text("log.sowing",
-            ("character", L10n.Character(owner.Definition.Key))), "buff");
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id))), "buff");
     }
 }
 
@@ -194,6 +198,7 @@ public sealed class SearingMarkTrait : CharacterTrait
         GameEngine.AddBurning(exchange.Defender, owner.Id);
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
+            ("characterId", L10n.Raw(exchange.Defender.Id)),
             ("status", L10n.Status("burning"))), "magic");
     }
 }
@@ -216,12 +221,10 @@ public sealed class WeakeningSporesTrait : CharacterTrait
         {
             context.Log(L10n.Text("log.traitFailed",
                 ("trait", L10n.Trait("weakening-spores")),
-                ("character", L10n.Character(owner.Definition.Key))), "status");
+                ("character", L10n.Character(owner.Definition.Key)),
+                ("characterId", L10n.Raw(owner.Id))), "status");
             return;
         }
-
-        exchange.Defender.Statuses.RemoveAll(status =>
-            status.Id is "weakness" or "weakness-pending");
 
         var attackBuffs = exchange.Defender.Statuses
             .Where(status => !status.Expired
@@ -236,13 +239,21 @@ public sealed class WeakeningSporesTrait : CharacterTrait
             exchange.Defender.Statuses.Remove(attackBuff);
             context.Log(L10n.Text("log.attackBuffRemoved",
                 ("character", L10n.Character(exchange.Defender.Definition.Key)),
+                ("characterId", L10n.Raw(exchange.Defender.Id)),
                 ("status", L10n.Status(attackBuff.Id))), "status");
         }
 
-        exchange.Defender.Statuses.Add(new PendingWeaknessStatus(owner.Id, exchange.Defender.PlayerId));
+        exchange.Defender.Statuses.RemoveAll(status => status.Id is "exhaustion" or "erosion");
+        exchange.Defender.Statuses.Add(new ExhaustionStatus(owner.Id, exchange.Defender.PlayerId));
+        exchange.Defender.Statuses.Add(new ErosionStatus(owner.Id, exchange.Defender.PlayerId));
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
-            ("status", L10n.Status("weakness-pending"))), "status");
+            ("characterId", L10n.Raw(exchange.Defender.Id)),
+            ("status", L10n.Status("exhaustion"))), "status");
+        context.Log(L10n.Text("log.statusApplied",
+            ("character", L10n.Character(exchange.Defender.Definition.Key)),
+            ("characterId", L10n.Raw(exchange.Defender.Id)),
+            ("status", L10n.Status("erosion"))), "status");
     }
 }
 
@@ -269,14 +280,14 @@ public sealed class AftershockAxeTrait : CharacterTrait
         if (neighbours.Count == 0)
             return;
 
-        var target = neighbours[context.Next(neighbours.Count)];
-        context.DealTraitDamage(target, 1, DamageType.Physical, owner.Id, "aftershock-axe");
+        var damage = Math.Max(1, (int)Math.Ceiling(exchange.AttackDamageDealt / 3.0));
+        foreach (var target in neighbours)
+            context.DealTraitDamage(target, damage, DamageType.Physical, owner.Id, "aftershock-axe");
     }
 }
 
 public sealed class PredatoryInstinctTrait : CharacterTrait
 {
-    public const int AbsoluteDamage = 3;
     public const int PrincessBonusDamage = 1;
     public const int PrincessBacklashMultiplier = 2;
 
@@ -293,16 +304,21 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
             || packet.TargetCharacter.Definition.Key != "princess")
             return;
 
+        packet.Amount = 0;
         packet.IgnoresSharedShield = true;
-        packet.Notes.Add(L10n.Text("note.beautyPrincessBypass",
-            ("character", L10n.Character(packet.TargetCharacter.Definition.Key))));
+        packet.IgnoresTargetDefense = true;
     }
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
         if (exchange.Defender.Definition.Key == "princess")
         {
-            DealPrincessBacklash(context, owner, exchange.AttackDamageDealt);
+            var princessDamage = context.DealAbsoluteDamage(
+                exchange.Defender,
+                context.GetActiveAttack(owner),
+                owner.Id,
+                "predatory-instinct");
+            DealPrincessBacklash(context, owner, princessDamage);
             return;
         }
 
@@ -312,7 +328,7 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
 
         var hasPrincess = context.State.FindOwner(owner).Characters.Any(character =>
             character.IsAlive && character.Definition.Key == "princess");
-        var damage = AbsoluteDamage + (hasPrincess ? PrincessBonusDamage : 0);
+        var damage = context.GetActiveAttack(owner) + (hasPrincess ? PrincessBonusDamage : 0);
         context.DealAbsoluteDamage(exchange.Defender, damage, owner.Id, "predatory-instinct");
     }
 
@@ -330,7 +346,9 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
         context.Log(L10n.Text("log.effectDamage",
             ("effect", L10n.Trait("predatory-instinct")),
             ("source", L10n.Character(owner.Definition.Key)),
+            ("sourceId", L10n.Raw(owner.Id)),
             ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
             ("amount", L10n.Raw(dealt)),
             ("damageType", L10n.Damage(DamageType.Absolute))), "trait");
     }
@@ -347,6 +365,7 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
         owner.Statuses.Add(new BeastRageStatus(defeatedCharacter.Id));
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
             ("status", L10n.Status("beast-rage"))), "buff");
     }
 }
@@ -379,12 +398,15 @@ public sealed class InterposingShieldTrait : CharacterTrait
             || packet.TargetCharacter.Id == owner.Id)
             return;
 
-        packet.Amount--;
-        packet.Collateral.Add(new CollateralDamage(owner, owner, 1, DamageType.Physical, "guard"));
+        var guardDamage = Math.Max(1, (int)Math.Ceiling(packet.Amount / 3.0));
+        packet.Amount = Math.Max(0, packet.Amount - guardDamage);
+        packet.Collateral.Add(new CollateralDamage(owner, owner, guardDamage, DamageType.Physical, "guard"));
         packet.Notes.Add(L10n.Text("note.guardRedirect",
             ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
             ("target", L10n.Character(packet.TargetCharacter.Definition.Key)),
-            ("amount", L10n.Raw(1))));
+            ("targetId", L10n.Raw(packet.TargetCharacter.Id)),
+            ("amount", L10n.Raw(guardDamage))));
         owner.GuardConsumed = true;
     }
 }

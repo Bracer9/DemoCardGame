@@ -85,7 +85,6 @@ test('structured domain messages render independently in Japanese and Chinese', 
   assert.match(chinese, /农民.*公主.*物理/u);
   assert.doesNotMatch(chinese, /[\u3040-\u30ff]/u);
   assert.equal(i18n.trait('interposing-shield').name, '替身之盾');
-  assert.equal(i18n.status({ id: 'shield-complacency', magnitude: 2 }).description.includes('-2'), true);
   const beauty = i18n.trait('predatory-instinct');
   assert.equal(beauty.name, '美女与野兽');
   assert.match(beauty.card, /公主阵亡后攻击\+2/u);

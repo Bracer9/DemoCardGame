@@ -38,10 +38,9 @@ public sealed class BeastRageStatus(Guid sourceCharacterId)
 }
 
 public sealed class MagicPowerStatus(Guid sourceCharacterId)
-    : StatusEffect("magic-power", true, sourceCharacterId)
+    : StatusEffect("magic-power", false, sourceCharacterId)
 {
     public override int Magnitude => 1;
-    public override bool IsAttackBuff => true;
     public override bool IsDispellable => false;
 }
 
@@ -65,56 +64,81 @@ public sealed class BurningStatus(Guid sourceCharacterId, Guid triggerPlayerId, 
     }
 }
 
-public sealed class PendingChargedStatus(Guid sourceCharacterId, Guid triggerPlayerId)
-    : StatusEffect("charged-pending", true, sourceCharacterId)
+public abstract class TurnLimitedStatus : StatusEffect
+{
+    protected TurnLimitedStatus(
+        string id,
+        bool isBuff,
+        Guid sourceCharacterId,
+        Guid? expireOnTurnStartPlayerId = null,
+        Guid? expireOnTurnEndPlayerId = null)
+        : base(id, isBuff, sourceCharacterId)
+    {
+        ExpireOnTurnStartPlayerId = expireOnTurnStartPlayerId;
+        ExpireOnTurnEndPlayerId = expireOnTurnEndPlayerId;
+    }
+
+    public Guid? ExpireOnTurnStartPlayerId { get; }
+    public Guid? ExpireOnTurnEndPlayerId { get; }
+
+    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
+    {
+        if (ExpireOnTurnStartPlayerId == context.State.ActivePlayerId)
+            Expired = true;
+    }
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (ExpireOnTurnEndPlayerId == context.State.ActivePlayerId)
+            Expired = true;
+    }
+}
+
+public sealed class PendingChantStatus(Guid sourceCharacterId, Guid triggerPlayerId, int stacks)
+    : StatusEffect("chant-pending", true, sourceCharacterId)
 {
     public Guid TriggerPlayerId { get; } = triggerPlayerId;
+    public override int Magnitude => Math.Max(1, stacks);
 
     public override void OnTurnStart(GameEngineContext context, CharacterState owner)
     {
         if (context.State.ActivePlayerId != TriggerPlayerId || Expired)
             return;
 
-        owner.Statuses.RemoveAll(status => status.Id == "charged");
-        owner.Statuses.Add(new ChargedStatus(SourceCharacterId, TriggerPlayerId));
+        owner.Statuses.RemoveAll(status => status.Id == "chant");
+        owner.Statuses.Add(new ChantStatus(SourceCharacterId, Magnitude));
         Expired = true;
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(owner.Definition.Key)),
-            ("status", L10n.Status("charged"))), "magic");
+            ("characterId", L10n.Raw(owner.Id)),
+            ("status", L10n.Status("chant"))), "magic");
     }
 }
 
-public sealed class ChargedStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : StatusEffect("charged", true, sourceCharacterId)
+public sealed class ChantStatus(Guid sourceCharacterId, int stacks = 1)
+    : StatusEffect("chant", true, sourceCharacterId)
 {
-    public const int DamageBonus = 2;
-    public Guid ExpirePlayerId { get; } = expirePlayerId;
-    public override int Magnitude => DamageBonus;
-
-    public override int ModifyActiveAttack(CharacterState owner, int damage)
-    {
-        if (owner.Definition.AttackType != DamageType.Magical)
-            return damage;
-
-        return damage + Magnitude;
-    }
+    public int Stacks { get; private set; } = Math.Max(1, stacks);
+    public override int Magnitude => Stacks;
 
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
-        if (!Expired
-            && packet.Source == DamageSource.ActiveAttack
-            && packet.SourceCharacter.Id == owner.Id
-            && packet.DamageType == DamageType.Magical
-            && packet.Amount > 0)
-            packet.Notes.Add(L10n.Text("note.chargedMagic",
-                ("character", L10n.Character(owner.Definition.Key)),
-                ("amount", L10n.Raw(Magnitude))));
-    }
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Magical
+            || packet.Amount <= 0)
+            return;
 
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId == ExpirePlayerId)
+        var before = packet.Amount;
+        packet.Amount *= 2;
+        Stacks--;
+        if (Stacks <= 0)
             Expired = true;
+        packet.Notes.Add(L10n.Text("note.chantMagic",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
     }
 }
 
@@ -131,13 +155,9 @@ public sealed class AttackSealedStatus(Guid sourceCharacterId, Guid expirePlayer
     }
 }
 
-public sealed class SearingBrandStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : StatusEffect("searing-brand", false, sourceCharacterId)
+public sealed class VoidStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("void", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
 {
-    public const int MagicDamageBonus = 1;
-    public Guid ExpirePlayerId { get; } = expirePlayerId;
-    public override int Magnitude => MagicDamageBonus;
-
     public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
         if (Expired
@@ -146,46 +166,55 @@ public sealed class SearingBrandStatus(Guid sourceCharacterId, Guid expirePlayer
             || packet.Amount <= 0)
             return;
 
-        packet.Amount += Magnitude;
-        packet.Notes.Add(L10n.Text("note.searingBrand",
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.25));
+        packet.Notes.Add(L10n.Text("note.voidMagic",
             ("character", L10n.Character(owner.Definition.Key)),
-            ("amount", L10n.Raw(Magnitude))));
-    }
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId == ExpirePlayerId)
-            Expired = true;
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
     }
 }
 
-public sealed class PendingWeaknessStatus(Guid sourceCharacterId, Guid triggerPlayerId)
-    : StatusEffect("weakness-pending", false, sourceCharacterId)
+public sealed class ExhaustionStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("exhaustion", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
 {
-    public Guid TriggerPlayerId { get; } = triggerPlayerId;
-
-    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
-        if (context.State.ActivePlayerId != TriggerPlayerId || Expired)
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
             return;
 
-        owner.Statuses.Add(new WeaknessStatus(SourceCharacterId, TriggerPlayerId));
-        Expired = true;
-        context.Log(L10n.Text("log.weaknessActivated", ("character", L10n.Character(owner.Definition.Key))), "status");
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, packet.Amount / 2);
+        packet.Notes.Add(L10n.Text("note.exhaustionPhysical",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
     }
 }
 
-public sealed class WeaknessStatus(Guid sourceCharacterId, Guid activePlayerId)
-    : StatusEffect("weakness", false, sourceCharacterId)
+public sealed class ErosionStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("erosion", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
 {
-    public Guid ActivePlayerId { get; } = activePlayerId;
-    public override int Magnitude => 2;
-    public override int ModifyActiveAttack(CharacterState owner, int damage) => Math.Max(0, damage - Magnitude);
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
-        if (context.State.ActivePlayerId == ActivePlayerId)
-            Expired = true;
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Magical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, packet.Amount / 2);
+        packet.Notes.Add(L10n.Text("note.erosionMagical",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
     }
 }
 
@@ -216,46 +245,74 @@ public sealed class PendingHarvestStatus(Guid sourceCharacterId, Guid triggerPla
 
         owner.Statuses.Add(new HarvestStatus(SourceCharacterId, TriggerPlayerId));
         Expired = true;
-        context.Log(L10n.Text("log.harvestActivated", ("character", L10n.Character(owner.Definition.Key))), "buff");
+        context.Log(L10n.Text("log.harvestActivated",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id))), "buff");
     }
 }
 
-public sealed class SupplyGuardStatus(Guid sourceCharacterId, Guid triggerPlayerId)
-    : StatusEffect("supply-guard", true, sourceCharacterId)
+public sealed class FortifyStatus(Guid sourceCharacterId, int turns = 1)
+    : StatusEffect("fortify", true, sourceCharacterId)
 {
-    public Guid TriggerPlayerId { get; } = triggerPlayerId;
-    public override int Magnitude => 1;
-    public override int ModifyPhysicalDefense(int defense) => defense + Magnitude;
+    private int _remainingTurnEnds = Math.Max(1, turns);
+    public override int Magnitude => _remainingTurnEnds;
 
-    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
     {
-        if (context.State.ActivePlayerId == TriggerPlayerId)
-            Expired = true;
+        if (context.State.ActivePlayerId != owner.PlayerId)
+            return;
+
+        _remainingTurnEnds--;
+        Expired = _remainingTurnEnds <= 0;
     }
-}
 
-public sealed class ShieldComplacencyStatus(Guid triggerPlayerId, int counterReduction)
-    : StatusEffect("shield-complacency", false, Guid.Empty)
-{
-    public Guid TriggerPlayerId { get; } = triggerPlayerId;
-    public override int Magnitude { get; } = Math.Clamp(counterReduction, 1, 2);
-
-    public void Consume() => Expired = true;
-
-    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
+    public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
-        if (context.State.ActivePlayerId == TriggerPlayerId)
-            Expired = true;
+        if (Expired
+            || packet.TargetCharacter.Id != owner.Id
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, packet.Amount / 2);
+        packet.Notes.Add(L10n.Text("note.fortifyPhysical",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
     }
 }
 
-public sealed class GuardedStatus(Guid sourceCharacterId)
-    : StatusEffect("guarded", true, sourceCharacterId)
+public sealed class GuardOathStatus(Guid sourceCharacterId, int stacks = 1)
+    : StatusEffect("guard-oath", true, sourceCharacterId)
 {
-    public override int Magnitude => 2;
-    public override int ModifyPhysicalDefense(int defense) => defense + Magnitude;
+    public const int PhysicalReduction = 2;
+    public int Stacks { get; private set; } = Math.Max(1, stacks);
+    public override int Magnitude => Stacks;
 
-    public void Consume() => Expired = true;
+    public void AddStack(int amount = 1) => Stacks += Math.Max(1, amount);
+
+    public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.TargetCharacter.Id != owner.Id
+            || packet.Source != DamageSource.ActiveAttack
+            || packet.DamageType != DamageType.Physical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(0, packet.Amount - PhysicalReduction);
+        Stacks--;
+        if (Stacks <= 0)
+            Expired = true;
+        packet.Notes.Add(L10n.Text("note.guardOathPhysical",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
 }
 
 public sealed class RageStatus(Guid sourceCharacterId, Guid ownerPlayerId)
@@ -273,16 +330,9 @@ public sealed class RageStatus(Guid sourceCharacterId, Guid ownerPlayerId)
     }
 }
 
-public sealed class ChallengedStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : StatusEffect("challenged", false, sourceCharacterId)
+public sealed class TremblingStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("trembling", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
 {
-    public Guid ExpirePlayerId { get; } = expirePlayerId;
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId == ExpirePlayerId)
-            Expired = true;
-    }
 }
 
 public sealed class FateMarkedStatus(Guid sourceCharacterId)
@@ -308,6 +358,7 @@ public sealed class FateMarkedStatus(Guid sourceCharacterId)
             packet.Amount /= 2;
             packet.Notes.Add(L10n.Text("note.fateMarkReduced",
                 ("character", L10n.Character(owner.Definition.Key)),
+                ("characterId", L10n.Raw(owner.Id)),
                 ("before", L10n.Raw(before)),
                 ("after", L10n.Raw(packet.Amount))));
         }
@@ -316,6 +367,7 @@ public sealed class FateMarkedStatus(Guid sourceCharacterId)
             packet.Amount += Magnitude;
             packet.Notes.Add(L10n.Text("note.fateMarkAmplified",
                 ("character", L10n.Character(owner.Definition.Key)),
+                ("characterId", L10n.Raw(owner.Id)),
                 ("amount", L10n.Raw(Magnitude))));
         }
 
@@ -340,11 +392,9 @@ public sealed class PreyStatus(Guid sourceCharacterId, Guid expirePlayerId)
 public sealed class PactStatus(Guid sourceCharacterId)
     : StatusEffect("pact", true, sourceCharacterId)
 {
-    public const int AttackBonus = 4;
-    public override int Magnitude => AttackBonus;
+    public const int AbsoluteDamage = 4;
+    public override int Magnitude => AbsoluteDamage;
     public override bool IsAttackBuff => true;
-
-    public override int ModifyActiveAttack(CharacterState owner, int damage) => damage + Magnitude;
 
     public void Consume() => Expired = true;
 }

@@ -34,7 +34,7 @@ test('only explicitly missing status artwork uses placeholders', () => {
   const placeholders = Object.entries(manifest.icons)
     .filter(([, definition]) => !definition.source)
     .map(([assetId]) => assetId);
-  assert.deepEqual(placeholders, ['status.shield-complacency', 'status.beast-rage']);
+  assert.deepEqual(placeholders, ['status.beast-rage']);
 });
 
 test('rendered image URLs include the manifest version cache key', async () => {

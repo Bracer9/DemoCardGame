@@ -17,18 +17,24 @@ public sealed class AttackPreviewService
         var error = Validate(state, attacker, defender);
         if (error is not null) return Invalid(attackerId, defenderId, error);
 
-        var attackBase = _engine.GetActiveAttack(attacker);
-        if (attacker.Definition.AttackType == DamageType.Magical
-            && attacker.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
-            attackBase++;
+        var attackBase = ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(attacker),
+            attacker.Definition.AttackType, DamageSource.ActiveAttack, receivesMagicPowerBonus: true);
         var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
-        var attack = ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
+        var attack = monsterPrincessAttack
+            ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
+            : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
         attack = ApplyPreyForecast(defender, attack);
+        var pactBonus = attacker.Statuses.Any(status => status.Id == "pact" && !status.Expired)
+            ? PactStatus.AbsoluteDamage
+            : 0;
+        if (pactBonus > 0)
+            attack = attack with { Min = attack.Min + pactBonus, Max = attack.Max + pactBonus };
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
             attack = attack with { Min = attack.Min + rageShieldBreakBonus, Max = attack.Max + rageShieldBreakBonus };
-        var counter = ForecastDamage(state, attacker, _engine.GetCounterAttack(defender),
-            defender.Definition.AttackType, DamageSource.CounterAttack);
+        var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(defender),
+            defender.Definition.AttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
+        var counter = ForecastDamage(state, attacker, counterBase, defender.Definition.AttackType, DamageSource.CounterAttack);
         counter = ApplyPreyForecast(attacker, counter);
         var trait = _engine.GetTrait(attacker);
         var (possible, traitText) = ForecastTrait(state, attacker, defender, attack);
@@ -73,9 +79,6 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.attackerShieldDefenseWeakness",
                 ("damageType", L10n.Damage(Enum.Parse<DamageType>(counter.DamageType))),
                 ("value", L10n.Raw(Math.Abs(counter.ShieldDefenseReduction)))));
-        var reduction = GameEngine.GetCounterDebuffReduction(defender);
-        if (reduction > 0)
-            notes.Add(L10n.Text("preview.complacency", ("value", L10n.Raw(reduction))));
         if (attack.ShieldWillAbsorb)
             notes.Add(L10n.Text("preview.targetShield", ("value", L10n.Raw(attack.ShieldAbsorb))));
         if (counter.ShieldWillAbsorb)
@@ -88,22 +91,25 @@ public sealed class AttackPreviewService
                 ("min", L10n.Raw(attack.Min * PredatoryInstinctTrait.PrincessBacklashMultiplier)),
                 ("max", L10n.Raw(attack.Max * PredatoryInstinctTrait.PrincessBacklashMultiplier))));
         if (attacker.Definition.AttackType == DamageType.Magical
-            && attacker.Statuses.Any(status => status.Id == "charged" && !status.Expired))
+            && attacker.Statuses.Any(status => status.Id == "chant" && !status.Expired))
             notes.Add(L10n.Text("preview.roleAction.arcaneChannel",
-                ("value", L10n.Raw(ChargedStatus.DamageBonus))));
-        if (defender.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired)
+                ("value", L10n.Raw(2))));
+        if (defender.Statuses.Any(status => status.Id == "void" && !status.Expired)
             && attacker.Definition.AttackType == DamageType.Magical)
             notes.Add(L10n.Text("preview.roleAction.searingBrand",
-                ("value", L10n.Raw(SearingBrandStatus.MagicDamageBonus))));
-        if (attacker.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired)
+                ("value", L10n.Raw("×1.25"))));
+        if (attacker.Statuses.Any(status => status.Id == "void" && !status.Expired)
             && defender.Definition.AttackType == DamageType.Magical)
             notes.Add(L10n.Text("preview.roleAction.searingBrandCounter",
-                ("value", L10n.Raw(SearingBrandStatus.MagicDamageBonus))));
+                ("value", L10n.Raw("×1.25"))));
         if (rageShieldBreakBonus > 0)
             notes.Add(L10n.Text("preview.roleAction.warCryShieldBreak",
                 ("value", L10n.Raw(rageShieldBreakBonus))));
         if (attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired))
             notes.Add(L10n.Text("preview.roleAction.fateMark"));
+        if (pactBonus > 0)
+            notes.Add(L10n.Text("preview.roleAction.darkPact",
+                ("value", L10n.Raw(pactBonus))));
         if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attack.Min <= PreyStatus.AbsoluteDamage)
             notes.Add(L10n.Text("preview.roleAction.predatoryGaze",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
@@ -200,20 +206,77 @@ public sealed class AttackPreviewService
         var damageAfterDefense = defense >= 0
             ? Math.Max(0, damageAfterShield - defense)
             : damageAfterShield + Math.Abs(defense);
-        if (type == DamageType.Magical
-            && damageAfterDefense > 0
-            && target.Statuses.Any(status => status.Id == "searing-brand" && !status.Expired))
-            damageAfterDefense += SearingBrandStatus.MagicDamageBonus;
-        var hasOracle = owner.Characters.Any(character => character.IsAlive && character.Definition.Key == "oracle");
-        var chance = hasOracle ? (type == DamageType.Physical ? 25 : 50) : 0;
-        var min = Math.Max(0, damageAfterDefense - (chance > 0 ? 1 : 0));
+        damageAfterDefense = ForecastIncomingStatusDamage(target, damageAfterDefense, type, source);
         var max = Math.Max(0, damageAfterDefense);
+        var oracleReduced = Math.Max(0, (int)Math.Ceiling(damageAfterDefense * 0.5));
+        var hasOracle = owner.Characters.Any(character => character.IsAlive && character.Definition.Key == "oracle");
+        var chance = hasOracle && max > 0 && oracleReduced != max ? 30 : 0;
+        var min = chance > 0 ? oracleReduced : max;
         var knight = owner.Characters.FirstOrDefault(character => character.IsAlive
             && character.Definition.Key == "knight" && !character.GuardConsumed);
         var guard = source == DamageSource.ActiveAttack && type == DamageType.Physical
             && target.Definition.Key != "knight" && knight is not null && max > 0;
-        if (guard) { min = Math.Max(0, min - 1); max = Math.Max(0, max - 1); }
-        return new DamageForecast(min, max, type.ToString(), shieldDefense, defense, chance, shield, shieldAbsorb, guard, guard ? 1 : 0);
+        var guardDamage = guard ? Math.Max(1, (int)Math.Ceiling(max / 3.0)) : 0;
+        if (guard)
+        {
+            min = Math.Max(0, min - Math.Max(1, (int)Math.Ceiling(min / 3.0)));
+            max = Math.Max(0, max - guardDamage);
+        }
+        return new DamageForecast(min, max, type.ToString(), shieldDefense, defense, chance, shield, shieldAbsorb, guard, guardDamage);
+    }
+
+    private static int ForecastOutgoingDamage(
+        CharacterState source,
+        int amount,
+        DamageType type,
+        DamageSource damageSource,
+        bool receivesMagicPowerBonus)
+    {
+        var damage = Math.Max(0, amount);
+        foreach (var status in source.Statuses.Where(status => !status.Expired))
+        {
+            if (damage <= 0)
+                break;
+            damage = status.Id switch
+            {
+                "chant" when type == DamageType.Magical => damage * 2,
+                "exhaustion" when type == DamageType.Physical => Math.Max(1, damage / 2),
+                "erosion" when type == DamageType.Magical => Math.Max(1, damage / 2),
+                _ => damage
+            };
+        }
+
+        if (type == DamageType.Magical
+            && damageSource == DamageSource.ActiveAttack
+            && receivesMagicPowerBonus
+            && source.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
+            damage++;
+
+        return Math.Max(0, damage);
+    }
+
+    private static int ForecastIncomingStatusDamage(
+        CharacterState target,
+        int amount,
+        DamageType type,
+        DamageSource source)
+    {
+        var damage = Math.Max(0, amount);
+        foreach (var status in target.Statuses.Where(status => !status.Expired))
+        {
+            if (damage <= 0)
+                break;
+            damage = status.Id switch
+            {
+                "void" when type == DamageType.Magical => Math.Max(1, (int)Math.Ceiling(damage * 1.25)),
+                "fortify" when type == DamageType.Physical => Math.Max(1, damage / 2),
+                "guard-oath" when source == DamageSource.ActiveAttack && type == DamageType.Physical =>
+                    Math.Max(0, damage - GuardOathStatus.PhysicalReduction),
+                _ => damage
+            };
+        }
+
+        return Math.Max(0, damage);
     }
 
     private int ForecastRageShieldBreakBonus(
@@ -256,9 +319,9 @@ public sealed class AttackPreviewService
         var noDamage = attack.Max == 0;
         var key = (guaranteed, noDamage) switch
         {
-            (true, _) => "preview.trait.weaknessGuaranteed",
-            (false, true) => "preview.trait.weaknessChance",
-            _ => "preview.trait.weaknessVariable"
+            (true, _) => "preview.trait.sporesGuaranteed",
+            (false, true) => "preview.trait.sporesChance",
+            _ => "preview.trait.sporesVariable"
         };
         return (true, L10n.Text(key));
     }
@@ -271,7 +334,7 @@ public sealed class AttackPreviewService
 
         var hasPrincess = state.FindOwner(attacker).Characters.Any(character =>
             character.IsAlive && character.Definition.Key == "princess");
-        var damage = PredatoryInstinctTrait.AbsoluteDamage
+        var damage = attacker.Definition.Attack
             + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0);
         var key = attack.Max == 0 ? "preview.trait.beautyGuaranteed"
             : attack.Min == 0 ? "preview.trait.beautyPossible"
@@ -284,6 +347,7 @@ public sealed class AttackPreviewService
         if (state.Phase != GamePhase.Playing) return L10n.Text("error.matchFinished");
         if (state.RewardWindow is not null) return L10n.Text("error.rewardWindowOpen");
         if (state.PendingRoleActionUpgrade is not null) return L10n.Text("error.pendingRoleActionUpgrade");
+        if (state.PendingHeroDraft is not null) return L10n.Text("error.pendingHeroDraft");
         if (attacker.PlayerId != state.ActivePlayerId) return L10n.Text("error.notActiveCharacter");
         if (defender.PlayerId == state.ActivePlayerId) return L10n.Text("error.cannotAttackAlly");
         if (!attacker.IsAlive || !defender.IsAlive) return L10n.Text("error.defeatedSelection");

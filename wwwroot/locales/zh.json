@@ -4,6 +4,8 @@
     "startTagline": "命运，藏在八张卡牌之中。",
     "localPlay": "本地对战",
     "localPlayHint": "在一台电脑上交替游玩",
+    "testPlay": "测试模式",
+    "testPlayHint": "自由选4名英雄，职业行动全解锁",
     "onlinePlay": "在线对战",
     "onlinePlayHint": "通过邀请链接与朋友游玩",
     "backToModes": "← 返回模式选择",
@@ -47,6 +49,20 @@
     "roleActionLocked": "尚未解锁职业行动。",
     "roleActionComingSoon": "尚未实装发动。",
     "rewardCannotAfford": "BP不足",
+    "heroDraftTitleOpening": "选择初始英雄",
+    "heroDraftSubtitleOpening": "从4名候选英雄中选择1名，带领她开始战斗。",
+    "heroDraftTitleRecruit": "招募新英雄",
+    "heroDraftSubtitleRecruit": "选择1名尚未加入队伍的英雄。",
+    "heroDraftWaiting": "等待对手选择英雄",
+    "heroDraftInstruction": "选择一名英雄",
+    "heroDraftInstructionHint": "点击候选卡牌加入队伍。",
+    "heroDraftOpeningHint": "点击手牌查看详情，再按卡牌上方的确定。",
+    "heroDraftInstructionTest": "选择4名英雄",
+    "heroDraftOpeningHintTest": "测试用。从8名英雄中选择4名，全部职业行动会直接解锁。",
+    "heroDraftConfirm": "确定",
+    "heroDraftAtk": "攻",
+    "heroDraftHp": "HP",
+    "heroDraftCost": "COST",
     "opponentChoosingReward": "对手正在选择奖励",
     "rematch": "再次对战",
     "close": "关闭",
@@ -72,15 +88,15 @@
     "liveEffects": "实时状态",
     "effects": "增益 / 减益",
     "always": "常驻",
-    "shieldLead": "第一层获得共有盾；只有当前仍有共有盾时，第二层才会在现有盾值上追加，并赋予减益“有恃无恐”。",
+    "shieldLead": "防御阵型会为我方全队展开共有盾。",
     "shieldFirst": "一层盾",
-    "shieldFirstBody": "消耗2 AP获得共有盾2；不降低我方反击伤害。",
+    "shieldFirstBody": "消耗2 AP，展开2点共有盾。",
     "shieldSecond": "二层盾",
-    "shieldSecondBody": "若当前仍有共有盾，追加1 AP使盾值+2，并赋予有恃无恐：下一次反击伤害-1。",
-    "shieldNote1": "共有盾只负责用剩余盾值吸收受到的正数伤害。",
-    "shieldNote2": "只有在已有共有盾时追加第二层，才会为每名角色分别赋予有恃无恐；反击后从该角色身上解除。",
-    "shieldNote3": "即使共有盾提前破碎，有恃无恐仍会保留到发动或下个己方回合。",
-    "shieldNote4": "如果共有盾在本回合内被打空，下一次防御指令会回到第一层，而不是强化第二层。",
+    "shieldSecondBody": "如果共有盾还存在，可以再消耗1 AP，使当前盾值增加2。",
+    "shieldNote1": "我方受到伤害时，先由共有盾吸收。",
+    "shieldNote2": "如果共有盾已经被打空，再次使用会重新展开一层盾。",
+    "shieldNote3": "绝对伤害不会被共有盾吸收。",
+    "shieldNote4": "每回合最多使用两次防御阵型。",
     "shieldCurrent": "当前共有盾：{value}",
     "shieldNone": "当前没有护盾",
     "bpTitle": "战功点",
@@ -170,17 +186,21 @@
     "hero-role-action-upgrade": {
       "name": "英雄职业训练",
       "description": "选择一名可升级英雄，并在两个初始职业行动中选择一个解锁。"
+    },
+    "hero-recruit": {
+      "name": "新英雄招募",
+      "description": "从4名候选英雄中选择1名加入队伍；队伍最多4名英雄。"
     }
   },
   "roleActions": {
     "saintly-prayer": {
       "name": "圣女祈祷",
-      "description": "治疗目标2 HP；若目标有可净化debuff，净化1个并获得1 BP。",
+      "description": "治疗目标2 HP；若目标有可净化debuff，净化1个并获得1 AP。",
       "button": "祈祷"
     },
     "raise-bulwark": {
       "name": "举盾号令",
-      "description": "我方拥有共享盾时可发动。共享盾+2，共享盾物防+2，持续到下次己方回合开始。",
+      "description": "我方拥有共享盾时可发动。共享盾×1.5向上取整；共享盾物防+2，持续到下次己方回合开始。",
       "button": "举盾"
     },
     "cleansing-herbs": {
@@ -190,7 +210,7 @@
     },
     "weakening-spores-action": {
       "name": "衰弱孢子",
-      "description": "移除敌方1体的1个可驱散buff，并施加衰弱。",
+      "description": "移除敌方1体的1个可驱散buff，并施加力竭（物理伤害降低）和磨损（魔法伤害降低）。",
       "button": "孢子"
     },
     "royal-command": {
@@ -200,7 +220,7 @@
     },
     "guard-oath": {
       "name": "守护誓约",
-      "description": "自己以外的我方角色获得守护誓约：物防+2，持续到下一次受到主动攻击之后。",
+      "description": "自己以外的我方角色获得1层守护誓约。受到主动物理攻击时，伤害-2并消耗1层。",
       "button": "誓约"
     },
     "war-cry": {
@@ -215,12 +235,12 @@
     },
     "arcane-channel": {
       "name": "秘术蓄能",
-      "description": "开始蓄能：本回合不能再攻击；下个己方回合，自己的魔法攻击+2。",
+      "description": "本回合不能再攻击；下个己方回合获得2层咏唱（魔法伤害翻倍）。",
       "button": "蓄能"
     },
     "searing-brand": {
       "name": "灼热刻印",
-      "description": "敌方1体获得1层燃烧和灼热刻印；本回合受到的魔法伤害+1。",
+      "description": "敌方1体获得1层燃烧（回合伤害）和1层空虚（受到魔法伤害增加）。",
       "button": "刻印"
     },
     "star-reading": {
@@ -240,12 +260,12 @@
     },
     "dark-pact": {
       "name": "黑暗契约",
-      "description": "我方1体失去4 HP并获得契约：下一次主动攻击+4。若HP低于一半，获得1 BP。",
+      "description": "我方1体失去最多4 HP，至少保留1 HP。获得契约：下一次主动攻击附加4点绝对伤害。若HP低于一半，获得1 BP。",
       "button": "契约"
     },
     "supply-basket": {
       "name": "补给篮",
-      "description": "治疗我方1体1 HP，并赋予物防+1，持续到下次己方回合开始。",
+      "description": "治疗我方1体1 HP，并赋予2层坚守（物理伤害减半）。",
       "button": "补给"
     },
     "field-work": {
@@ -260,15 +280,45 @@
       "timing": "下个己方回合开始时",
       "description": "回合开始时消耗1层并受到1点魔法伤害；星读加护使该伤害+1。当前层数：{magnitude}。"
     },
-    "weakness-pending": {
-      "name": "衰弱（待生效）",
-      "timing": "下个己方回合",
-      "description": "下个己方回合中，进攻伤害-2。"
+    "exhaustion": {
+      "name": "力竭",
+      "timing": "持续到回合结束",
+      "description": "造成的物理伤害减半。"
     },
-    "weakness": {
-      "name": "衰弱",
-      "timing": "持续到本回合结束",
-      "description": "进攻造成的物理与魔法伤害-2。"
+    "erosion": {
+      "name": "磨损",
+      "timing": "持续到回合结束",
+      "description": "造成的魔法伤害减半。"
+    },
+    "void": {
+      "name": "空虚",
+      "timing": "持续到回合结束",
+      "description": "受到的魔法伤害提高。"
+    },
+    "fortify": {
+      "name": "坚守",
+      "timing": "按层数持续",
+      "description": "受到的物理伤害减半。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+    },
+    "guard-oath": {
+      "name": "守护誓约",
+      "timing": "直到受到主动物理攻击",
+      "description": "受到主动物理攻击时，伤害-2。每次发动消耗1层。剩余层数：{magnitude}。"
+    },
+    "trembling": {
+      "name": "战栗",
+      "timing": "持续到回合结束",
+      "description": "无法反击。"
+    },
+    "chant": {
+      "name": "咏唱",
+      "timing": "下一次魔法伤害",
+      "description": "下一次魔法伤害翻倍。剩余层数：{magnitude}。"
+    },
+    "chant-pending": {
+      "name": "蓄能准备",
+      "timing": "下个己方回合开始时",
+      "description": "下个己方回合获得2层咏唱（魔法伤害翻倍）。"
     },
     "harvest": {
       "name": "丰收",
@@ -280,11 +330,6 @@
       "timing": "下个己方回合开始时",
       "description": "下个己方回合获得丰收。"
     },
-    "shield-complacency": {
-      "name": "有恃无恐",
-      "timing": "完成一次反击或下个己方回合",
-      "description": "下一次反击伤害-{magnitude}，发动后解除。"
-    },
     "blessing": {
       "name": "圣女的祝福",
       "timing": "己方回合开始时",
@@ -293,7 +338,7 @@
     "foresight": {
       "name": "预见",
       "timing": "受到伤害时",
-      "description": "物理25%／魔法50%概率使伤害-1。"
+      "description": "30%概率使伤害减半。"
     },
     "magic-power": {
       "name": "星读魔力",
@@ -308,7 +353,7 @@
     "guard": {
       "name": "守护",
       "timing": "主动物理进攻时",
-      "description": "全队共享一次。骑士代替队友承受1点伤害。"
+      "description": "全队共享一次。骑士承担队友受到的部分主动物理伤害。"
     },
     "beast-rage": {
       "name": "野兽之怒",
@@ -336,40 +381,15 @@
       "timing": "奖励",
       "description": "魔法防御+{magnitude}。持续到本局结束。不可驱散。"
     },
-    "guarded": {
-      "name": "守护誓约",
-      "timing": "下次受到主动攻击之后解除",
-      "description": "物理防御+{magnitude}。"
-    },
     "rage": {
       "name": "狂怒",
       "timing": "直到下个己方回合",
       "description": "物防/魔防-{magnitude}；本回合攻击次数+1；击破共有盾时，对攻击对象造成当前攻击力的绝对伤害。"
     },
-    "challenged": {
-      "name": "破势",
-      "timing": "持续到本回合结束",
-      "description": "无法反击。"
-    },
-    "charged": {
-      "name": "蓄能",
-      "timing": "下个己方回合",
-      "description": "自己的魔法攻击+{magnitude}。"
-    },
-    "charged-pending": {
-      "name": "蓄能准备",
-      "timing": "下个己方回合开始时",
-      "description": "下个己方回合获得蓄能，自己的魔法攻击+2。"
-    },
     "attack-sealed": {
       "name": "攻击封印",
       "timing": "本回合结束前",
       "description": "本回合无法进行主动攻击。"
-    },
-    "searing-brand": {
-      "name": "灼热刻印",
-      "timing": "本回合结束前",
-      "description": "受到的魔法伤害+{magnitude}。"
     },
     "marked": {
       "name": "命运标记",
@@ -385,11 +405,6 @@
       "name": "契约",
       "timing": "下一次主动攻击",
       "description": "下一次主动攻击+{magnitude}，发动后解除。"
-    },
-    "supply-guard": {
-      "name": "补给守备",
-      "timing": "持续到下次己方回合开始",
-      "description": "物防+{magnitude}。"
     }
   },
   "messages": {
@@ -430,26 +445,25 @@
     "reason.guardConsumed": "守护已经发动。",
     "preview.simultaneous": "进攻与反击同时发生。",
     "preview.counterRule": "反击比基础攻击低1，最低为1。",
-    "preview.targetForesight": "目标的预见：{chance}%概率使受到伤害-1。",
-    "preview.attackerForesight": "进攻方的预见：{chance}%概率使反击伤害-1。",
-    "preview.complacency": "目标的有恃无恐：反击伤害-{value}。",
+    "preview.targetForesight": "目标的预见：{chance}%概率使受到伤害减半。",
+    "preview.attackerForesight": "进攻方的预见：{chance}%概率使反击伤害减半。",
     "preview.targetDefense": "目标的{damageType}防御：受到伤害-{value}。",
     "preview.attackerDefense": "进攻方的{damageType}防御：反击伤害-{value}。",
     "preview.targetDefenseWeakness": "目标的{damageType}防御低下：受到伤害+{value}。",
     "preview.attackerDefenseWeakness": "进攻方的{damageType}防御低下：反击伤害+{value}。",
     "preview.targetShield": "目标方共有盾：受到伤害-{value}。",
     "preview.attackerShield": "进攻方共有盾：正数反击伤害-{value}。",
-    "preview.guard": "发动守护，骑士肩代わり1点物理伤害，并会受到骑士自身防御影响。",
+    "preview.guard": "守护可能发动，骑士承担部分物理伤害。",
     "preview.trait.harvestActive": "丰收回合不能播种。",
     "preview.trait.sowing": "进行播种，下个己方回合获得丰收（攻击+2）。",
     "preview.trait.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
-    "preview.trait.burningBoosted": "50%赋予1层燃烧；受星读加护时每层造成2点魔法伤害。",
-    "preview.trait.burning": "50%赋予1层燃烧。",
-    "preview.trait.weaknessGuaranteed": "造成伤害：100%发动，随机消除1个攻击强化Buff；下回合进攻伤害-2。",
-    "preview.trait.weaknessChance": "未造成伤害：50%发动，随机消除1个攻击强化Buff；下回合进攻伤害-2。",
-    "preview.trait.weaknessVariable": "根据伤害结果以50%或100%发动：随机消除1个攻击强化Buff；下回合进攻伤害-2。",
-    "preview.trait.aftershockGuaranteed": "确定造成至少3点主动伤害；对相邻敌人造成1点物理伤害。",
-    "preview.trait.aftershockPossible": "根据减伤结果，主动伤害达到3点时发动余波。",
+    "preview.trait.burningBoosted": "50%赋予1层燃烧（回合伤害）；受星读加护时每层造成2点魔法伤害。",
+    "preview.trait.burning": "50%赋予1层燃烧（回合伤害）。",
+    "preview.trait.sporesGuaranteed": "造成伤害：100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.sporesChance": "未造成伤害：50%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.sporesVariable": "根据伤害结果以50%或100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.aftershockGuaranteed": "确定造成至少3点主动伤害；相邻敌人受到该伤害1/3向上取整的物理伤害。",
+    "preview.trait.aftershockPossible": "根据减伤结果，主动伤害达到3点时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
     "preview.trait.beautyPrincessImmune": "无法对公主发动美女与野兽。",
     "preview.trait.beautyGuaranteed": "主动进攻确定为0伤害；追击造成{amount}点绝对伤害。",
     "preview.trait.beautyPossible": "若减伤结果使主动伤害变为0，则追击造成{amount}点绝对伤害。",
@@ -460,7 +474,7 @@
     "log.collateralDamage": "{effect}：{character}受到{amount}点伤害。",
     "log.exchange": "{attacker}进攻{defender}：造成{attackDamage}点{attackType}伤害／受到{counterDamage}点{counterType}反击伤害。",
     "log.shieldDeployed": "{player}展开防御阵型：共有盾{shield}。",
-    "log.shieldReinforced": "{player}强化防御阵型：共有盾{shield}，有恃无恐-{reduction}。",
+    "log.shieldReinforced": "{player}强化防御阵型：共有盾{shield}。",
     "log.shieldExpired": "{player}的防御阵型解除。",
     "log.turnStart": "回合{turn}：{player}行动。",
     "log.bpGained": "{player}获得{amount} BP（{reason}）。当前 {current}/{max}。",
@@ -472,19 +486,17 @@
     "log.rewardSkipped": "{player}跳过奖励，并尝试获得{amount} BP。",
     "log.effectDamage": "{effect}：{character}受到{amount}点{damageType}伤害。",
     "log.defeated": "{character}已无法战斗。",
-    "log.weaknessActivated": "{character}的衰弱开始生效。",
     "log.harvestActivated": "{character}迎来丰收。",
     "log.healed": "{effect}：{character}恢复{amount} HP。",
     "log.sowing": "{character}完成播种。",
     "log.statusApplied": "{character}被赋予{status}。",
     "log.attackBuffRemoved": "衰弱孢子抹除了{character}的{status}。",
-    "note.complacencyReduction": "有恃无恐：反击伤害-{amount}。",
     "note.typeDefense": "{character}的{damageType}防御：伤害-{amount}。",
     "note.typeDefenseWeakness": "{character}的{damageType}防御低下：伤害+{amount}。",
     "note.shieldAbsorb": "共有盾吸收{amount}点伤害。",
     "note.magicBonus": "{effect}：魔法伤害+{amount}。",
     "note.foresightReduction": "预见：{damageType}伤害-{amount}。",
-    "note.guardRedirect": "守护：骑士肩代わり{amount}点物理伤害。",
+    "note.guardRedirect": "守护：骑士承担{amount}点物理伤害。",
     "log.traitFailed": "{trait}未能生效。",
     "message.roleActionUnlocked": "已解锁职业行动。",
     "message.roleActionUsed": "职业行动已发动。",
@@ -503,7 +515,7 @@
     "log.roleActionHeal": "{actor}发动职业行动，{target}恢复{amount} HP。",
     "log.royalCommand": "{character}下达王令：本回合AP+2，下个己方回合AP-1。",
     "log.actionPointDebt": "{player}偿还王令代价：AP-{amount}。",
-    "log.guardedApplied": "{actor}立下守护誓约，{target}物防+2。",
+    "log.guardOathApplied": "{actor}立下誓约，{target}获得守护誓约。",
     "log.bulwarkRaised": "{character}强化共有盾。当前共有盾{shield}，盾物防{pdef}。",
     "note.shieldTypeDefense": "共有盾的{damageType}防御：伤害-{amount}。",
     "note.shieldTypeDefenseWeakness": "共有盾的{damageType}防御低下：伤害+{amount}。",
@@ -514,16 +526,20 @@
     "reason.roleActionCooldown": "还需{turns}回合才能使用",
     "log.warCry": "{character}发出战吼。",
     "log.challenge": "{actor}破坏了{target}的架势。",
-    "note.counterBlockedByChallenge": "{character}架势被破坏，无法反击。",
-    "preview.counterBlockedByChallenge": "目标被破势，本次攻击不会受到反击。",
-    "note.beautyPrincessBypass": "美女与野兽：对{character}的攻击无视共享盾。",
-    "preview.trait.beautyPrincessBacklash": "美女与野兽：无视共享盾。攻击后，怪物受到造成伤害2倍（{min}～{max}）的自伤，但不会因此死亡。",
-    "preview.trait.beautyPrincessBacklashTrait": "攻击公主时无视共享盾，并受到造成伤害2倍的自伤。",
-    "note.chargedMagic": "{character}的蓄能：魔法攻击+{amount}。",
-    "note.searingBrand": "{character}的灼热刻印：魔法伤害+{amount}。",
-    "preview.roleAction.arcaneChannel": "蓄能使本回合魔法攻击+{value}。",
-    "preview.roleAction.searingBrand": "灼热刻印使目标受到的魔法伤害+{value}。",
-    "preview.roleAction.searingBrandCounter": "灼热刻印使攻击方受到的魔法反击伤害+{value}。",
+    "note.counterBlockedByChallenge": "{character}战栗（无法反击）。",
+    "preview.counterBlockedByChallenge": "目标处于战栗（无法反击）。",
+    "preview.trait.beautyPrincessBacklash": "美女与野兽：攻击后，怪物受到造成伤害2倍（{min}～{max}）的自伤，但不会因此死亡。",
+    "preview.trait.beautyPrincessBacklashTrait": "攻击公主时造成绝对伤害，并受到造成伤害2倍的自伤。",
+    "note.chantMagic": "{character}的咏唱（魔法伤害翻倍）：魔法伤害从{before}变为{after}。",
+    "note.voidMagic": "{character}的空虚（受到魔法伤害增加）：魔法伤害从{before}变为{after}。",
+    "note.exhaustionPhysical": "{character}的力竭（物理伤害降低）：物理伤害从{before}变为{after}。",
+    "note.erosionMagical": "{character}的磨损（魔法伤害降低）：魔法伤害从{before}变为{after}。",
+    "note.fortifyPhysical": "{character}的坚守（物理伤害减半）：物理伤害从{before}变为{after}。",
+    "note.guardOathPhysical": "{character}的守护誓约：物理伤害从{before}变为{after}。",
+    "preview.roleAction.arcaneChannel": "咏唱（魔法伤害翻倍）使魔法伤害×{value}。",
+    "preview.roleAction.searingBrand": "空虚（受到魔法伤害增加）使目标受到的魔法伤害{value}。",
+    "preview.roleAction.searingBrandCounter": "空虚（受到魔法伤害增加）使攻击方受到的魔法反击伤害{value}。",
+    "preview.roleAction.darkPact": "契约附加{value}点绝对伤害。",
     "preview.roleAction.warCryShieldBreak": "战吼：击破共有盾时，额外造成{value}点绝对伤害。",
     "log.arcaneChannel": "{character}开始秘术蓄能。",
     "log.starReading": "{actor}读出星象，{target}可以再次主动攻击。",
@@ -535,13 +551,23 @@
     "log.darkPact": "{actor}缔结黑暗契约，{target}失去{amount} HP。",
     "preview.roleAction.predatoryGaze": "猎物：若本次攻击造成0点HP伤害，追加{value}点绝对伤害。",
     "preview.roleAction.predatoryGazeCounter": "猎物：若本次反击造成0点HP伤害，追加{value}点绝对伤害。",
-    "log.supplyBasket": "{actor}把补给交给{target}，恢复{amount} HP并提高物防。",
+    "log.supplyBasket": "{actor}把补给交给{target}，恢复{amount} HP并赋予坚守（物理伤害减半）。",
     "log.fieldWorkDouble": "{character}趁着丰收势头，准备再次行动。",
     "log.fieldWorkRest": "{character}照料田地，恢复{amount} HP。",
     "log.fieldWorkSowing": "{character}开始播种。",
     "log.cleansingHerbs": "{actor}以草药净化{target}的{status}，并恢复{amount} HP。",
     "log.roleActionNoCleanse": "{actor}尝试为{target}净化，但没有可净化的debuff。",
-    "log.roleActionNoDispel": "{actor}尝试削弱{target}，但没有可驱散的buff。"
+    "log.roleActionNoDispel": "{actor}尝试削弱{target}，但没有可驱散的buff。",
+    "message.heroDraftSelected": "英雄已加入队伍。",
+    "error.pendingHeroDraft": "请先完成英雄选择。",
+    "error.noHeroDraft": "当前没有可进行的英雄选择。",
+    "error.heroDraftInvalidChoice": "不能选择这个候选英雄。",
+    "error.heroAlreadyOwned": "该英雄已经在队伍中。",
+    "error.noHeroRecruitTarget": "没有可招募的英雄。",
+    "error.heroDraftResetUnavailable": "当前英雄选择不能刷新。",
+    "log.heroDraftOpened": "{player}开始选择初始英雄。",
+    "log.heroRecruitOpened": "{player}开始招募新英雄。",
+    "log.heroDraftSelected": "{player}选择了{character}。"
   },
   "abilityKinds": {
     "Trait": "特性",
@@ -568,8 +594,8 @@
     },
     "stargazers-aegis": {
       "name": "星读加护",
-      "description": "赋予全体预见：物理25%／魔法50%概率使伤害-1；并赋予星读魔力，使魔法攻击和燃烧伤害+1。",
-      "card": "赋予全队预见：概率减伤，魔法与燃烧+1。"
+      "description": "我方受到伤害时，30%使该伤害减半；我方魔法和燃烧伤害+1。",
+      "card": "30%减半我方受到的伤害；魔法与燃烧+1。"
     },
     "spring-harvest": {
       "name": "春播秋收",
@@ -578,28 +604,28 @@
     },
     "searing-mark": {
       "name": "灼热刻印",
-      "description": "进攻时50%赋予燃烧。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
-      "card": "进攻时50%赋予燃烧，下个目标回合造成1魔法伤害。"
+      "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
+      "card": "进攻时50%赋予燃烧（回合伤害）。"
     },
     "weakening-spores": {
       "name": "衰弱孢子",
-      "description": "进攻造成伤害时100%、未造成伤害时50%发动：立即随机移除目标一个可驱散的攻击强化Buff，并赋予待生效衰弱。目标下个回合进攻伤害-2。",
-      "card": "发动时消除1个攻击强化Buff，并赋予衰弱。"
+      "description": "进攻造成伤害时100%、未造成伤害时50%发动：立即随机移除目标一个可驱散Buff，并施加力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+      "card": "发动时消除1个Buff，并施加力竭与磨损。"
     },
     "aftershock-axe": {
       "name": "战斧余波",
-      "description": "主动进攻对目标造成至少3点伤害时，对一个相邻敌人造成1点物理伤害。仅有一个邻居则必定命中。",
-      "card": "主动伤害≥3时，相邻敌人受到1点物理伤害。"
+      "description": "主动进攻对目标造成至少3点HP伤害时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
+      "card": "主动伤害≥3时，相邻敌人受到1/3余波。"
     },
     "predatory-instinct": {
       "name": "美女与野兽",
-      "description": "未造成伤害时，追击3点绝对伤害；我方有公主则+1。攻击公主时无视共享盾，但自身受到造成伤害2倍的自伤，且不会因此死亡。",
-      "card": "对非公主0伤害时绝对追击；对公主穿盾并自伤。"
+      "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
+      "card": "非公主0伤害时绝对追击；攻击公主会自伤。"
     },
     "interposing-shield": {
       "name": "替身之盾",
-      "description": "对骑士以外角色的主动物理进攻，全队共享一次伤害-1，并由骑士肩代わり1点物理伤害。该伤害会受到骑士自身防御影响。对反击、魔法和技能无效。",
-      "card": "替骑士以外的我方角色承受一次主动物理伤害。"
+      "description": "骑士以外的我方角色受到主动物理伤害时，全队共享一次：骑士承担该伤害的1/3，向上取整，并受骑士自身物防影响。",
+      "card": "全队共享一次，骑士承担队友受到的部分主动物理伤害。"
     }
   }
 }

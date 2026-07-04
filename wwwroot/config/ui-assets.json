@@ -74,12 +74,6 @@
       "fallback": "⬡",
       "tone": "buff"
     },
-    "status.shield-complacency": {
-      "category": "status",
-      "source": null,
-      "fallback": "↘",
-      "tone": "debuff"
-    },
     "status.beast-rage": {
       "category": "status",
       "source": null,
@@ -98,16 +92,22 @@
       "fallback": "♨",
       "tone": "debuff"
     },
-    "status.weakness-pending": {
-      "category": "status",
-      "source": "statuses/status_weakness_pending.png",
-      "fallback": "◌",
-      "tone": "pending"
-    },
-    "status.weakness": {
+    "status.exhaustion": {
       "category": "status",
       "source": "statuses/status_weakness.png",
-      "fallback": "↓",
+      "fallback": "力",
+      "tone": "debuff"
+    },
+    "status.erosion": {
+      "category": "status",
+      "source": "statuses/status_weakness.png",
+      "fallback": "磨",
+      "tone": "debuff"
+    },
+    "status.void": {
+      "category": "status",
+      "source": "statuses/status_weakness_pending.png",
+      "fallback": "虚",
       "tone": "debuff"
     },
     "status.harvest-pending": {
@@ -122,10 +122,16 @@
       "fallback": "↑",
       "tone": "buff"
     },
-    "status.supply-guard": {
+    "status.fortify": {
       "category": "status",
       "source": "statuses/status_guard.png",
-      "fallback": "G",
+      "fallback": "守",
+      "tone": "buff"
+    },
+    "status.guard-oath": {
+      "category": "status",
+      "source": "statuses/status_guard.png",
+      "fallback": "誓",
       "tone": "buff"
     },
     "trait.saints-prayer": {
@@ -176,10 +182,10 @@
       "fallback": "◇",
       "tone": "shield"
     },
-    "status.charged": {
+    "status.chant": {
       "category": "status",
       "source": null,
-      "fallback": "C",
+      "fallback": "唱",
       "tone": "arcane"
     },
     "status.attack-sealed": {
@@ -188,16 +194,16 @@
       "fallback": "X",
       "tone": "debuff"
     },
-    "status.searing-brand": {
+    "status.trembling": {
       "category": "status",
       "source": null,
-      "fallback": "B",
+      "fallback": "戦",
       "tone": "debuff"
     },
-    "status.charged-pending": {
+    "status.chant-pending": {
       "category": "status",
       "source": null,
-      "fallback": "C",
+      "fallback": "唱",
       "tone": "pending"
     },
     "status.marked": {
@@ -245,19 +251,20 @@
       "foresight": "status.foresight",
       "magic-power": "status.magic-power",
       "team-shield": "status.team-shield",
-      "shield-complacency": "status.shield-complacency",
       "beast-rage": "status.beast-rage",
       "guard": "status.guard",
       "burning": "status.burning",
-      "weakness-pending": "status.weakness-pending",
-      "weakness": "status.weakness",
+      "exhaustion": "status.exhaustion",
+      "erosion": "status.erosion",
+      "void": "status.void",
       "harvest-pending": "status.harvest-pending",
       "harvest": "status.harvest",
-      "supply-guard": "status.supply-guard",
-      "charged": "status.charged",
+      "fortify": "status.fortify",
+      "guard-oath": "status.guard-oath",
+      "chant": "status.chant",
       "attack-sealed": "status.attack-sealed",
-      "searing-brand": "status.searing-brand",
-      "charged-pending": "status.charged-pending",
+      "trembling": "status.trembling",
+      "chant-pending": "status.chant-pending",
       "marked": "status.marked",
       "prey": "status.prey",
       "pact": "status.pact"

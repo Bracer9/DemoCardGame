@@ -15,6 +15,7 @@
     <div class="battlefield-surface" aria-hidden="true"></div>
     <div class="battlefield-atmosphere battlefield-atmosphere-bottom" aria-hidden="true"></div>
     <div class="battlefield-atmosphere battlefield-atmosphere-top" aria-hidden="true"></div>
+    <div id="hero-draft-banner" class="hero-draft-banner" aria-hidden="true"></div>
     <section id="start-screen" class="start-screen" aria-label="タイトル画面" data-i18n-aria="titleScreen">
       <button id="language-toggle" class="icon-button language-toggle start-language-toggle" type="button" aria-label="切换为中文">文 <span>中文</span></button>
       <div class="start-sigil" aria-hidden="true"><span>◆</span></div>
@@ -26,6 +27,9 @@
       <div id="mode-select" class="mode-select">
         <button id="start-trigger" class="mode-choice local-choice" type="button">
           <b data-i18n="localPlay">ローカル対戦</b><small data-i18n="localPlayHint">1台のPCで交互にプレイ</small>
+        </button>
+        <button id="start-test" class="mode-choice test-choice" type="button">
+          <b data-i18n="testPlay">テストモード</b><small data-i18n="testPlayHint">英雄とロールアクションを確認</small>
         </button>
         <button id="open-online" class="mode-choice online-choice" type="button">
           <b data-i18n="onlinePlay">オンライン対戦</b><small data-i18n="onlinePlayHint">招待リンクで友達とプレイ</small>
@@ -186,6 +190,22 @@
         <footer class="reward-actions">
           <button id="reward-reset" class="reward-control reward-reset" type="button"></button>
           <button id="reward-skip" class="reward-control reward-skip" type="button"></button>
+        </footer>
+      </section>
+    </aside>
+
+    <aside id="hero-draft-window" class="hero-draft-window" aria-hidden="true">
+      <div class="hero-draft-backdrop" aria-hidden="true"></div>
+      <section class="hero-draft-panel" aria-label="Hero Draft">
+        <header class="hero-draft-header">
+          <small>HERO DRAFT</small>
+          <h2 id="hero-draft-title"></h2>
+          <p id="hero-draft-subtitle"></p>
+          <b id="hero-draft-waiting" class="hero-draft-waiting"></b>
+        </header>
+        <div id="hero-draft-options" class="hero-draft-options"></div>
+        <footer class="hero-draft-actions">
+          <button id="hero-draft-reset" class="reward-control reward-reset" type="button"></button>
         </footer>
       </section>
     </aside>

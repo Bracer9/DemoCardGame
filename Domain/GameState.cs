@@ -23,13 +23,29 @@ public sealed class CharacterState
     public HashSet<string> RoleActionsUsedThisTurn { get; } = [];
     public Dictionary<string, int> RoleActionCooldowns { get; } = [];
     public bool IsInBattle => Zone == CharacterZone.Battlefield;
-    public bool IsAlive => IsInBattle && CurrentHp > 0;
+    public bool IsDraftCandidate => Zone == CharacterZone.DraftCandidate;
+    public bool IsAlive => (IsInBattle || IsDraftCandidate) && CurrentHp > 0;
 }
 
 public sealed class PendingRoleActionUpgradeState
 {
     public required Guid PlayerId { get; init; }
     public required string RewardId { get; init; }
+}
+
+public enum HeroDraftKind
+{
+    Opening,
+    Recruit,
+    TestOpening
+}
+
+public sealed class PendingHeroDraftState
+{
+    public required Guid PlayerId { get; set; }
+    public required HeroDraftKind Kind { get; init; }
+    public int ResetCount { get; set; }
+    public List<string> CandidateKeys { get; } = [];
 }
 
 public sealed class PlayerState
@@ -41,6 +57,7 @@ public sealed class PlayerState
     public int SharedShield { get; set; }
     public int SharedShieldPhysicalDefense { get; set; }
     public int SharedShieldMagicalDefense { get; set; }
+    public Guid? SharedShieldDefenseExpireOnTurnStartPlayerId { get; set; }
     public int ShieldDeploymentsThisTurn { get; set; }
     public int PendingActionPointDebt { get; set; }
     public int ActiveCharacterCount => Characters.Count(character => character.IsInBattle);
@@ -97,6 +114,9 @@ public sealed class GameState
     public int LogSequence { get; set; }
     public RewardWindowState? RewardWindow { get; set; }
     public PendingRoleActionUpgradeState? PendingRoleActionUpgrade { get; set; }
+    public PendingHeroDraftState? PendingHeroDraft { get; set; }
+    public Guid? OpeningFirstPlayerId { get; set; }
+    public bool IsTestMode { get; set; }
     public HashSet<string> ResolvedRewardWindows { get; } = [];
 
     public PlayerState ActivePlayer => Players.Single(player => player.Id == ActivePlayerId);

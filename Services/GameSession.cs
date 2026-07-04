@@ -17,4 +17,9 @@ public sealed class GameSession
     {
         lock (_sync) { _state = _engine.CreateGame(); return _state; }
     }
+
+    public GameState NewTestGame()
+    {
+        lock (_sync) { _state = _engine.CreateTestGame(); return _state; }
+    }
 }

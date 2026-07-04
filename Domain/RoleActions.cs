@@ -27,6 +27,8 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
             return false;
         if (state.PendingRoleActionUpgrade is not null)
             return false;
+        if (state.PendingHeroDraft is not null)
+            return false;
         if (Metadata.BaseApCost > state.ActionPoints)
             return false;
         if (Metadata.Id == "raise-bulwark" && state.FindOwner(owner).SharedShield <= 0)
@@ -47,6 +49,7 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
             return L10n.Text("reason.roleActionCooldown", ("turns", L10n.Raw(cooldown)));
         if (state.RewardWindow is not null) return L10n.Text("error.rewardWindowOpen");
         if (state.PendingRoleActionUpgrade is not null) return L10n.Text("error.pendingRoleActionUpgrade");
+        if (state.PendingHeroDraft is not null) return L10n.Text("error.pendingHeroDraft");
         if (Metadata.BaseApCost > state.ActionPoints) return L10n.Text("reason.notEnoughAp");
         if (Metadata.Id == "raise-bulwark" && state.FindOwner(owner).SharedShield <= 0)
             return L10n.Text("error.roleActionRequiresShield");
@@ -80,19 +83,19 @@ public sealed class RoleActionRegistry
                 "guard-oath",
                 RoleActionActivationMode.Targeted,
                 [RoleActionTargetKind.AllyCard],
-                2,
+                1,
                 ["guard", "defense"])),
             new(new RoleActionMetadata(
                 "raise-bulwark",
                 RoleActionActivationMode.Targeted,
                 [RoleActionTargetKind.OwnShield],
-                2,
+                1,
                 ["shield", "guard"])),
             new(new RoleActionMetadata(
                 "arcane-channel",
                 RoleActionActivationMode.Immediate,
                 [RoleActionTargetKind.SelfCard],
-                1,
+                2,
                 ["charge", "magic"])),
             new(new RoleActionMetadata(
                 "searing-brand",
@@ -111,7 +114,7 @@ public sealed class RoleActionRegistry
                 RoleActionActivationMode.Targeted,
                 [RoleActionTargetKind.EnemyCard],
                 1,
-                ["dispel", "weakness", "nature"])),
+                ["dispel", "exhaustion", "erosion", "nature"])),
             new(new RoleActionMetadata(
                 "war-cry",
                 RoleActionActivationMode.Immediate,

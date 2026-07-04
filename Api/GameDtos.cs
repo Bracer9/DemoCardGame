@@ -8,6 +8,7 @@ public sealed record GameView(
     string ActivePlayerName, string Phase, Guid? WinnerPlayerId, bool IsDraw,
     Guid ViewerPlayerId, bool CanControl, bool IsHost, IReadOnlyList<PlayerView> Players,
     RewardWindowView? RewardWindow, PendingRoleActionUpgradeView? PendingRoleActionUpgrade,
+    HeroDraftView? HeroDraft,
     IReadOnlyList<GameLogEntry> Log);
 
 public sealed record PlayerView(Guid Id, string Name, bool IsActive, int SharedShield,
@@ -51,11 +52,32 @@ public sealed record RoleActionView(
 public sealed record StatusView(string Id, bool IsBuff, int Magnitude, bool IsAura = false, bool IsDispellable = true);
 public sealed record AttackRequest(Guid AttackerId, Guid DefenderId);
 public sealed record SelectRewardRequest(string InstanceId);
+public sealed record SelectHeroDraftRequest(string CharacterKey);
 public sealed record SelectRoleActionUpgradeRequest(Guid CharacterId, string RoleActionId);
 public sealed record UseRoleActionRequest(Guid CharacterId, string RoleActionId, Guid? TargetCharacterId);
 public sealed record ApiEnvelope<T>(T Data, CombatOutcome? Combat = null, LocalizedText? Message = null);
 
 public sealed record PendingRoleActionUpgradeView(Guid PlayerId, string RewardId, bool CanChoose);
+
+public sealed record HeroDraftView(
+    Guid PlayerId,
+    string Kind,
+    bool CanChoose,
+    int ResetCount,
+    int NextResetCost,
+    IReadOnlyList<HeroDraftCandidateView> Candidates);
+
+public sealed record HeroDraftCandidateView(
+    string Key,
+    string AssetUrl,
+    string ColoredAssetUrl,
+    int Cost,
+    int Attack,
+    int MaxHp,
+    string AttackType,
+    int PhysicalDefense,
+    int MagicalDefense,
+    string TraitId);
 
 public sealed record RewardWindowView(
     Guid PlayerId,
@@ -107,14 +129,17 @@ public sealed class GameViewFactory
             state.Id, state.TurnNumber, (state.TurnNumber + 1) / 2, state.ActionPoints,
             GameEngine.MaxActionPoints,
             state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
+                && state.PendingHeroDraft is null
                 && state.ActionPoints >= GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield)
                 && state.ActivePlayer.ShieldDeploymentsThisTurn < GameEngine.MaxShieldDeploymentsPerTurn,
             GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield),
             state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayerId, state.ActivePlayer.Name,
             state.Phase.ToString(), state.WinnerPlayerId, state.IsDraw, viewerPlayerId,
-            state.Phase == GamePhase.Playing && state.ActivePlayerId == viewerPlayerId && state.RewardWindow is null,
+            state.Phase == GamePhase.Playing && state.ActivePlayerId == viewerPlayerId
+                && state.RewardWindow is null && state.PendingRoleActionUpgrade is null && state.PendingHeroDraft is null,
             isHost, players, CreateRewardWindow(state, viewerPlayerId),
-            CreatePendingRoleActionUpgrade(state, viewerPlayerId), state.Log.TakeLast(30).ToArray());
+            CreatePendingRoleActionUpgrade(state, viewerPlayerId), CreateHeroDraft(state, viewerPlayerId),
+            state.Log.TakeLast(30).ToArray());
     }
 
     private static PendingRoleActionUpgradeView? CreatePendingRoleActionUpgrade(GameState state, Guid viewerPlayerId) =>
@@ -124,6 +149,37 @@ public sealed class GameViewFactory
                 state.PendingRoleActionUpgrade.PlayerId,
                 state.PendingRoleActionUpgrade.RewardId,
                 state.PendingRoleActionUpgrade.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId);
+
+    private static HeroDraftView? CreateHeroDraft(GameState state, Guid viewerPlayerId)
+    {
+        if (state.PendingHeroDraft is null)
+            return null;
+
+        var definitions = CharacterCatalog.All.ToDictionary(item => item.Key);
+        return new HeroDraftView(
+            state.PendingHeroDraft.PlayerId,
+            state.PendingHeroDraft.Kind.ToString(),
+            state.PendingHeroDraft.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId,
+            state.PendingHeroDraft.ResetCount,
+            GameEngine.GetRewardResetCost(state.PendingHeroDraft.ResetCount),
+            state.PendingHeroDraft.CandidateKeys
+                .Where(definitions.ContainsKey)
+                .Select(key =>
+                {
+                    var definition = definitions[key];
+                    return new HeroDraftCandidateView(
+                        definition.Key,
+                        $"/assets/{definition.AssetFile}",
+                        $"/assets/{definition.ColoredAssetFile}",
+                        definition.Cost,
+                        definition.Attack,
+                        definition.MaxHp,
+                        definition.AttackType.ToString(),
+                        definition.PhysicalDefense,
+                        definition.MagicalDefense,
+                        definition.TraitId);
+                }).ToArray());
+    }
 
     private static RewardWindowView? CreateRewardWindow(GameState state, Guid viewerPlayerId)
     {
@@ -168,22 +224,23 @@ public sealed class GameViewFactory
                 IsAura: status.Id == "magic-power",
                 IsDispellable: status.IsDispellable)).ToList();
 
-        if (player.Characters.Any(ally => ally.IsAlive && ally.Definition.Key == "princess"))
+        if (player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && ally.Definition.Key == "princess"))
             statuses.Add(new StatusView("blessing", true, 1, true, false));
-        if (player.Characters.Any(ally => ally.IsAlive && ally.Definition.Key == "oracle"))
+        if (player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && ally.Definition.Key == "oracle"))
             statuses.Add(new StatusView("foresight", true, 1, true, false));
         var knight = player.Characters.FirstOrDefault(ally => ally.IsAlive
-            && ally.Definition.Key == "knight" && !ally.GuardConsumed);
+            && ally.IsInBattle && ally.Definition.Key == "knight" && !ally.GuardConsumed);
         if (knight is not null && character.IsAlive)
             statuses.Add(new StatusView("guard", true, 1, true, false));
 
         var canAct = state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
+            && state.PendingHeroDraft is null
             && player.Id == state.ActivePlayerId
             && player.Id == viewerPlayerId && character.IsAlive && !character.HasActed
             && !GameEngine.IsActiveAttackBlocked(character)
             && character.Definition.Cost <= state.ActionPoints;
 
-        var canUseRoleActions = player.Id == viewerPlayerId;
+        var canUseRoleActions = player.Id == viewerPlayerId && state.PendingHeroDraft is null;
         var roleActions = _engine.GetRoleActions(character)
             .Select((action, index) => new RoleActionView(
                 action.Metadata.Id,

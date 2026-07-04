@@ -120,7 +120,6 @@ assets/ui/
 | `status.blessing` | `statuses/status_blessing.png` |
 | `status.foresight` | `statuses/status_foresight.png` |
 | `status.team-shield` | `statuses/status_team_shield.png` |
-| `status.shield-complacency` | `statuses/status_shield_complacency.png` |
 | `status.beast-rage` | `statuses/status_beast_rage.png` |
 | `status.guard` | `statuses/status_guard.png` |
 | `status.burning` | `statuses/status_burning.png` |

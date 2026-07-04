@@ -9,7 +9,8 @@ public sealed record RewardDefinition(
 public enum RewardKind
 {
     DummyStatus,
-    HeroRoleActionUpgrade
+    HeroRoleActionUpgrade,
+    HeroRecruit
 }
 
 public static class RewardCatalog
@@ -24,9 +25,13 @@ public static class RewardCatalog
     public static RewardDefinition HeroRoleActionUpgrade { get; } =
         new("hero-role-action-upgrade", 4, "rare", RewardKind.HeroRoleActionUpgrade);
 
+    public static RewardDefinition HeroRecruit { get; } =
+        new("hero-recruit", 5, "rare", RewardKind.HeroRecruit);
+
     public static IReadOnlyList<RewardDefinition> All { get; } =
     [
         HeroRoleActionUpgrade,
+        HeroRecruit,
         ..DummyRewards
     ];
 }

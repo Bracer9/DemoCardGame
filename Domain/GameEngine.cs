@@ -30,6 +30,8 @@ public sealed class GameEngineContext
         Guid sourceCharacterId,
         string effectId) =>
         _engine.DealAbsoluteDamage(State, target, amount, sourceCharacterId, effectId);
+
+    public int GetActiveAttack(CharacterState character) => _engine.GetActiveAttack(character);
 }
 
 public sealed record AttackResult(GameState State, CombatOutcome Outcome);
@@ -92,38 +94,46 @@ public sealed class GameEngine
 
     public GameState CreateGame()
     {
-        var definitions = CharacterCatalog.All.OrderBy(_ => _random.Next()).ToList();
-        if (definitions.Count % 2 != 0)
-            throw new InvalidOperationException("Character count must be divisible between two players.");
-        if (definitions.Count(definition => definition.Cost == 1) < 2)
-            throw new InvalidOperationException("At least two cost-one characters are required.");
-
-        var handSize = definitions.Count / 2;
-        var player1Definitions = definitions.Take(handSize).ToList();
-        var player2Definitions = definitions.Skip(handSize).ToList();
-        EnsureCostOneOpeningHand(player1Definitions, player2Definitions);
-        EnsureCostOneOpeningHand(player2Definitions, player1Definitions);
-
         var player1 = new PlayerState { Id = Guid.NewGuid(), Name = "player.1" };
         var player2 = new PlayerState { Id = Guid.NewGuid(), Name = "player.2" };
 
-        AddOpeningHand(player1, player1Definitions);
-        AddOpeningHand(player2, player2Definitions);
         InitializeBattlePoints(player1);
         InitializeBattlePoints(player2);
+        var firstPlayerId = Roll(0.5) ? player1.Id : player2.Id;
 
         var state = new GameState
         {
-            ActivePlayerId = Roll(0.5) ? player1.Id : player2.Id,
-            ActionPoints = MaxActionPoints
+            ActivePlayerId = firstPlayerId,
+            ActionPoints = MaxActionPoints,
+            Phase = GamePhase.HeroDraft,
+            OpeningFirstPlayerId = firstPlayerId
         };
         state.Players.Add(player1);
         state.Players.Add(player2);
-        GrantStartingMagicPower(player1);
-        GrantStartingMagicPower(player2);
-        Log(state, L10n.Text("log.firstPlayer", ("player", L10n.Player(state.ActivePlayer.Name))), "turn");
-        Log(state, L10n.Text("log.firstTurnNoStartEffects"), "system");
-        TryOpenRewardWindowForActivePlayer(state);
+        OpenOpeningHeroDrafts(state);
+        return state;
+    }
+
+    public GameState CreateTestGame()
+    {
+        var player1 = new PlayerState { Id = Guid.NewGuid(), Name = "player.1" };
+        var player2 = new PlayerState { Id = Guid.NewGuid(), Name = "player.2" };
+
+        InitializeBattlePoints(player1);
+        InitializeBattlePoints(player2);
+        var firstPlayerId = Roll(0.5) ? player1.Id : player2.Id;
+
+        var state = new GameState
+        {
+            ActivePlayerId = firstPlayerId,
+            ActionPoints = MaxActionPoints,
+            Phase = GamePhase.HeroDraft,
+            OpeningFirstPlayerId = firstPlayerId,
+            IsTestMode = true
+        };
+        state.Players.Add(player1);
+        state.Players.Add(player2);
+        OpenTestOpeningHeroDrafts(state);
         return state;
     }
 
@@ -151,47 +161,213 @@ public sealed class GameEngine
         }
     }
 
-    private void EnsureCostOneOpeningHand(
-        List<CharacterDefinition> recipient,
-        List<CharacterDefinition> donor)
+    private void OpenOpeningHeroDrafts(GameState state)
     {
-        if (recipient.Any(definition => definition.Cost == 1))
-            return;
+        foreach (var player in state.Players)
+        {
+            player.Characters.Clear();
+            var candidates = CreateHeroDraftCandidates(player);
+            foreach (var definition in candidates)
+                AddHero(player, definition, CharacterZone.DraftCandidate);
+        }
 
-        var donorCostOneIndices = donor
-            .Select((definition, index) => (definition, index))
-            .Where(entry => entry.definition.Cost == 1)
-            .Select(entry => entry.index)
-            .ToArray();
-        if (donorCostOneIndices.Length < 2)
-            throw new InvalidOperationException("Cost-one characters cannot be distributed to both players.");
-
-        var recipientSwapIndices = recipient
-            .Select((definition, index) => (definition, index))
-            .Where(entry => entry.definition.Cost != 1)
-            .Select(entry => entry.index)
-            .ToArray();
-        var donorIndex = donorCostOneIndices[_random.Next(donorCostOneIndices.Length)];
-        var recipientIndex = recipientSwapIndices[_random.Next(recipientSwapIndices.Length)];
-        (recipient[recipientIndex], donor[donorIndex]) = (donor[donorIndex], recipient[recipientIndex]);
+        OpenPendingHeroDraft(state, state.ActivePlayer, HeroDraftKind.Opening);
     }
 
-    private static void AddOpeningHand(PlayerState player, IReadOnlyList<CharacterDefinition> definitions)
+    private void OpenTestOpeningHeroDrafts(GameState state)
     {
-        for (var index = 0; index < definitions.Count; index++)
+        foreach (var player in state.Players)
         {
-            var definition = definitions[index];
-            player.Characters.Add(new CharacterState
-            {
-                Id = Guid.NewGuid(),
-                PlayerId = player.Id,
-                Slot = index,
-                Definition = definition,
-                CurrentHp = definition.MaxHp
-            });
-            var character = player.Characters[^1];
-            character.RoleActionIds.AddRange(definition.RoleActionIds ?? []);
+            player.Characters.Clear();
+            foreach (var definition in CharacterCatalog.All)
+                AddHero(player, definition, CharacterZone.DraftCandidate);
         }
+
+        OpenPendingHeroDraft(state, state.ActivePlayer, HeroDraftKind.TestOpening);
+    }
+
+    private void OpenPendingHeroDraft(GameState state, PlayerState player, HeroDraftKind kind)
+    {
+        var candidates = kind is HeroDraftKind.Opening or HeroDraftKind.TestOpening
+            ? player.Characters
+                .Where(character => character.Zone == CharacterZone.DraftCandidate)
+                .OrderBy(character => character.Slot)
+                .Select(character => character.Definition)
+                .ToList()
+            : CreateHeroDraftCandidates(player);
+
+        if (candidates.Count == 0)
+            throw new GameRuleException(L10n.Text("error.noHeroRecruitTarget"));
+
+        state.PendingHeroDraft = new PendingHeroDraftState
+        {
+            PlayerId = player.Id,
+            Kind = kind
+        };
+        state.PendingHeroDraft.CandidateKeys.AddRange(candidates.Select(definition => definition.Key));
+        Log(state, L10n.Text(kind is HeroDraftKind.Opening or HeroDraftKind.TestOpening ? "log.heroDraftOpened" : "log.heroRecruitOpened",
+            ("player", L10n.Player(player.Name))), "system");
+    }
+
+    private IReadOnlyList<CharacterDefinition> CreateHeroDraftCandidates(PlayerState player)
+    {
+        var ownedKeys = player.Characters
+            .Where(character => character.IsInBattle)
+            .Select(character => character.Definition.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return CharacterCatalog.All
+            .Where(definition => !ownedKeys.Contains(definition.Key))
+            .OrderBy(_ => _random.Next())
+            .Take(4)
+            .ToList();
+    }
+
+    public void SelectHeroDraft(GameState state, Guid playerId, string characterKey)
+    {
+        var draft = state.PendingHeroDraft
+            ?? throw new GameRuleException(L10n.Text("error.noHeroDraft"));
+        if (draft.PlayerId != playerId)
+            throw new GameRuleException(L10n.Text("error.opponentTurn"));
+        if (!draft.CandidateKeys.Contains(characterKey, StringComparer.OrdinalIgnoreCase))
+            throw new GameRuleException(L10n.Text("error.heroDraftInvalidChoice"));
+
+        var player = state.Players.Single(item => item.Id == playerId);
+        if (player.Characters.Any(character => character.IsInBattle
+                && string.Equals(character.Definition.Key, characterKey, StringComparison.OrdinalIgnoreCase)))
+            throw new GameRuleException(L10n.Text("error.heroAlreadyOwned"));
+
+        var character = draft.Kind switch
+        {
+            HeroDraftKind.Opening => ConfirmOpeningHero(player, characterKey),
+            HeroDraftKind.TestOpening => AddTestOpeningHero(player, characterKey),
+            _ => AddHero(player, CharacterCatalog.All.Single(item =>
+                string.Equals(item.Key, characterKey, StringComparison.OrdinalIgnoreCase)))
+        };
+
+        GrantStartingMagicPower(player);
+        Log(state, L10n.Text("log.heroDraftSelected",
+            ("player", L10n.Player(player.Name)),
+            ("character", L10n.Character(character.Definition.Key)),
+            ("characterId", L10n.Raw(character.Id))), "system");
+
+        if (draft.Kind is HeroDraftKind.Opening or HeroDraftKind.TestOpening)
+        {
+            if (draft.Kind == HeroDraftKind.TestOpening && player.ActiveCharacterCount < 4)
+            {
+                OpenPendingHeroDraft(state, player, HeroDraftKind.TestOpening);
+                return;
+            }
+
+            if (draft.Kind == HeroDraftKind.TestOpening)
+                player.Characters.RemoveAll(character => character.Zone == CharacterZone.DraftCandidate);
+
+            var nextPlayer = state.Players.FirstOrDefault(item =>
+                item.Characters.Any(character => character.Zone == CharacterZone.DraftCandidate));
+            if (nextPlayer is not null)
+            {
+                state.ActivePlayerId = nextPlayer.Id;
+                OpenPendingHeroDraft(state, nextPlayer, draft.Kind);
+                return;
+            }
+
+            state.PendingHeroDraft = null;
+            state.Phase = GamePhase.Playing;
+            state.ActivePlayerId = state.OpeningFirstPlayerId ?? state.ActivePlayerId;
+            Log(state, L10n.Text("log.firstPlayer", ("player", L10n.Player(state.ActivePlayer.Name))), "turn");
+            Log(state, L10n.Text("log.firstTurnNoStartEffects"), "system");
+            if (!state.IsTestMode)
+                TryOpenRewardWindowForActivePlayer(state);
+            return;
+        }
+
+        state.PendingHeroDraft = null;
+        EndRewardTurnIfResolved(state);
+    }
+
+    public void ResetHeroDraft(GameState state, Guid playerId)
+    {
+        var draft = state.PendingHeroDraft
+            ?? throw new GameRuleException(L10n.Text("error.noHeroDraft"));
+        if (draft.PlayerId != playerId)
+            throw new GameRuleException(L10n.Text("error.opponentTurn"));
+        if (draft.Kind != HeroDraftKind.Recruit)
+            throw new GameRuleException(L10n.Text("error.heroDraftResetUnavailable"));
+
+        var player = state.Players.Single(item => item.Id == playerId);
+        var cost = GetRewardResetCost(draft.ResetCount);
+        if (!TrySpendBp(state, player, cost, BpSpendReasonRewardReroll))
+            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
+
+        var candidates = CreateHeroDraftCandidates(player);
+        if (candidates.Count == 0)
+            throw new GameRuleException(L10n.Text("error.noHeroRecruitTarget"));
+
+        draft.ResetCount++;
+        draft.CandidateKeys.Clear();
+        draft.CandidateKeys.AddRange(candidates.Select(definition => definition.Key));
+        Log(state, L10n.Text("log.rewardReset",
+            ("player", L10n.Player(player.Name)),
+            ("cost", L10n.Raw(cost)),
+            ("count", L10n.Raw(draft.ResetCount))), "system");
+    }
+
+    private static CharacterState ConfirmOpeningHero(PlayerState player, string characterKey)
+    {
+        var selected = player.Characters.Single(character =>
+            character.Zone == CharacterZone.DraftCandidate
+            && string.Equals(character.Definition.Key, characterKey, StringComparison.OrdinalIgnoreCase));
+
+        player.Characters.RemoveAll(character =>
+            character.Zone == CharacterZone.DraftCandidate
+            && !string.Equals(character.Definition.Key, characterKey, StringComparison.OrdinalIgnoreCase));
+
+        selected.Zone = CharacterZone.Battlefield;
+        selected.CurrentHp = selected.Definition.MaxHp;
+        return selected;
+    }
+
+    private CharacterState AddTestOpeningHero(PlayerState player, string characterKey)
+    {
+        var selectedCandidate = player.Characters.Single(character =>
+            character.Zone == CharacterZone.DraftCandidate
+            && string.Equals(character.Definition.Key, characterKey, StringComparison.OrdinalIgnoreCase));
+
+        player.Characters.Remove(selectedCandidate);
+        var selected = AddHero(player, selectedCandidate.Definition);
+        UnlockAllRoleActions(selected);
+        return selected;
+    }
+
+    private void UnlockAllRoleActions(CharacterState character)
+    {
+        foreach (var action in _roleActions.GetUpgradeChoices(character.Definition.Key))
+        {
+            if (!character.RoleActionIds.Contains(action.Metadata.Id, StringComparer.OrdinalIgnoreCase))
+                character.RoleActionIds.Add(action.Metadata.Id);
+        }
+    }
+
+    private static CharacterState AddHero(PlayerState player, CharacterDefinition definition,
+        CharacterZone zone = CharacterZone.Battlefield)
+    {
+        var slot = player.Characters
+            .Where(character => character.Zone == zone)
+            .Select(character => character.Slot)
+            .DefaultIfEmpty(-1)
+            .Max() + 1;
+        var character = new CharacterState
+        {
+            Id = Guid.NewGuid(),
+            PlayerId = player.Id,
+            Slot = slot,
+            Definition = definition,
+            CurrentHp = definition.MaxHp,
+            Zone = zone
+        };
+        character.RoleActionIds.AddRange(definition.RoleActionIds ?? []);
+        player.Characters.Add(character);
+        return character;
     }
 
     public AttackResult Attack(GameState state, Guid attackerId, Guid defenderId)
@@ -199,6 +375,7 @@ public sealed class GameEngine
         EnsurePlaying(state);
         EnsureNoRewardWindow(state);
         EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var attacker = state.FindCharacter(attackerId);
         var defender = state.FindCharacter(defenderId);
         ValidateAttack(state, attacker, defender);
@@ -207,7 +384,6 @@ public sealed class GameEngine
         var attackerTrait = _traits.Get(attacker.Definition.TraitId);
         attackerTrait.OnAttackDeclared(context, attacker, defender);
         var counterBlocked = IsCounterAttackBlocked(defender);
-        var counterDebuffReduction = counterBlocked ? 0 : GetCounterDebuffReduction(defender);
         var counterDamageBeforeShieldResolution = GetCounterAttack(defender);
 
         var attackPacket = new DamagePacket
@@ -229,13 +405,8 @@ public sealed class GameEngine
         };
         if (counterBlocked)
             counterPacket.Notes.Add(L10n.Text("note.counterBlockedByChallenge",
-                ("character", L10n.Character(defender.Definition.Key))));
-        if (counterDebuffReduction > 0)
-            counterPacket.Notes.Add(L10n.Text("note.complacencyReduction",
                 ("character", L10n.Character(defender.Definition.Key)),
-                ("amount", L10n.Raw(counterDebuffReduction))));
-        if (!counterBlocked)
-            ConsumeCounterDebuff(defender);
+                ("characterId", L10n.Raw(defender.Id))));
 
         var attackerOwner = state.FindOwner(attacker);
         var defenderOwner = state.FindOwner(defender);
@@ -246,11 +417,10 @@ public sealed class GameEngine
 
         attacker.CurrentHp = Math.Max(0, attacker.CurrentHp - counterPacket.Amount);
         var actualAttackTarget = attackPacket.TargetCharacter;
-        ConsumeGuardedAfterActiveAttack(actualAttackTarget);
         actualAttackTarget.CurrentHp = Math.Max(0, actualAttackTarget.CurrentHp - attackPacket.Amount);
         ResolvePreyZeroDamage(state, attackPacket);
+        ResolvePactAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolvePreyZeroDamage(state, counterPacket);
-        ConsumePactAfterActiveAttack(attacker);
 
         var resolvedCollateral = attackPacket.Collateral
             .Concat(counterPacket.Collateral)
@@ -267,7 +437,9 @@ public sealed class GameEngine
 
         Log(state, L10n.Text("log.exchange",
                 ("attacker", L10n.Character(attacker.Definition.Key)),
+                ("attackerId", L10n.Raw(attacker.Id)),
                 ("defender", L10n.Character(actualAttackTarget.Definition.Key)),
+                ("defenderId", L10n.Raw(actualAttackTarget.Id)),
                 ("attackDamage", L10n.Raw(attackPacket.Amount)),
                 ("attackType", L10n.Damage(attackPacket.DamageType)),
                 ("attackDefenseReduced", L10n.Raw(attackPacket.DefenseReduced)),
@@ -281,7 +453,10 @@ public sealed class GameEngine
         foreach (var item in resolvedCollateral)
             Log(state, L10n.Text("log.collateralDamage",
                 ("effect", L10n.Status(item.Collateral.EffectId)),
+                ("source", L10n.Character(item.Collateral.Source.Definition.Key)),
+                ("sourceId", L10n.Raw(item.Collateral.Source.Id)),
                 ("character", L10n.Character(item.Packet.TargetCharacter.Definition.Key)),
+                ("characterId", L10n.Raw(item.Packet.TargetCharacter.Id)),
                 ("amount", L10n.Raw(item.Packet.Amount))), "physical");
 
         TryAwardEnemyShieldBreakBp(state, attackerOwner, defenderOwner, defenderShieldBefore, attackPacket.ShieldAbsorbed);
@@ -318,6 +493,7 @@ public sealed class GameEngine
         EnsurePlaying(state);
         EnsureNoRewardWindow(state);
         EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var player = state.ActivePlayer;
         if (player.ShieldDeploymentsThisTurn >= MaxShieldDeploymentsPerTurn)
             throw new GameRuleException(L10n.Text("error.shieldMaxed"));
@@ -331,18 +507,10 @@ public sealed class GameEngine
         player.SharedShield = isReinforcing
             ? player.SharedShield + ReinforcedShieldBonus
             : FirstShieldValue;
-        var counterReduction = isReinforcing ? 1 : 0;
-        foreach (var character in player.Characters.Where(character => character.IsAlive))
-        {
-            character.Statuses.RemoveAll(status => status.Id == "shield-complacency");
-            if (counterReduction > 0)
-                character.Statuses.Add(new ShieldComplacencyStatus(player.Id, counterReduction));
-        }
         var logKey = isReinforcing ? "log.shieldReinforced" : "log.shieldDeployed";
         Log(state, L10n.Text(logKey,
             ("player", L10n.Player(player.Name)),
-            ("shield", L10n.Raw(player.SharedShield)),
-            ("reduction", L10n.Raw(counterReduction))), "shield");
+            ("shield", L10n.Raw(player.SharedShield))), "shield");
         if (isReinforcing && player.ShieldDeploymentsThisTurn >= MaxShieldDeploymentsPerTurn)
             TryGainBp(state, player, 1, BpReasonShieldFullyDeployed);
     }
@@ -358,6 +526,7 @@ public sealed class GameEngine
         EnsurePlaying(state);
         EnsureNoRewardWindow(state);
         EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var context = new GameEngineContext(this, state);
 
         foreach (var character in state.ActivePlayer.Characters)
@@ -380,6 +549,7 @@ public sealed class GameEngine
         state.ActivePlayer.SharedShield = 0;
         state.ActivePlayer.SharedShieldPhysicalDefense = 0;
         state.ActivePlayer.SharedShieldMagicalDefense = 0;
+        state.ActivePlayer.SharedShieldDefenseExpireOnTurnStartPlayerId = null;
         state.ActivePlayer.ShieldDeploymentsThisTurn = 0;
 
         foreach (var character in state.ActivePlayer.Characters)
@@ -433,12 +603,12 @@ public sealed class GameEngine
     public int GetCounterAttack(CharacterState character) =>
         IsCounterAttackBlocked(character)
             ? 0
-            : Math.Max(0, GetBaseCounterAttack(GetBaseAttack(character)) - GetCounterDebuffReduction(character));
+            : GetBaseCounterAttack(GetBaseAttack(character));
 
     public static int GetBaseCounterAttack(int attack) => Math.Max(1, attack - CounterAttackPenalty);
 
     public static bool IsCounterAttackBlocked(CharacterState character) =>
-        character.Statuses.Any(status => status.Id == "challenged" && !status.Expired);
+        character.Statuses.Any(status => status.Id == "trembling" && !status.Expired);
 
     public static bool IsActiveAttackBlocked(CharacterState character) =>
         character.Statuses.Any(status => status.BlocksActiveAttack && !status.Expired);
@@ -473,25 +643,6 @@ public sealed class GameEngine
         _ => 0
     };
 
-    public static int GetCounterDebuffReduction(CharacterState character) =>
-        character.Statuses.OfType<ShieldComplacencyStatus>()
-            .Where(status => !status.Expired)
-            .Select(status => status.Magnitude)
-            .DefaultIfEmpty(0)
-            .Max();
-
-    private static void ConsumeCounterDebuff(CharacterState character)
-    {
-        foreach (var status in character.Statuses.OfType<ShieldComplacencyStatus>().Where(status => !status.Expired))
-            status.Consume();
-    }
-
-    private static void ConsumeGuardedAfterActiveAttack(CharacterState character)
-    {
-        foreach (var status in character.Statuses.OfType<GuardedStatus>().Where(status => !status.Expired))
-            status.Consume();
-    }
-
     public CharacterTrait GetTrait(CharacterState character) =>
         _traits.Get(character.Definition.TraitId);
 
@@ -506,6 +657,12 @@ public sealed class GameEngine
     private void ProcessTurnStart(GameState state)
     {
         var context = new GameEngineContext(this, state);
+        if (state.ActivePlayer.SharedShieldDefenseExpireOnTurnStartPlayerId == state.ActivePlayerId)
+        {
+            state.ActivePlayer.SharedShieldPhysicalDefense = 0;
+            state.ActivePlayer.SharedShieldMagicalDefense = 0;
+            state.ActivePlayer.SharedShieldDefenseExpireOnTurnStartPlayerId = null;
+        }
 
         foreach (var character in state.ActivePlayer.Characters.Where(character => character.IsAlive).ToArray())
         {
@@ -564,6 +721,7 @@ public sealed class GameEngine
             packet.DefenseReduced += reduced;
             packet.Notes.Add(L10n.Text("note.typeDefense",
                 ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+                ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
                 ("damageType", L10n.Damage(packet.DamageType)),
                 ("amount", L10n.Raw(reduced))));
             return;
@@ -576,6 +734,7 @@ public sealed class GameEngine
             packet.DefenseReduced -= increased;
             packet.Notes.Add(L10n.Text("note.typeDefenseWeakness",
                 ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+                ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
                 ("damageType", L10n.Damage(packet.DamageType)),
                 ("amount", L10n.Raw(increased))));
         }
@@ -617,6 +776,7 @@ public sealed class GameEngine
         targetOwner.SharedShield -= absorbed;
         packet.Notes.Add(L10n.Text("note.shieldAbsorb",
             ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+            ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
             ("damageType", L10n.Damage(packet.DamageType)),
             ("amount", L10n.Raw(absorbed))));
     }
@@ -718,6 +878,8 @@ public sealed class GameEngine
 
     public void TryOpenRewardWindowForActivePlayer(GameState state)
     {
+        if (state.IsTestMode)
+            return;
         if (state.Phase != GamePhase.Playing || state.RewardWindow is not null)
             return;
 
@@ -769,6 +931,13 @@ public sealed class GameEngine
                 ("player", L10n.Player(player.Name))), "system");
             CloseRewardWindow(state, window);
         }
+        else if (definition.Kind == RewardKind.HeroRecruit)
+        {
+            if (!CanRecruitHero(player))
+                throw new GameRuleException(L10n.Text("error.noHeroRecruitTarget"));
+            CloseRewardWindow(state, window);
+            OpenPendingHeroDraft(state, player, HeroDraftKind.Recruit);
+        }
         else
         {
             ApplyDummyReward(player, option.RewardId);
@@ -812,6 +981,7 @@ public sealed class GameEngine
                 ("amount", L10n.Raw(RewardSkipBattlePoints))), "system");
         }
         CloseRewardWindow(state, window);
+        EndRewardTurnIfResolved(state);
     }
 
     public static int GetRewardResetCost(int resetCount) => resetCount == 0 ? 0 : 1;
@@ -831,6 +1001,8 @@ public sealed class GameEngine
         var options = new List<RewardDefinition>();
         if (HasEligibleRoleActionUpgradeTarget(player))
             options.Add(RewardCatalog.HeroRoleActionUpgrade);
+        if (CanRecruitHero(player))
+            options.Add(RewardCatalog.HeroRecruit);
 
         options.AddRange(RewardCatalog.DummyRewards
             .Where(reward => options.All(option => option.Id != reward.Id))
@@ -844,10 +1016,37 @@ public sealed class GameEngine
     private bool HasEligibleRoleActionUpgradeTarget(PlayerState player) =>
         player.Characters.Any(character => GetRoleActionUpgradeChoices(character).Count > 0);
 
+    private static bool CanRecruitHero(PlayerState player)
+    {
+        var ownedKeys = player.Characters
+            .Where(character => character.IsInBattle)
+            .Select(character => character.Definition.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return ownedKeys.Count < 4 && CharacterCatalog.All.Any(definition => !ownedKeys.Contains(definition.Key));
+    }
+
     private static void CloseRewardWindow(GameState state, RewardWindowState window)
     {
         state.ResolvedRewardWindows.Add(RewardWindowKey(window.PlayerId, window.RoundNumber));
         state.RewardWindow = null;
+    }
+
+    private void EndRewardTurnIfResolved(GameState state)
+    {
+        if (state.Phase != GamePhase.Playing
+            || state.RewardWindow is not null
+            || state.PendingRoleActionUpgrade is not null
+            || state.PendingHeroDraft is not null)
+            return;
+
+        var round = (state.TurnNumber + 1) / 2;
+        if (!IsRewardRound(round))
+            return;
+
+        if (!state.ResolvedRewardWindows.Contains(RewardWindowKey(state.ActivePlayerId, round)))
+            return;
+
+        EndTurn(state);
     }
 
     private static string RewardWindowKey(Guid playerId, int roundNumber) => $"{playerId:N}:{roundNumber}";
@@ -892,7 +1091,9 @@ public sealed class GameEngine
         state.PendingRoleActionUpgrade = null;
         Log(state, L10n.Text("log.roleActionUnlocked",
             ("character", L10n.Character(character.Definition.Key)),
+            ("characterId", L10n.Raw(character.Id)),
             ("roleAction", L10n.RoleAction(roleActionId))), "buff");
+        EndRewardTurnIfResolved(state);
     }
 
     public void UseRoleAction(GameState state, Guid characterId, string roleActionId, Guid? targetCharacterId)
@@ -900,6 +1101,7 @@ public sealed class GameEngine
         EnsurePlaying(state);
         EnsureNoRewardWindow(state);
         EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
 
         var actor = state.FindCharacter(characterId);
         if (actor.PlayerId != state.ActivePlayerId)
@@ -1012,15 +1214,18 @@ public sealed class GameEngine
         if (debuff is not null)
         {
             target.Statuses.Remove(debuff);
-            TryGainBp(state, state.ActivePlayer, 1, BpReasonRoleActionCleanse);
+            state.ActionPoints += 1;
             Log(state, L10n.Text("log.roleActionCleanse",
                 ("character", L10n.Character(target.Definition.Key)),
+                ("characterId", L10n.Raw(target.Id)),
                 ("status", L10n.Status(debuff.Id))), "buff");
         }
 
         Log(state, L10n.Text("log.roleActionHeal",
             ("actor", L10n.Character(actor.Definition.Key)),
+            ("actorId", L10n.Raw(actor.Id)),
             ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id)),
             ("amount", L10n.Raw(healed))), "heal");
     }
 
@@ -1029,16 +1234,22 @@ public sealed class GameEngine
         state.ActionPoints += 2;
         state.ActivePlayer.PendingActionPointDebt += 1;
         Log(state, L10n.Text("log.royalCommand",
-            ("character", L10n.Character(actor.Definition.Key))), "buff");
+            ("character", L10n.Character(actor.Definition.Key)),
+            ("characterId", L10n.Raw(actor.Id))), "buff");
     }
 
     private void UseGuardOath(GameState state, CharacterState actor, CharacterState target)
     {
-        target.Statuses.RemoveAll(status => status.Id == "guarded");
-        target.Statuses.Add(new GuardedStatus(actor.Id));
-        Log(state, L10n.Text("log.guardedApplied",
+        var existing = target.Statuses.OfType<GuardOathStatus>().FirstOrDefault(status => !status.Expired);
+        if (existing is not null)
+            existing.AddStack();
+        else
+            target.Statuses.Add(new GuardOathStatus(actor.Id));
+        Log(state, L10n.Text("log.guardOathApplied",
             ("actor", L10n.Character(actor.Definition.Key)),
-            ("target", L10n.Character(target.Definition.Key))), "buff");
+            ("actorId", L10n.Raw(actor.Id)),
+            ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id))), "buff");
     }
 
     private void UseRaiseBulwark(GameState state, CharacterState actor)
@@ -1046,10 +1257,12 @@ public sealed class GameEngine
         var owner = state.FindOwner(actor);
         if (owner.SharedShield <= 0)
             throw new GameRuleException(L10n.Text("error.roleActionRequiresShield"));
-        owner.SharedShield += 2;
+        owner.SharedShield = Math.Max(1, (int)Math.Ceiling(owner.SharedShield * 1.5));
         owner.SharedShieldPhysicalDefense += 2;
+        owner.SharedShieldDefenseExpireOnTurnStartPlayerId = actor.PlayerId;
         Log(state, L10n.Text("log.bulwarkRaised",
             ("character", L10n.Character(actor.Definition.Key)),
+            ("characterId", L10n.Raw(actor.Id)),
             ("shield", L10n.Raw(owner.SharedShield)),
             ("pdef", L10n.Raw(owner.SharedShieldPhysicalDefense))), "shield");
     }
@@ -1060,29 +1273,33 @@ public sealed class GameEngine
         actor.Statuses.RemoveAll(status => status.Id == "rage");
         actor.Statuses.Add(new RageStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.warCry",
-            ("character", L10n.Character(actor.Definition.Key))), "buff");
+            ("character", L10n.Character(actor.Definition.Key)),
+            ("characterId", L10n.Raw(actor.Id))), "buff");
     }
 
     private void UseArcaneChannel(GameState state, CharacterState actor)
     {
-        actor.Statuses.RemoveAll(status => status.Id is "charged" or "charged-pending" or "attack-sealed");
-        actor.Statuses.Add(new PendingChargedStatus(actor.Id, actor.PlayerId));
+        actor.Statuses.RemoveAll(status => status.Id is "chant" or "chant-pending" or "attack-sealed");
+        actor.Statuses.Add(new PendingChantStatus(actor.Id, actor.PlayerId, 2));
         actor.Statuses.Add(new AttackSealedStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.arcaneChannel",
-            ("character", L10n.Character(actor.Definition.Key))), "magic");
+            ("character", L10n.Character(actor.Definition.Key)),
+            ("characterId", L10n.Raw(actor.Id))), "magic");
     }
 
     private void UseSearingBrand(GameState state, CharacterState actor, CharacterState target)
     {
         AddBurning(target, actor.Id);
-        target.Statuses.RemoveAll(status => status.Id == "searing-brand");
-        target.Statuses.Add(new SearingBrandStatus(actor.Id, actor.PlayerId));
+        target.Statuses.RemoveAll(status => status.Id == "void");
+        target.Statuses.Add(new VoidStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
             ("status", L10n.Status("burning"))), "magic");
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
-            ("status", L10n.Status("searing-brand"))), "magic");
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("void"))), "magic");
     }
 
     private void UseCleansingHerbs(GameState state, CharacterState actor, CharacterState target)
@@ -1092,7 +1309,9 @@ public sealed class GameEngine
         {
             Log(state, L10n.Text("log.roleActionNoCleanse",
                 ("actor", L10n.Character(actor.Definition.Key)),
-                ("target", L10n.Character(target.Definition.Key))), "status");
+                ("actorId", L10n.Raw(actor.Id)),
+                ("target", L10n.Character(target.Definition.Key)),
+                ("targetId", L10n.Raw(target.Id))), "status");
             return;
         }
 
@@ -1100,7 +1319,9 @@ public sealed class GameEngine
         target.CurrentHp += 1;
         Log(state, L10n.Text("log.cleansingHerbs",
             ("actor", L10n.Character(actor.Definition.Key)),
+            ("actorId", L10n.Raw(actor.Id)),
             ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id)),
             ("status", L10n.Status(debuff.Id)),
             ("amount", L10n.Raw(1))), "heal");
     }
@@ -1113,29 +1334,40 @@ public sealed class GameEngine
             target.Statuses.Remove(buff);
             Log(state, L10n.Text("log.attackBuffRemoved",
                 ("character", L10n.Character(target.Definition.Key)),
+                ("characterId", L10n.Raw(target.Id)),
                 ("status", L10n.Status(buff.Id))), "status");
         }
         else
         {
             Log(state, L10n.Text("log.roleActionNoDispel",
                 ("actor", L10n.Character(actor.Definition.Key)),
-                ("target", L10n.Character(target.Definition.Key))), "status");
+                ("actorId", L10n.Raw(actor.Id)),
+                ("target", L10n.Character(target.Definition.Key)),
+                ("targetId", L10n.Raw(target.Id))), "status");
         }
 
-        target.Statuses.RemoveAll(status => status.Id is "weakness" or "weakness-pending");
-        target.Statuses.Add(new WeaknessStatus(actor.Id, target.PlayerId));
+        target.Statuses.RemoveAll(status => status.Id is "exhaustion" or "erosion");
+        target.Statuses.Add(new ExhaustionStatus(actor.Id, target.PlayerId));
+        target.Statuses.Add(new ErosionStatus(actor.Id, target.PlayerId));
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
-            ("status", L10n.Status("weakness"))), "debuff");
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("exhaustion"))), "debuff");
+        Log(state, L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("erosion"))), "debuff");
     }
 
     private void UseChallenge(GameState state, CharacterState actor, CharacterState target)
     {
-        target.Statuses.RemoveAll(status => status.Id == "challenged");
-        target.Statuses.Add(new ChallengedStatus(actor.Id, actor.PlayerId));
+        target.Statuses.RemoveAll(status => status.Id == "trembling");
+        target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.challenge",
             ("actor", L10n.Character(actor.Definition.Key)),
-            ("target", L10n.Character(target.Definition.Key))), "debuff");
+            ("actorId", L10n.Raw(actor.Id)),
+            ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id))), "debuff");
     }
 
     private void UseStarReading(GameState state, CharacterState actor, CharacterState target)
@@ -1146,7 +1378,9 @@ public sealed class GameEngine
         target.BonusAttackUsesThisTurn++;
         Log(state, L10n.Text("log.starReading",
             ("actor", L10n.Character(actor.Definition.Key)),
-            ("target", L10n.Character(target.Definition.Key))), "buff");
+            ("actorId", L10n.Raw(actor.Id)),
+            ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id))), "buff");
     }
 
     private void UseFateMark(GameState state, CharacterState actor, CharacterState target)
@@ -1155,7 +1389,9 @@ public sealed class GameEngine
         target.Statuses.Add(new FateMarkedStatus(actor.Id));
         Log(state, L10n.Text("log.fateMark",
             ("actor", L10n.Character(actor.Definition.Key)),
-            ("target", L10n.Character(target.Definition.Key))), "debuff");
+            ("actorId", L10n.Raw(actor.Id)),
+            ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id))), "debuff");
     }
 
     private void UsePredatoryGaze(GameState state, CharacterState actor, CharacterState target)
@@ -1164,18 +1400,23 @@ public sealed class GameEngine
         target.Statuses.Add(new PreyStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.predatoryGaze",
             ("actor", L10n.Character(actor.Definition.Key)),
-            ("target", L10n.Character(target.Definition.Key))), "debuff");
+            ("actorId", L10n.Raw(actor.Id)),
+            ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id))), "debuff");
     }
 
     private void UseDarkPact(GameState state, CharacterState actor, CharacterState target)
     {
-        target.CurrentHp = Math.Max(0, target.CurrentHp - 4);
+        var lifeCost = Math.Min(4, Math.Max(0, target.CurrentHp - 1));
+        target.CurrentHp -= lifeCost;
         target.Statuses.RemoveAll(status => status.Id == "pact");
         target.Statuses.Add(new PactStatus(actor.Id));
         Log(state, L10n.Text("log.darkPact",
             ("actor", L10n.Character(actor.Definition.Key)),
+            ("actorId", L10n.Raw(actor.Id)),
             ("target", L10n.Character(target.Definition.Key)),
-            ("amount", L10n.Raw(4))), "debuff");
+            ("targetId", L10n.Raw(target.Id)),
+            ("amount", L10n.Raw(lifeCost))), "debuff");
         if (target.CurrentHp * 2 < target.Definition.MaxHp)
             TryGainBp(state, state.ActivePlayer, 1, BpReasonRoleActionDarkPact);
     }
@@ -1184,11 +1425,12 @@ public sealed class GameEngine
     {
         var before = target.CurrentHp;
         target.CurrentHp = Math.Min(target.Definition.MaxHp, target.CurrentHp + 1);
-        target.Statuses.RemoveAll(status => status.Id == "supply-guard");
-        target.Statuses.Add(new SupplyGuardStatus(actor.Id, target.PlayerId));
+        target.Statuses.Add(new FortifyStatus(actor.Id, turns: 2));
         Log(state, L10n.Text("log.supplyBasket",
             ("actor", L10n.Character(actor.Definition.Key)),
+            ("actorId", L10n.Raw(actor.Id)),
             ("target", L10n.Character(target.Definition.Key)),
+            ("targetId", L10n.Raw(target.Id)),
             ("amount", L10n.Raw(target.CurrentHp - before))), "heal");
     }
 
@@ -1201,7 +1443,8 @@ public sealed class GameEngine
         {
             actor.BonusAttackUsesThisTurn = Math.Max(actor.BonusAttackUsesThisTurn, 1);
             Log(state, L10n.Text("log.fieldWorkDouble",
-                ("character", L10n.Character(actor.Definition.Key))), "buff");
+                ("character", L10n.Character(actor.Definition.Key)),
+                ("characterId", L10n.Raw(actor.Id))), "buff");
             return;
         }
 
@@ -1211,6 +1454,7 @@ public sealed class GameEngine
             actor.CurrentHp = Math.Min(actor.Definition.MaxHp, actor.CurrentHp + 2);
             Log(state, L10n.Text("log.fieldWorkRest",
                 ("character", L10n.Character(actor.Definition.Key)),
+                ("characterId", L10n.Raw(actor.Id)),
                 ("amount", L10n.Raw(actor.CurrentHp - before))), "heal");
             return;
         }
@@ -1218,7 +1462,8 @@ public sealed class GameEngine
         actor.Statuses.RemoveAll(status => status.Id == "harvest-pending");
         actor.Statuses.Add(new PendingHarvestStatus(actor.Id, actor.PlayerId));
         Log(state, L10n.Text("log.fieldWorkSowing",
-            ("character", L10n.Character(actor.Definition.Key))), "buff");
+            ("character", L10n.Character(actor.Definition.Key)),
+            ("characterId", L10n.Raw(actor.Id))), "buff");
     }
 
     private static StatusEffect? SelectCleansingHerbsDebuff(CharacterState target)
@@ -1233,7 +1478,7 @@ public sealed class GameEngine
     }
 
     private static bool IsDamageDebuff(StatusEffect status) =>
-        status.Id is "burning" or "searing-brand" or "weakness" or "weakness-pending" or "prey" or "marked";
+        status.Id is "burning" or "void" or "exhaustion" or "erosion" or "prey" or "marked";
 
     private StatusEffect? SelectDispellableBuff(CharacterState target)
     {
@@ -1324,7 +1569,9 @@ public sealed class GameEngine
         Log(state, L10n.Text("log.effectDamage",
             ("effect", effectArg),
             ("source", L10n.Character(source.Definition.Key)),
+            ("sourceId", L10n.Raw(source.Id)),
             ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
             ("amount", L10n.Raw(packet.Amount)),
             ("damageType", L10n.Damage(damageType))), damageType == DamageType.Physical ? "physical" : "magic");
         TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
@@ -1355,7 +1602,9 @@ public sealed class GameEngine
         Log(state, L10n.Text("log.effectDamage",
             ("effect", effectArg),
             ("source", L10n.Character(source.Definition.Key)),
+            ("sourceId", L10n.Raw(source.Id)),
             ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
             ("amount", L10n.Raw(dealt)),
             ("damageType", L10n.Damage(DamageType.Absolute))), "trait");
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, dealt);
@@ -1392,6 +1641,12 @@ public sealed class GameEngine
     {
         if (state.PendingRoleActionUpgrade is not null)
             throw new GameRuleException(L10n.Text("error.pendingRoleActionUpgrade"));
+    }
+
+    private static void EnsureNoPendingHeroDraft(GameState state)
+    {
+        if (state.PendingHeroDraft is not null)
+            throw new GameRuleException(L10n.Text("error.pendingHeroDraft"));
     }
 
     private IReadOnlyList<Guid> ResolveDefeats(GameState state)
@@ -1514,10 +1769,14 @@ public sealed class GameEngine
             DealAbsoluteDamage(state, packet.TargetCharacter, PreyStatus.AbsoluteDamage, prey.SourceCharacterId, L10n.RoleAction("predatory-gaze"));
     }
 
-    private static void ConsumePactAfterActiveAttack(CharacterState character)
+    private void ResolvePactAfterActiveAttack(GameState state, CharacterState attacker, CharacterState target)
     {
-        foreach (var status in character.Statuses.OfType<PactStatus>().Where(status => !status.Expired))
+        foreach (var status in attacker.Statuses.OfType<PactStatus>().Where(status => !status.Expired).ToArray())
+        {
+            if (target.IsAlive)
+                DealAbsoluteDamage(state, target, status.Magnitude, status.SourceCharacterId, L10n.Status("pact"));
             status.Consume();
+        }
     }
 
     internal static void AddBurning(CharacterState target, Guid sourceCharacterId, int stacks = 1)

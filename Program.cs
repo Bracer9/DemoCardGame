@@ -115,6 +115,24 @@ app.MapPost("/api/online/game/reward/skip", (HttpRequest request,
             views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardSkipped")));
     })));
 
+app.MapPost("/api/online/game/hero-draft/select", (SelectHeroDraftRequest request, HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.SelectHeroDraft(state, state.Players[index].Id, request.CharacterKey);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.heroDraftSelected")));
+    })));
+
+app.MapPost("/api/online/game/hero-draft/reset", (HttpRequest httpRequest,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
+    {
+        engine.ResetHeroDraft(state, state.Players[index].Id);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardReset")));
+    })));
+
 app.MapPost("/api/online/game/role-action/upgrade", (SelectRoleActionUpgradeRequest request, HttpRequest httpRequest,
     OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
     session.WriteGame(Token(httpRequest), true, (state, seat, index) =>
@@ -138,6 +156,9 @@ app.MapGet("/api/game/state", (GameSession session, GameViewFactory views) =>
 
 app.MapPost("/api/game/new", (GameSession session, GameViewFactory views) =>
     Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewGame()), Message: L10n.Text("message.newGame"))));
+
+app.MapPost("/api/game/test/new", (GameSession session, GameViewFactory views) =>
+    Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewTestGame()), Message: L10n.Text("message.newGame"))));
 
 app.MapGet("/api/game/preview", (Guid attackerId, Guid defenderId, GameSession session, AttackPreviewService previews) =>
     Results.Ok(new ApiEnvelope<AttackPreview>(session.Read(state => previews.Create(state, attackerId, defenderId)))));
@@ -255,6 +276,32 @@ app.MapPost("/api/game/reward/skip", (GameSession session, GameEngine engine, Ga
         {
             engine.SkipRewardWindow(state);
             return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardSkipped")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/hero-draft/select", (SelectHeroDraftRequest request, GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.SelectHeroDraft(state, state.ActivePlayerId, request.CharacterKey);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.heroDraftSelected")));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/hero-draft/reset", (GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.ResetHeroDraft(state, state.ActivePlayerId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardReset")));
         });
     }
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }

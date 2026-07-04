@@ -89,6 +89,7 @@ public enum RoleActionTargetKind
 
 public enum GamePhase
 {
+    HeroDraft,
     Playing,
     Finished
 }
@@ -96,6 +97,7 @@ public enum GamePhase
 public enum CharacterZone
 {
     Battlefield,
+    DraftCandidate,
     Defeated
 }
 
