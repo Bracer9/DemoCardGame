@@ -36,6 +36,7 @@ public sealed class PendingRoleActionUpgradeState
 {
     public required Guid PlayerId { get; init; }
     public required string RewardId { get; init; }
+    public string? RewardInstanceId { get; init; }
 }
 
 public enum HeroDraftKind
@@ -51,6 +52,7 @@ public sealed class PendingHeroDraftState
 {
     public required Guid PlayerId { get; set; }
     public required HeroDraftKind Kind { get; init; }
+    public string? RewardInstanceId { get; init; }
     public int ResetCount { get; set; }
     public int MaxSelections { get; init; } = 1;
     public List<string> CandidateKeys { get; } = [];

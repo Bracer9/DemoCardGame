@@ -66,7 +66,7 @@ public sealed class GameEngine
     public const int MaxShieldDeploymentsPerTurn = 2;
     public const int CounterAttackPenalty = 1;
     public const int InitialBattlePoints = 5;
-    public const int MaxBattlePoints = 15;
+    public const int MaxBattlePoints = 20;
     public const int BattlePointGainCapPerTurn = 3;
     public const int FirstRewardRound = 3;
     public const int RewardRoundInterval = 4;
@@ -187,7 +187,7 @@ public sealed class GameEngine
         OpenPendingHeroDraft(state, state.ActivePlayer, HeroDraftKind.TestOpening);
     }
 
-    private void OpenPendingHeroDraft(GameState state, PlayerState player, HeroDraftKind kind)
+    private void OpenPendingHeroDraft(GameState state, PlayerState player, HeroDraftKind kind, string? rewardInstanceId = null)
     {
         var candidates = kind is HeroDraftKind.Opening or HeroDraftKind.TestOpening
             ? player.Characters
@@ -206,6 +206,7 @@ public sealed class GameEngine
         {
             PlayerId = player.Id,
             Kind = kind,
+            RewardInstanceId = rewardInstanceId,
             MaxSelections = kind == HeroDraftKind.SoldierOpening ? 2 : 1
         };
         state.PendingHeroDraft.CandidateKeys.AddRange(candidates.Select(definition => definition.Key));
@@ -248,6 +249,9 @@ public sealed class GameEngine
         if (player.Characters.Any(character => character.IsInBattle
                 && string.Equals(character.Definition.Key, characterKey, StringComparison.OrdinalIgnoreCase)))
             throw new GameRuleException(L10n.Text("error.heroAlreadyOwned"));
+
+        if (draft.Kind == HeroDraftKind.Recruit)
+            ConfirmPendingRewardPurchase(state, player, draft.RewardInstanceId);
 
         var character = draft.Kind switch
         {
@@ -318,6 +322,9 @@ public sealed class GameEngine
             throw new GameRuleException(L10n.Text("error.heroDraftInvalidChoice"));
 
         var player = state.Players.Single(item => item.Id == playerId);
+        if (draft.Kind == HeroDraftKind.SoldierRecruit)
+            ConfirmPendingRewardPurchase(state, player, draft.RewardInstanceId);
+
         foreach (var key in selectedKeys)
         {
             if (player.ActiveCharacterCount >= 4)
@@ -354,6 +361,7 @@ public sealed class GameEngine
             || target.SoldierRank >= 2)
             throw new GameRuleException(L10n.Text("error.soldierUpgradeInvalid"));
 
+        ConfirmPendingRewardPurchase(state, player, draft.RewardInstanceId);
         PromoteSoldier(target);
         Log(state, L10n.Text("log.soldierRankUp",
             ("character", L10n.Character(target.Definition.Key)),
@@ -400,7 +408,7 @@ public sealed class GameEngine
             ?? throw new GameRuleException(L10n.Text("error.noHeroDraft"));
         if (draft.PlayerId != playerId)
             throw new GameRuleException(L10n.Text("error.opponentTurn"));
-        if (draft.Kind != HeroDraftKind.Recruit)
+        if (draft.Kind is not (HeroDraftKind.Recruit or HeroDraftKind.SoldierRecruit))
             throw new GameRuleException(L10n.Text("error.heroDraftResetUnavailable"));
 
         var player = state.Players.Single(item => item.Id == playerId);
@@ -408,11 +416,14 @@ public sealed class GameEngine
         if (!TrySpendBp(state, player, cost, BpSpendReasonRewardReroll))
             throw new GameRuleException(L10n.Text("error.notEnoughBp"));
 
-        var candidates = CreateHeroDraftCandidates(player);
+        var candidates = draft.Kind == HeroDraftKind.SoldierRecruit
+            ? CharacterCatalog.Soldiers.OrderBy(_ => _random.Next()).ToList()
+            : CreateHeroDraftCandidates(player);
         if (candidates.Count == 0)
             throw new GameRuleException(L10n.Text("error.noHeroRecruitTarget"));
 
         draft.ResetCount++;
+        draft.SelectedKeys.Clear();
         draft.CandidateKeys.Clear();
         draft.CandidateKeys.AddRange(candidates.Select(definition => definition.Key));
         Log(state, L10n.Text("log.rewardReset",
@@ -1147,20 +1158,21 @@ public sealed class GameEngine
             ("round", L10n.Raw(round))), "system");
     }
 
-    public void SelectReward(GameState state, string instanceId)
+    public RewardKind SelectReward(GameState state, string instanceId)
     {
         EnsurePlaying(state);
         var window = RequireActiveRewardWindow(state);
+        EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var option = window.Options.SingleOrDefault(item => item.InstanceId == instanceId);
         if (option is null)
             throw new GameRuleException(L10n.Text("error.rewardNotFound"));
 
-        var player = state.ActivePlayer;
-        if (!TrySpendBp(state, player, option.Cost, BpSpendReasonRewardPurchase))
-            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
-
         var definition = RewardCatalog.All.SingleOrDefault(item => item.Id == option.RewardId)
             ?? throw new GameRuleException(L10n.Text("error.rewardNotFound"));
+        var player = state.ActivePlayer;
+        if (player.BattlePoints.Current < option.Cost)
+            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
 
         if (definition.Kind == RewardKind.HeroRoleActionUpgrade)
         {
@@ -1169,42 +1181,38 @@ public sealed class GameEngine
             state.PendingRoleActionUpgrade = new PendingRoleActionUpgradeState
             {
                 PlayerId = player.Id,
-                RewardId = option.RewardId
+                RewardId = option.RewardId,
+                RewardInstanceId = option.InstanceId
             };
             Log(state, L10n.Text("log.roleActionUpgradePending",
                 ("player", L10n.Player(player.Name))), "system");
-            CloseRewardWindow(state, window);
         }
         else if (definition.Kind == RewardKind.HeroRecruit)
         {
             if (!CanRecruitHero(player))
                 throw new GameRuleException(L10n.Text("error.noHeroRecruitTarget"));
-            CloseRewardWindow(state, window);
-            OpenPendingHeroDraft(state, player, HeroDraftKind.Recruit);
+            OpenPendingHeroDraft(state, player, HeroDraftKind.Recruit, option.InstanceId);
         }
         else if (definition.Kind == RewardKind.SoldierRecruit)
         {
             if (!CanRecruitSoldier(player))
                 throw new GameRuleException(L10n.Text("error.noSoldierRecruitTarget"));
-            CloseRewardWindow(state, window);
-            OpenPendingHeroDraft(state, player, HeroDraftKind.SoldierRecruit);
+            OpenPendingHeroDraft(state, player, HeroDraftKind.SoldierRecruit, option.InstanceId);
         }
         else
         {
+            ConfirmRewardPurchase(state, window, player, option);
             ApplyDummyReward(player, option.RewardId);
-            window.Options.Remove(option);
-            window.PurchaseCount++;
         }
 
-        Log(state, L10n.Text("log.rewardPurchased",
-            ("player", L10n.Player(player.Name)),
-            ("reward", L10n.Reward(option.RewardId)),
-            ("cost", L10n.Raw(option.Cost))), "system");
+        return definition.Kind;
     }
 
     public void ResetRewardWindow(GameState state)
     {
         EnsurePlaying(state);
+        EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var window = RequireActiveRewardWindow(state);
         var player = state.ActivePlayer;
         var cost = GetRewardResetCost(window.ResetCount);
@@ -1222,6 +1230,8 @@ public sealed class GameEngine
     public void SkipRewardWindow(GameState state)
     {
         EnsurePlaying(state);
+        EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
         var window = RequireActiveRewardWindow(state);
         var player = state.ActivePlayer;
         if (window.PurchaseCount == 0)
@@ -1280,6 +1290,60 @@ public sealed class GameEngine
 
     private static bool CanRecruitSoldier(PlayerState player) =>
         CharacterCatalog.Soldiers.Count > 0;
+
+    private void ConfirmPendingRewardPurchase(GameState state, PlayerState player, string? rewardInstanceId)
+    {
+        if (string.IsNullOrWhiteSpace(rewardInstanceId))
+            return;
+
+        var window = RequireActiveRewardWindow(state);
+        if (window.PlayerId != player.Id)
+            throw new GameRuleException(L10n.Text("error.opponentTurn"));
+
+        var option = window.Options.SingleOrDefault(item => item.InstanceId == rewardInstanceId);
+        if (option is null)
+            throw new GameRuleException(L10n.Text("error.rewardNotFound"));
+
+        ConfirmRewardPurchase(state, window, player, option);
+    }
+
+    private void ConfirmRewardPurchase(GameState state, RewardWindowState window, PlayerState player, RewardOptionState option)
+    {
+        if (!TrySpendBp(state, player, option.Cost, BpSpendReasonRewardPurchase))
+            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
+
+        window.Options.Remove(option);
+        window.PurchaseCount++;
+        Log(state, L10n.Text("log.rewardPurchased",
+            ("player", L10n.Player(player.Name)),
+            ("reward", L10n.Reward(option.RewardId)),
+            ("cost", L10n.Raw(option.Cost))), "system");
+    }
+
+    public void ReturnToRewardWindow(GameState state, Guid playerId)
+    {
+        EnsurePlaying(state);
+        var window = RequireActiveRewardWindow(state);
+        if (window.PlayerId != playerId)
+            throw new GameRuleException(L10n.Text("error.opponentTurn"));
+
+        if (state.PendingRoleActionUpgrade is { PlayerId: var pendingUpgradePlayerId }
+            && pendingUpgradePlayerId == playerId)
+        {
+            state.PendingRoleActionUpgrade = null;
+            return;
+        }
+
+        if (state.PendingHeroDraft is { PlayerId: var pendingDraftPlayerId } draft
+            && pendingDraftPlayerId == playerId
+            && draft.Kind is HeroDraftKind.Recruit or HeroDraftKind.SoldierRecruit)
+        {
+            state.PendingHeroDraft = null;
+            return;
+        }
+
+        throw new GameRuleException(L10n.Text("error.noRewardChildMenu"));
+    }
 
     public void CancelSoldierRecruitDraft(GameState state, Guid playerId)
     {
@@ -1342,7 +1406,6 @@ public sealed class GameEngine
     public void SelectRoleActionUpgrade(GameState state, Guid characterId, string roleActionId)
     {
         EnsurePlaying(state);
-        EnsureNoRewardWindow(state);
         var pending = state.PendingRoleActionUpgrade
             ?? throw new GameRuleException(L10n.Text("error.noPendingRoleActionUpgrade"));
         if (pending.PlayerId != state.ActivePlayerId)
@@ -1356,6 +1419,8 @@ public sealed class GameEngine
         if (!_roleActions.IsUpgradeChoice(character.Definition.Key, roleActionId))
             throw new GameRuleException(L10n.Text("error.roleActionNotUpgradeChoice"));
 
+        var player = state.Players.Single(item => item.Id == state.ActivePlayerId);
+        ConfirmPendingRewardPurchase(state, player, pending.RewardInstanceId);
         character.RoleActionIds.Add(roleActionId);
         state.PendingRoleActionUpgrade = null;
         Log(state, L10n.Text("log.roleActionUnlocked",

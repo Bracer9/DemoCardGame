@@ -1058,16 +1058,39 @@ button:hover:not(:disabled), button:active:not(:disabled) { cursor: var(--cursor
 .reward-control {
   min-width:190px;
   min-height:64px;
-  padding:10px 24px;
-  border:1px solid rgba(199,164,90,.48);
-  background:linear-gradient(180deg, rgba(38,28,20,.96), rgba(18,13,10,.96));
-  color:#eadac0;
-  font-family:var(--font-display);
-  box-shadow:0 10px 18px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,236,190,.10);
+  padding:12px 28px;
+  border:0;
+  border-radius:18px;
+  background-color:#d8bd83;
+  background-image:
+    linear-gradient(180deg, rgba(255,240,196,.16), rgba(96,58,25,.10)),
+    var(--character-inspector-bg);
+  background-size:100% 100%, 145% 150%;
+  background-position:center;
+  color:var(--inspector-ink);
+  font-family:var(--font-hand);
+  font-weight:800;
+  box-shadow:0 12px 28px rgba(0,0,0,.44), 0 0 0 1px rgba(86,55,26,.26);
+  text-shadow:0 1px 0 rgba(255,240,199,.62);
 }
 .reward-control span,
 .reward-control b {
   display:block;
+}
+
+.reward-child-back {
+  position:absolute;
+  left:50%;
+  bottom:86px;
+  z-index:86;
+  min-width:156px;
+  min-height:50px;
+  transform:translateX(-50%);
+  pointer-events:auto;
+}
+
+.reward-child-back[hidden] {
+  display:none;
 }
 
 .hero-draft-window {
@@ -1278,16 +1301,21 @@ button:hover:not(:disabled), button:active:not(:disabled) { cursor: var(--cursor
   min-width:180px;
 }
 
+.hero-draft-actions .reward-back {
+  min-width:150px;
+}
+
 .hero-draft-actions .hero-draft-recruit-confirm {
   position:relative;
   left:auto;
   bottom:auto;
   transform:none;
+  min-width:172px;
+  height:64px;
 }
 
 .hero-draft-upgrade-confirm {
-  border-color:rgba(223,184,91,.78);
-  background:linear-gradient(180deg, rgba(89,61,25,.96), rgba(37,24,13,.98));
+  border:0;
 }
 
 .hero-draft-recruit-confirm {
@@ -1297,25 +1325,28 @@ button:hover:not(:disabled), button:active:not(:disabled) { cursor: var(--cursor
   z-index:12;
   transform:translateX(-50%);
   min-width:172px;
-  height:52px;
-  border:1px solid rgba(199,164,90,.62);
-  border-radius:14px;
-  background:linear-gradient(180deg, rgba(62,41,20,.96), rgba(22,15,11,.98));
-  color:#f1dfb8;
-  font-family:var(--font-display);
-  font-weight:900;
+  height:56px;
+  border:0;
+  border-radius:18px;
+  background-color:#d8bd83;
+  background-image:
+    linear-gradient(180deg, rgba(255,240,196,.16), rgba(96,58,25,.10)),
+    var(--character-inspector-bg);
+  background-size:100% 100%, 145% 150%;
+  background-position:center;
+  color:var(--inspector-ink);
+  font-family:var(--font-hand);
+  font-weight:800;
   font-size:22px;
-  letter-spacing:.18em;
-  text-shadow:0 1px 3px #000;
-  box-shadow:0 14px 34px rgba(0,0,0,.62), inset 0 0 18px rgba(199,164,90,.18);
+  letter-spacing:.03em;
+  text-shadow:0 1px 0 rgba(255,240,199,.62);
+  box-shadow:0 12px 28px rgba(0,0,0,.44), 0 0 0 1px rgba(86,55,26,.26);
   cursor:pointer;
-  animation:draftConfirmPulse 1.45s ease-in-out infinite;
 }
 .hero-draft-recruit-confirm:hover {
-  color:#fff0cb;
-  border-color:rgba(236,203,128,.88);
-  filter:brightness(1.08);
-  box-shadow:0 16px 38px #000b, 0 0 20px rgba(223,184,91,.34), inset 0 0 18px rgba(199,164,90,.28);
+  color:var(--inspector-ink);
+  filter:brightness(1.07) saturate(1.02);
+  box-shadow:0 14px 30px rgba(0,0,0,.48), 0 0 0 1px rgba(111,72,32,.34);
 }
 
 .game-shell.soldier-upgrade-targeting .hero-draft-window.open {
@@ -1456,19 +1487,19 @@ button:hover:not(:disabled), button:active:not(:disabled) { cursor: var(--cursor
 }
 
 .reward-control span {
-  font-size:18px;
-  letter-spacing:.08em;
+  color:var(--inspector-ink);
+  font-size:20px;
+  letter-spacing:.03em;
 }
 .reward-control b {
   margin-top:4px;
-  font-size:12px;
-  color:#c7a45a;
-  letter-spacing:.12em;
+  color:var(--inspector-gold-ink);
+  font-size:13px;
+  letter-spacing:.04em;
 }
 .reward-control:not(:disabled):hover {
-  transform:translateY(-3px);
-  border-color:rgba(244,219,151,.8);
-  filter:brightness(1.14);
+  filter:brightness(1.07) saturate(1.02);
+  box-shadow:0 14px 30px rgba(0,0,0,.48), 0 0 0 1px rgba(111,72,32,.34);
 }
 .reward-control:disabled {
   opacity:.48;
@@ -3445,6 +3476,9 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
   transform:translate(0,-50%) scale(1);
   animation:inspectorLedgerRise .30s cubic-bezier(.18,.78,.22,1) both;
 }
+.character-inspector.open.draft-inspector-only {
+  pointer-events:none;
+}
 .character-inspector::before,
 .status-inspector::after {
   content:"";
@@ -4145,13 +4179,9 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 .role-action-button {
   pointer-events:auto;
   width:calc((100% - 8px) / 2);
-  min-height:52px;
-  padding:7px 10px 7px 42px;
-  display:grid;
-  grid-template-columns:1fr auto;
-  align-items:center;
-  justify-items:start;
-  gap:2px;
+  min-height:68px;
+  padding:9px 12px 10px;
+  display:block;
   position:relative;
   color:#24150b;
   background:
@@ -4166,22 +4196,6 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
   user-select:none;
   -webkit-user-select:none;
 }
-.role-action-button .role-action-icon {
-  position:absolute;
-  left:10px;
-  top:50%;
-  transform:translateY(-50%);
-  --asset-size:26px;
-  background:none;
-  border:0;
-  box-shadow:none;
-  filter:drop-shadow(0 1px 0 rgba(255,240,198,.50)) drop-shadow(0 1px 2px rgba(50,28,12,.42));
-}
-.role-action-button .role-action-icon img {
-  inset:0;
-  width:100%;
-  height:100%;
-}
 .role-action-button>span,
 .role-action-button small,
 .role-action-button em {
@@ -4190,9 +4204,16 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 .role-action-button>span {
   display:block;
   width:100%;
-  grid-column:1;
-  padding:0 34px 0 0;
-  text-align:left;
+  padding:0 38px;
+  color:#21130b;
+  font-family:var(--font-hand);
+  font-size:18px;
+  font-weight:800;
+  line-height:1.1;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .role-action-list .role-action-button:only-child {
   width:min(100%, 220px);
@@ -4203,21 +4224,27 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 }
 .role-action-button small {
   position:absolute;
-  top:8px;
-  right:10px;
+  top:10px;
+  right:12px;
   color:#7b5427;
-  font-size:10px;
-  letter-spacing:.08em;
+  font-family:var(--font-hand);
+  font-size:14px;
+  font-weight:800;
+  line-height:1.1;
+  letter-spacing:.02em;
   white-space:nowrap;
 }
 .role-action-button em {
-  grid-column:1 / -1;
+  display:block;
   width:100%;
+  margin-top:7px;
   color:#4c3320;
-  font-size:12px;
+  font-family:var(--font-hand);
+  font-size:15px;
   font-style:normal;
   font-weight:800;
-  line-height:1.45;
+  line-height:1.28;
+  text-align:left;
   white-space:normal;
   overflow:hidden;
   display:-webkit-box;

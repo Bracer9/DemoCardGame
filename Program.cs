@@ -92,9 +92,10 @@ app.MapPost("/api/online/game/reward/select", (SelectRewardRequest reward, HttpR
     OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
     session.WriteGame(Token(request), true, (state, seat, index) =>
     {
-        engine.SelectReward(state, reward.InstanceId);
+        var rewardKind = engine.SelectReward(state, reward.InstanceId);
+        var messageKey = rewardKind == RewardKind.DummyStatus ? "message.rewardPurchased" : "message.rewardSelected";
         return Results.Ok(new ApiEnvelope<GameView>(
-            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardPurchased")));
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text(messageKey)));
     })));
 
 app.MapPost("/api/online/game/reward/reset", (HttpRequest request,
@@ -110,9 +111,19 @@ app.MapPost("/api/online/game/reward/skip", (HttpRequest request,
     OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
     session.WriteGame(Token(request), true, (state, seat, index) =>
     {
+        var messageKey = state.RewardWindow?.PurchaseCount > 0 ? "message.rewardExited" : "message.rewardSkipped";
         engine.SkipRewardWindow(state);
         return Results.Ok(new ApiEnvelope<GameView>(
-            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardSkipped")));
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text(messageKey)));
+    })));
+
+app.MapPost("/api/online/game/reward/back", (HttpRequest request,
+    OnlineGameSession session, GameEngine engine, GameViewFactory views) => OnlineGameAction(() =>
+    session.WriteGame(Token(request), true, (state, seat, index) =>
+    {
+        engine.ReturnToRewardWindow(state, state.Players[index].Id);
+        return Results.Ok(new ApiEnvelope<GameView>(
+            views.Create(state, state.Players[index].Id, seat.IsHost), Message: L10n.Text("message.rewardBack")));
     })));
 
 app.MapPost("/api/online/game/hero-draft/select", (SelectHeroDraftRequest request, HttpRequest httpRequest,
@@ -284,8 +295,9 @@ app.MapPost("/api/game/reward/select", (SelectRewardRequest request, GameSession
     {
         return session.Write(state =>
         {
-            engine.SelectReward(state, request.InstanceId);
-            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardPurchased")));
+            var rewardKind = engine.SelectReward(state, request.InstanceId);
+            var messageKey = rewardKind == RewardKind.DummyStatus ? "message.rewardPurchased" : "message.rewardSelected";
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text(messageKey)));
         });
     }
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
@@ -310,8 +322,22 @@ app.MapPost("/api/game/reward/skip", (GameSession session, GameEngine engine, Ga
     {
         return session.Write(state =>
         {
+            var messageKey = state.RewardWindow?.PurchaseCount > 0 ? "message.rewardExited" : "message.rewardSkipped";
             engine.SkipRewardWindow(state);
-            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardSkipped")));
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text(messageKey)));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
+
+app.MapPost("/api/game/reward/back", (GameSession session, GameEngine engine, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            engine.ReturnToRewardWindow(state, state.ActivePlayerId);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state), Message: L10n.Text("message.rewardBack")));
         });
     }
     catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
