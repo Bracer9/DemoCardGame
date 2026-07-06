@@ -31,7 +31,7 @@ public sealed class GameEngineContext
         string effectId) =>
         _engine.DealAbsoluteDamage(State, target, amount, sourceCharacterId, effectId);
 
-    public int GetActiveAttack(CharacterState character) => _engine.GetActiveAttack(character);
+    public int GetActiveAttack(CharacterState character) => _engine.GetActiveAttack(State, character);
     public int GetMaxHp(CharacterState character) => _engine.GetMaxHp(character);
 }
 
@@ -67,8 +67,8 @@ public sealed class GameEngine
     public const int CounterAttackPenalty = 1;
     public const int InitialBattlePoints = 5;
     public const int MaxBattlePoints = 20;
-    public const int BattlePointGainCapPerTurn = 3;
-    public const int FirstRewardRound = 3;
+    public const int BattlePointGainCapPerTurn = 4;
+    public const int FirstRewardRound = 4;
     public const int RewardRoundInterval = 4;
     public const int RewardSkipBattlePoints = 2;
     private const string BpReasonTurnStart = "turn-start";
@@ -149,11 +149,11 @@ public sealed class GameEngine
     private static void GrantStartingMagicPower(PlayerState player)
     {
         var oracle = player.Characters.FirstOrDefault(character =>
-            character.IsAlive && character.Definition.Key == "oracle");
+            character.IsAlive && !IsDeploying(character) && character.Definition.Key == "oracle");
         if (oracle is null)
             return;
 
-        foreach (var character in player.Characters.Where(character => character.IsAlive))
+        foreach (var character in player.Characters.Where(character => character.IsAlive && !IsDeploying(character)))
         {
             if (character.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
                 continue;
@@ -207,7 +207,7 @@ public sealed class GameEngine
             PlayerId = player.Id,
             Kind = kind,
             RewardInstanceId = rewardInstanceId,
-            MaxSelections = kind == HeroDraftKind.SoldierOpening ? 2 : 1
+            MaxSelections = 1
         };
         state.PendingHeroDraft.CandidateKeys.AddRange(candidates.Select(definition => definition.Key));
         Log(state, L10n.Text(kind is HeroDraftKind.Opening or HeroDraftKind.TestOpening ? "log.heroDraftOpened" : "log.heroRecruitOpened",
@@ -260,6 +260,8 @@ public sealed class GameEngine
             _ => AddHero(player, CharacterCatalog.Heroes.Single(item =>
                 string.Equals(item.Key, characterKey, StringComparison.OrdinalIgnoreCase)))
         };
+        if (draft.Kind == HeroDraftKind.Recruit)
+            AddDeploying(character);
 
         GrantStartingMagicPower(player);
         Log(state, L10n.Text("log.heroDraftSelected",
@@ -332,6 +334,8 @@ public sealed class GameEngine
             var definition = CharacterCatalog.Soldiers.Single(item =>
                 string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
             var soldier = AddHero(player, definition);
+            if (draft.Kind == HeroDraftKind.SoldierRecruit)
+                AddDeploying(soldier);
             Log(state, L10n.Text("log.soldierDraftSelected",
                 ("player", L10n.Player(player.Name)),
                 ("character", L10n.Character(soldier.Definition.Key)),
@@ -492,10 +496,13 @@ public sealed class GameEngine
 
     private void PromoteSoldier(CharacterState soldier)
     {
+        var beforeRank = soldier.SoldierRank;
         var beforeMaxHp = GetMaxHp(soldier);
         soldier.SoldierRank = Math.Min(2, soldier.SoldierRank + 1);
         var afterMaxHp = GetMaxHp(soldier);
-        if (afterMaxHp > beforeMaxHp)
+        if (beforeRank < 2 && soldier.SoldierRank >= 2)
+            soldier.CurrentHp = Math.Max(soldier.CurrentHp, afterMaxHp);
+        else if (afterMaxHp > beforeMaxHp)
             soldier.CurrentHp += afterMaxHp - beforeMaxHp;
 
         if (soldier.SoldierRank >= 2)
@@ -528,16 +535,19 @@ public sealed class GameEngine
         attackerTrait.OnAttackDeclared(context, attacker, defender);
         TriggerDeputyDuelistBeforeActiveAttack(state, attacker, defender);
         var counterBlocked = IsCounterAttackBlocked(defender);
-        var counterDamageBeforeShieldResolution = GetCounterAttack(defender);
+        var counterDamageBeforeShieldResolution = GetCounterAttack(state, defender);
+        var monsterPrincessAttack = IsMonsterPrincessAttack(attacker, defender);
 
         var attackPacket = new DamagePacket
         {
             SourceCharacter = attacker,
             TargetCharacter = defender,
-            DamageType = attacker.Definition.AttackType,
+            DamageType = monsterPrincessAttack ? DamageType.Absolute : attacker.Definition.AttackType,
             Source = DamageSource.ActiveAttack,
-            Amount = GetActiveAttack(attacker),
-            ReceivesMagicPowerBonus = attacker.Definition.AttackType == DamageType.Magical
+            Amount = GetActiveAttack(state, attacker),
+            ReceivesMagicPowerBonus = attacker.Definition.AttackType == DamageType.Magical,
+            IgnoresSharedShield = monsterPrincessAttack,
+            IgnoresTargetDefense = monsterPrincessAttack
         };
         var counterPacket = new DamagePacket
         {
@@ -569,6 +579,7 @@ public sealed class GameEngine
 
         var resolvedCollateral = attackPacket.Collateral
             .Concat(counterPacket.Collateral)
+            .Where(collateral => !IsDeploying(collateral.Target))
             .Select(collateral => (Collateral: collateral, Packet: ResolveCollateralDamage(state, collateral)))
             .ToArray();
 
@@ -637,6 +648,9 @@ public sealed class GameEngine
             attackPacket.Notes.Concat(counterPacket.Notes).ToArray(),
             defeated));
     }
+
+    private static bool IsMonsterPrincessAttack(CharacterState attacker, CharacterState defender) =>
+        attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
 
     public void DeployShield(GameState state)
     {
@@ -738,6 +752,14 @@ public sealed class GameEngine
             ("amount", L10n.Raw(debt))), "debuff");
     }
 
+    public int GetActiveAttack(GameState state, CharacterState character)
+    {
+        var damage = GetBaseAttack(state, character);
+        foreach (var status in character.Statuses.Where(status => !status.Expired))
+            damage = status.ModifyActiveAttack(character, damage);
+        return Math.Max(0, damage);
+    }
+
     public int GetActiveAttack(CharacterState character)
     {
         var damage = GetBaseAttack(character);
@@ -746,13 +768,28 @@ public sealed class GameEngine
         return Math.Max(0, damage);
     }
 
-    public int GetBaseAttack(CharacterState character)
+    public int GetBaseAttack(GameState state, CharacterState character)
     {
-        var attack = character.Definition.Attack + GetDeputyStatBonus(character, DeputyStatKind.Attack);
+        var attack = character.Definition.Attack
+            + GetDeputyAttackBonus(character)
+            + GetSoldierAttackAuraBonus(state, character);
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             attack = status.ModifyBaseAttack(attack);
         return Math.Max(0, attack);
     }
+
+    public int GetBaseAttack(CharacterState character)
+    {
+        var attack = character.Definition.Attack + GetDeputyAttackBonus(character);
+        foreach (var status in character.Statuses.Where(status => !status.Expired))
+            attack = status.ModifyBaseAttack(attack);
+        return Math.Max(0, attack);
+    }
+
+    public int GetCounterAttack(GameState state, CharacterState character) =>
+        IsCounterAttackBlocked(character)
+            ? 0
+            : GetBaseCounterAttack(GetBaseAttack(state, character));
 
     public int GetCounterAttack(CharacterState character) =>
         IsCounterAttackBlocked(character)
@@ -767,21 +804,37 @@ public sealed class GameEngine
     public static bool IsActiveAttackBlocked(CharacterState character) =>
         character.Statuses.Any(status => status.BlocksActiveAttack && !status.Expired);
 
+    public int GetPhysicalDefense(GameState state, CharacterState character)
+    {
+        var defense = character.Definition.PhysicalDefense
+            + GetDeputyStatBonus(character, DeputyStatKind.PhysicalDefense)
+            + GetSoldierDefenseAuraBonus(state, character, DamageType.Physical);
+        foreach (var status in character.Statuses.Where(status => !status.Expired))
+            defense = status.ModifyPhysicalDefense(defense);
+        return defense;
+    }
+
     public int GetPhysicalDefense(CharacterState character)
     {
         var defense = character.Definition.PhysicalDefense + GetDeputyStatBonus(character, DeputyStatKind.PhysicalDefense);
-        if (character.Definition.Key == "shieldmaiden" && character.SoldierRank >= 1)
-            defense++;
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             defense = status.ModifyPhysicalDefense(defense);
+        return defense;
+    }
+
+    public int GetMagicalDefense(GameState state, CharacterState character)
+    {
+        var defense = character.Definition.MagicalDefense
+            + GetDeputyStatBonus(character, DeputyStatKind.MagicalDefense)
+            + GetSoldierDefenseAuraBonus(state, character, DamageType.Magical);
+        foreach (var status in character.Statuses.Where(status => !status.Expired))
+            defense = status.ModifyMagicalDefense(defense);
         return defense;
     }
 
     public int GetMagicalDefense(CharacterState character)
     {
         var defense = character.Definition.MagicalDefense + GetDeputyStatBonus(character, DeputyStatKind.MagicalDefense);
-        if (character.Definition.Key == "arcanist" && character.SoldierRank >= 1)
-            defense++;
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             defense = status.ModifyMagicalDefense(defense);
         return defense;
@@ -797,6 +850,8 @@ public sealed class GameEngine
             "arcanist" when character.SoldierRank >= 1 => character.Definition.MaxHp + 2,
             _ => character.Definition.MaxHp
         };
+        if (character.Definition.CardType == CardType.Soldier && character.SoldierRank >= 2)
+            maxHp += 5;
         return maxHp + GetDeputyStatBonus(character, DeputyStatKind.MaxHp);
     }
 
@@ -819,6 +874,79 @@ public sealed class GameEngine
         return deputy is not null && deputy.StatKind == kind ? deputy.StatValue : 0;
     }
 
+    private static int GetDeputyAttackBonus(CharacterState character)
+    {
+        if (!character.IsInBattle || character.CurrentHp <= 0)
+            return 0;
+        var deputy = DeputyCatalog.FindById(character.DeputyEffectId);
+        if (deputy is null)
+            return 0;
+        return deputy.StatKind switch
+        {
+            DeputyStatKind.Attack => deputy.StatValue,
+            DeputyStatKind.PhysicalAttack when character.Definition.AttackType == DamageType.Physical => deputy.StatValue,
+            DeputyStatKind.MagicalAttack when character.Definition.AttackType == DamageType.Magical => deputy.StatValue,
+            _ => 0
+        };
+    }
+
+    private static int GetSoldierAttackAuraBonus(GameState state, CharacterState character)
+    {
+        if (!character.IsInBattle || character.CurrentHp <= 0 || IsDeploying(character))
+            return 0;
+
+        var owner = state.FindOwner(character);
+        return character.Definition.AttackType switch
+        {
+            DamageType.Physical when HasActiveRank1SoldierAura(owner, "duelist") => 2,
+            DamageType.Magical when HasActiveRank1SoldierAura(owner, "arcanist") => 2,
+            _ => 0
+        };
+    }
+
+    private static int GetSoldierDefenseAuraBonus(GameState state, CharacterState character, DamageType damageType)
+    {
+        if (!character.IsInBattle || character.CurrentHp <= 0 || IsDeploying(character))
+            return 0;
+
+        var owner = state.FindOwner(character);
+        return damageType switch
+        {
+            DamageType.Physical when HasActiveRank1SoldierAura(owner, "shieldmaiden") => 1,
+            DamageType.Magical when HasActiveRank1SoldierAura(owner, "cleric") => 1,
+            _ => 0
+        };
+    }
+
+    public static bool HasActiveRank1SoldierAura(PlayerState player, string soldierKey) =>
+        player.Characters.Any(character =>
+            IsActiveRank1SoldierAuraSource(player, character)
+            && character.SoldierRank >= 1
+            && string.Equals(character.Definition.Key, soldierKey, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsActiveRank1SoldierAuraSource(PlayerState player, CharacterState soldier)
+    {
+        if (soldier.Definition.CardType != CardType.Soldier || soldier.CurrentHp <= 0 || IsDeploying(soldier))
+            return false;
+        if (soldier.IsAlive && soldier.IsInBattle)
+            return true;
+        if (soldier.Zone != CharacterZone.Deputy || soldier.DeputyHostHeroId is not { } hostId)
+            return false;
+
+        return player.Characters.Any(character =>
+            character.Id == hostId
+            && character.DeputySoldierId == soldier.Id
+            && character.IsAlive
+            && character.IsInBattle);
+    }
+
+    public int GetDefense(GameState state, CharacterState character, DamageType damageType) => damageType switch
+    {
+        DamageType.Physical => GetPhysicalDefense(state, character),
+        DamageType.Magical => GetMagicalDefense(state, character),
+        _ => 0
+    };
+
     public int GetDefense(CharacterState character, DamageType damageType) => damageType switch
     {
         DamageType.Physical => GetPhysicalDefense(character),
@@ -838,6 +966,15 @@ public sealed class GameEngine
 
     public IReadOnlyList<CharacterRoleAction> GetRoleActions(CharacterState character) =>
         _roleActions.GetMany(character.RoleActionIds);
+
+    public static bool IsDeploying(CharacterState character) =>
+        character.Statuses.Any(status => status.Id == "deploying" && !status.Expired);
+
+    private static void AddDeploying(CharacterState character)
+    {
+        character.Statuses.RemoveAll(status => status.Id == "deploying");
+        character.Statuses.Add(new DeployingStatus(character.Id, character.PlayerId));
+    }
 
     public IReadOnlyList<CharacterRoleAction> GetRoleActionUpgradeChoices(CharacterState character) =>
         character.IsAlive && character.RoleActionIds.Count == 0
@@ -906,6 +1043,7 @@ public sealed class GameEngine
         character.Definition.CardType == CardType.Hero
         && character.IsAlive
         && character.IsInBattle
+        && !IsDeploying(character)
         && character.DeputySoldierId is null
         && character.DeputyEffectId is null;
 
@@ -926,10 +1064,15 @@ public sealed class GameEngine
             character.Statuses.RemoveAll(status => status.Expired);
         }
 
+        GrantStartingMagicPower(state.ActivePlayer);
+
         ResolveDefeats(state);
 
         foreach (var character in state.ActivePlayer.Characters.Where(character => character.IsAlive).ToArray())
-            _traits.Get(character.Definition.TraitId).OnTurnStart(context, character);
+        {
+            if (!IsDeploying(character))
+                _traits.Get(character.Definition.TraitId).OnTurnStart(context, character);
+        }
     }
 
     private void ModifyDamage(GameState state, DamagePacket packet)
@@ -938,21 +1081,23 @@ public sealed class GameEngine
         foreach (var status in packet.SourceCharacter.Statuses.Where(status => !status.Expired))
             status.ModifyOutgoingDamage(new GameEngineContext(this, state), packet.SourceCharacter, packet);
 
-        foreach (var traitOwner in sourceOwner.Characters.Where(character => character.IsAlive))
+        foreach (var traitOwner in sourceOwner.Characters.Where(character => character.IsAlive && !IsDeploying(character)))
             _traits.Get(traitOwner.Definition.TraitId).ModifyOutgoingDamage(
                 new GameEngineContext(this, state), traitOwner, packet);
 
         var targetOwner = state.FindOwner(packet.TargetCharacter);
         if (!packet.IgnoresSharedShield)
             ApplySharedShield(targetOwner, packet);
+        if (packet.BlockedBySharedShield)
+            return;
         if (!packet.IgnoresTargetDefense)
-            ApplyTypeDefense(packet);
+            ApplyTypeDefense(state, packet);
 
         foreach (var status in packet.TargetCharacter.Statuses.Where(status => !status.Expired))
             status.ModifyIncomingDamage(new GameEngineContext(this, state), packet.TargetCharacter, packet);
 
         var incomingModifiers = targetOwner.Characters
-            .Where(character => character.IsAlive)
+            .Where(character => character.IsAlive && !IsDeploying(character))
             .OrderBy(character => _traits.Get(character.Definition.TraitId).IncomingModifierPriority)
             .ToArray();
 
@@ -963,12 +1108,12 @@ public sealed class GameEngine
         packet.Amount = Math.Max(0, packet.Amount);
     }
 
-    private void ApplyTypeDefense(DamagePacket packet)
+    private void ApplyTypeDefense(GameState state, DamagePacket packet)
     {
         if (packet.Amount <= 0)
             return;
 
-        var defense = GetDefense(packet.TargetCharacter, packet.DamageType);
+        var defense = GetDefense(state, packet.TargetCharacter, packet.DamageType);
         if (defense > 0)
         {
             var reduced = Math.Min(packet.Amount, defense);
@@ -997,6 +1142,16 @@ public sealed class GameEngine
 
     private DamagePacket ResolveCollateralDamage(GameState state, CollateralDamage collateral)
     {
+        if (IsDeploying(collateral.Target))
+            return new DamagePacket
+            {
+                SourceCharacter = collateral.Source,
+                TargetCharacter = collateral.Target,
+                DamageType = collateral.DamageType,
+                Source = DamageSource.Trait,
+                Amount = 0
+            };
+
         var sourceOwner = state.FindOwner(collateral.Source);
         var targetOwner = state.FindOwner(collateral.Target);
         var shieldBefore = targetOwner.SharedShield;
@@ -1023,10 +1178,14 @@ public sealed class GameEngine
 
         ApplyShieldTypeDefense(targetOwner, packet);
         if (packet.Amount <= 0)
+        {
+            packet.BlockedBySharedShield = true;
             return;
+        }
 
         var absorbed = Math.Min(packet.Amount, targetOwner.SharedShield);
-        packet.Amount -= absorbed;
+        packet.Amount = 0;
+        packet.BlockedBySharedShield = true;
         packet.ShieldAbsorbed += absorbed;
         targetOwner.SharedShield -= absorbed;
         packet.Notes.Add(L10n.Text("note.shieldAbsorb",
@@ -1529,7 +1688,7 @@ public sealed class GameEngine
         if (targetCharacterId is null)
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         var target = state.FindCharacter(targetCharacterId.Value);
-        if (target.PlayerId != actor.PlayerId || !target.IsAlive)
+        if (target.PlayerId != actor.PlayerId || !target.IsAlive || IsDeploying(target))
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         return target;
     }
@@ -1539,7 +1698,7 @@ public sealed class GameEngine
         if (targetCharacterId is null)
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         var target = state.FindCharacter(targetCharacterId.Value);
-        if (target.PlayerId == actor.PlayerId || !target.IsAlive)
+        if (target.PlayerId == actor.PlayerId || !target.IsAlive || IsDeploying(target))
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         return target;
     }
@@ -1888,7 +2047,7 @@ public sealed class GameEngine
         if (targetCharacterId is null)
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         var target = state.FindCharacter(targetCharacterId.Value);
-        if (!target.IsAlive)
+        if (!target.IsAlive || IsDeploying(target))
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         if (target.PlayerId == actor.PlayerId)
         {
@@ -1939,11 +2098,11 @@ public sealed class GameEngine
 
     private void TriggerFieldMedic(GameState state, CharacterState source, CharacterState target, bool didHealOrCleanse, bool grantWard = true)
     {
-        if (!didHealOrCleanse || source.PlayerId != target.PlayerId)
+        if (!didHealOrCleanse || source.PlayerId != target.PlayerId || IsDeploying(target))
             return;
 
         var cleric = state.FindOwner(source).Characters.FirstOrDefault(character =>
-            character.IsAlive && character.Definition.TraitId == "field-medic");
+            character.IsAlive && !IsDeploying(character) && character.Definition.TraitId == "field-medic");
         if (cleric is null)
             return;
 
@@ -1993,6 +2152,7 @@ public sealed class GameEngine
         var owner = state.FindOwner(source);
         var shieldmaidens = owner.Characters
             .Where(character => character.IsAlive
+                && !IsDeploying(character)
                 && character.Definition.TraitId == "shield-drill"
                 && !character.TraitsUsedThisTurn.Contains("shield-drill"))
             .ToArray();
@@ -2000,7 +2160,7 @@ public sealed class GameEngine
             return;
 
         var target = owner.Characters
-            .Where(character => character.IsAlive)
+            .Where(character => character.IsAlive && !IsDeploying(character))
             .OrderBy(character => GetMaxHp(character) == 0 ? 1 : (double)character.CurrentHp / GetMaxHp(character))
             .ThenBy(character => character.Definition.CardType == CardType.Hero ? 0 : 1)
             .ThenBy(character => character.CurrentHp)
@@ -2024,6 +2184,7 @@ public sealed class GameEngine
         var owner = state.FindOwner(source);
         var arcanist = owner.Characters.FirstOrDefault(character =>
             character.IsAlive
+            && !IsDeploying(character)
             && character.Definition.TraitId == "arcane-resonance"
             && !character.TraitsUsedThisTurn.Contains("arcane-resonance"));
         if (arcanist is null)
@@ -2043,9 +2204,18 @@ public sealed class GameEngine
 
     private bool TryUseDeputyPassive(GameState state, CharacterState host, string deputyEffectId)
     {
-        if (!host.IsAlive || host.DeputyEffectId != deputyEffectId)
+        if (!host.IsAlive || IsDeploying(host) || host.DeputyEffectId != deputyEffectId)
             return false;
         var owner = state.FindOwner(host);
+        if (host.DeputySoldierId is not { } soldierId
+            || owner.Characters.All(character =>
+                character.Id != soldierId
+                || character.Zone != CharacterZone.Deputy
+                || character.DeputyHostHeroId != host.Id
+                || character.CurrentHp <= 0
+                || character.DeputyEffectId != deputyEffectId))
+            return false;
+
         return owner.DeputyPassivesUsedThisTurn.Add($"{host.Id:N}:{deputyEffectId}");
     }
 
@@ -2062,7 +2232,7 @@ public sealed class GameEngine
 
     private void TriggerDeputyCleric(GameState state, CharacterState host, CharacterState target, bool didHealOrCleanse)
     {
-        if (!didHealOrCleanse || host.PlayerId != target.PlayerId || !TryUseDeputyPassive(state, host, "deputy-cleric"))
+        if (!didHealOrCleanse || host.PlayerId != target.PlayerId || IsDeploying(target) || !TryUseDeputyPassive(state, host, "deputy-cleric"))
             return;
 
         var turns = target.CurrentHp * 2 < GetMaxHp(target) ? 2 : 1;
@@ -2077,7 +2247,7 @@ public sealed class GameEngine
 
         var owner = state.FindOwner(host);
         var target = owner.Characters
-            .Where(character => character.IsAlive)
+            .Where(character => character.IsAlive && !IsDeploying(character))
             .OrderBy(character => GetMaxHp(character) == 0 ? 1 : (double)character.CurrentHp / GetMaxHp(character))
             .ThenBy(character => character.Definition.CardType == CardType.Hero ? 0 : 1)
             .ThenBy(character => character.CurrentHp)
@@ -2091,11 +2261,12 @@ public sealed class GameEngine
 
     private void TriggerDeputyDuelistBeforeActiveAttack(GameState state, CharacterState host, CharacterState target)
     {
-        if (!HasCommonDebuff(target) || !TryUseDeputyPassive(state, host, "deputy-duelist"))
+        if (state.FindOwner(target).SharedShield > 0 || !TryUseDeputyPassive(state, host, "deputy-duelist"))
             return;
 
-        var turns = CountCommonDebuffs(target) >= 2 ? 2 : 1;
-        AddStrongAttack(host, host.Id, turns);
+        AddStrongAttack(host, host.Id);
+        host.Statuses.RemoveAll(status => status.Id == "duel-sense-strike");
+        host.Statuses.Add(new DuelSenseStrikeStatus(host.Id));
         LogDeputyTriggered(state, host, "deputy-duelist", "strong-attack", host);
     }
 
@@ -2105,6 +2276,7 @@ public sealed class GameEngine
             return;
 
         AddChant(host, host.Id, fromRoleAction ? 2 : 1);
+        host.BonusAttackUsesThisTurn++;
         LogDeputyTriggered(state, host, "deputy-arcanist", "chant", host);
     }
 
@@ -2175,7 +2347,7 @@ public sealed class GameEngine
             || attacker.Statuses.All(status => status.Id != "rage" || status.Expired))
             return;
 
-        var damage = GetActiveAttack(attacker);
+        var damage = GetActiveAttack(state, attacker);
         if (damage <= 0)
             return;
 
@@ -2191,6 +2363,9 @@ public sealed class GameEngine
         string effectId,
         bool receivesMagicPowerBonus = false)
     {
+        if (IsDeploying(target))
+            return 0;
+
         var source = state.FindCharacter(sourceCharacterId);
         var packet = new DamagePacket
         {
@@ -2240,6 +2415,9 @@ public sealed class GameEngine
         Guid sourceCharacterId,
         LocalizedArg effectArg)
     {
+        if (IsDeploying(target))
+            return 0;
+
         var source = state.FindCharacter(sourceCharacterId);
         var sourceOwner = state.FindOwner(source);
         var targetOwner = state.FindOwner(target);
@@ -2265,6 +2443,8 @@ public sealed class GameEngine
             throw new GameRuleException(L10n.Text("error.cannotAttackAlly"));
         if (!attacker.IsAlive || !defender.IsAlive)
             throw new GameRuleException(L10n.Text("error.defeatedCharacter"));
+        if (IsDeploying(attacker) || IsDeploying(defender))
+            throw new GameRuleException(L10n.Text("error.deploying"));
         if (attacker.HasActed || IsActiveAttackBlocked(attacker))
             throw new GameRuleException(L10n.Text("error.alreadyActed"));
         if (attacker.Definition.Cost > state.ActionPoints)
@@ -2327,7 +2507,8 @@ public sealed class GameEngine
             var owner = state.FindOwner(defeatedCharacter);
             if (defeatedCharacter.Definition.Key == "oracle")
                 RemoveMagicPowerFromOwner(owner, defeatedCharacter.Id);
-            foreach (var character in state.Players.SelectMany(player => player.Characters).Where(character => character.IsAlive))
+            foreach (var character in state.Players.SelectMany(player => player.Characters)
+                         .Where(character => character.IsAlive && !IsDeploying(character)))
                 _traits.Get(character.Definition.TraitId).OnCharacterDefeated(context, character, defeatedCharacter);
         }
         return defeated;
@@ -2404,7 +2585,9 @@ public sealed class GameEngine
                 RequireEnemyTarget(state, actor, targetCharacterId);
                 break;
             case "astral-focus":
-                if (targetCharacterId is null || !state.FindCharacter(targetCharacterId.Value).IsAlive)
+                if (targetCharacterId is null
+                    || !state.FindCharacter(targetCharacterId.Value).IsAlive
+                    || IsDeploying(state.FindCharacter(targetCharacterId.Value)))
                     throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
                 break;
         }
@@ -2412,6 +2595,7 @@ public sealed class GameEngine
 
     private static bool CanReceiveStarReading(CharacterState target) =>
         target.IsAlive
+        && !IsDeploying(target)
         && target.Definition.AttackType == DamageType.Magical
         && target.AttackUsesThisTurn > 0
         && target.HasActed

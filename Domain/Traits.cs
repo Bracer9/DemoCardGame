@@ -16,6 +16,7 @@ public sealed class DamagePacket
     public bool ReceivesMagicPowerBonus { get; init; }
     public bool IgnoresSharedShield { get; set; }
     public bool IgnoresTargetDefense { get; set; }
+    public bool BlockedBySharedShield { get; set; }
     public int ShieldDefenseReduced { get; set; }
     public int DefenseReduced { get; set; }
     public int ShieldAbsorbed { get; set; }
@@ -45,6 +46,8 @@ public abstract class CharacterTrait
     {
         if (!owner.IsAlive || state.Phase != GamePhase.Playing)
             return false;
+        if (GameEngine.IsDeploying(owner))
+            return false;
 
         return true;
     }
@@ -52,6 +55,7 @@ public abstract class CharacterTrait
     public virtual LocalizedText? UnavailableReason(GameState state, CharacterState owner)
     {
         if (!owner.IsAlive) return L10n.Text("reason.defeated");
+        if (GameEngine.IsDeploying(owner)) return L10n.Text("reason.deploying");
         if (state.Phase == GamePhase.Finished) return L10n.Text("reason.matchFinished");
         return null;
     }
@@ -82,7 +86,8 @@ public sealed class SaintsPrayerTrait : CharacterTrait
         if (!owner.IsAlive || owner.PlayerId != context.State.ActivePlayerId)
             return;
 
-        foreach (var ally in context.State.FindOwner(owner).Characters.Where(character => character.IsAlive))
+        foreach (var ally in context.State.FindOwner(owner).Characters
+                     .Where(character => character.IsAlive && !GameEngine.IsDeploying(character)))
         {
             var cap = context.GetMaxHp(ally) + 2;
             if (ally.CurrentHp >= cap)
@@ -159,6 +164,7 @@ public sealed class SpringHarvestTrait : CharacterTrait
     public override LocalizedText? UnavailableReason(GameState state, CharacterState owner)
     {
         if (!owner.IsAlive) return L10n.Text("reason.defeated");
+        if (GameEngine.IsDeploying(owner)) return L10n.Text("reason.deploying");
         if (state.Phase == GamePhase.Finished) return L10n.Text("reason.matchFinished");
         if (owner.PlayerId != state.ActivePlayerId) return L10n.Text("reason.opponentTurn");
         if (owner.HasActed) return L10n.Text("reason.alreadyActed");
@@ -274,7 +280,9 @@ public sealed class AftershockAxeTrait : CharacterTrait
 
         var defenderOwner = context.State.FindOwner(exchange.Defender);
         var neighbours = defenderOwner.Characters
-            .Where(character => character.IsAlive && Math.Abs(character.Slot - exchange.Defender.Slot) == 1)
+            .Where(character => character.IsAlive
+                && !GameEngine.IsDeploying(character)
+                && Math.Abs(character.Slot - exchange.Defender.Slot) == 1)
             .ToList();
 
         if (neighbours.Count == 0)
@@ -304,7 +312,6 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
             || packet.TargetCharacter.Definition.Key != "princess")
             return;
 
-        packet.Amount = 0;
         packet.IgnoresSharedShield = true;
         packet.IgnoresTargetDefense = true;
     }
@@ -313,12 +320,7 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
     {
         if (exchange.Defender.Definition.Key == "princess")
         {
-            var princessDamage = context.DealAbsoluteDamage(
-                exchange.Defender,
-                context.GetActiveAttack(owner),
-                owner.Id,
-                "predatory-instinct");
-            DealPrincessBacklash(context, owner, princessDamage);
+            DealPrincessBacklash(context, owner, exchange.AttackDamageDealt);
             return;
         }
 
@@ -327,7 +329,7 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
             return;
 
         var hasPrincess = context.State.FindOwner(owner).Characters.Any(character =>
-            character.IsAlive && character.Definition.Key == "princess");
+            character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
         var damage = context.GetActiveAttack(owner) + (hasPrincess ? PrincessBonusDamage : 0);
         context.DealAbsoluteDamage(exchange.Defender, damage, owner.Id, "predatory-instinct");
     }

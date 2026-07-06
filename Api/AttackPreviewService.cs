@@ -17,14 +17,16 @@ public sealed class AttackPreviewService
         var error = Validate(state, attacker, defender);
         if (error is not null) return Invalid(attackerId, defenderId, error);
 
-        var attackBase = ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(attacker),
-            attacker.Definition.AttackType,
-            DamageSource.ActiveAttack,
-            receivesMagicPowerBonus: true,
-            includePendingDuelSenseStrongAttack: (ShouldForecastDuelSense(state, attacker, defender)
-                    || ShouldForecastDeputyDuelist(state, attacker, defender))
-                && attacker.Statuses.All(status => status.Id != "strong-attack" || status.Expired));
         var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
+        var attackBase = monsterPrincessAttack
+            ? _engine.GetActiveAttack(state, attacker)
+            : ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(state, attacker),
+                attacker.Definition.AttackType,
+                DamageSource.ActiveAttack,
+                receivesMagicPowerBonus: true,
+                includePendingDuelSenseStrongAttack: (ShouldForecastDuelSense(state, attacker, defender)
+                        || ShouldForecastDeputyDuelist(state, attacker, defender))
+                    && attacker.Statuses.All(status => status.Id != "strong-attack" || status.Expired));
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
@@ -40,7 +42,7 @@ public sealed class AttackPreviewService
         var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker, defender);
         if (duelSenseBonus > 0)
             attack = attack with { Min = attack.Min + duelSenseBonus, Max = attack.Max + duelSenseBonus };
-        var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(defender),
+        var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defender.Definition.AttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
         var counter = ForecastDamage(state, attacker, counterBase, defender.Definition.AttackType, DamageSource.CounterAttack);
         counter = ApplyPreyForecast(attacker, counter);
@@ -205,10 +207,10 @@ public sealed class AttackPreviewService
         var shield = !ignoreShield && owner.SharedShield > 0 && damageAfterShieldDefense > 0;
         var shieldAbsorb = shield ? Math.Min(owner.SharedShield, damageAfterShieldDefense) : 0;
         var damageAfterShield = shield
-            ? Math.Max(0, damageAfterShieldDefense - owner.SharedShield)
+            ? 0
             : damageAfterShieldDefense;
 
-        var effectiveDefense = ignoreDefense ? 0 : _engine.GetDefense(target, type);
+        var effectiveDefense = ignoreDefense ? 0 : _engine.GetDefense(state, target, type);
         var defense = effectiveDefense > 0
             ? Math.Min(damageAfterShield, effectiveDefense)
             : effectiveDefense < 0 && damageAfterShield > 0
@@ -220,10 +222,12 @@ public sealed class AttackPreviewService
         damageAfterDefense = ForecastIncomingStatusDamage(target, damageAfterDefense, type, source);
         var max = Math.Max(0, damageAfterDefense);
         var oracleReduced = Math.Max(0, (int)Math.Ceiling(damageAfterDefense * 0.5));
-        var hasOracle = owner.Characters.Any(character => character.IsAlive && character.Definition.Key == "oracle");
+        var hasOracle = owner.Characters.Any(character =>
+            character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "oracle");
         var chance = hasOracle && max > 0 && oracleReduced != max ? 30 : 0;
         var min = chance > 0 ? oracleReduced : max;
         var knight = owner.Characters.FirstOrDefault(character => character.IsAlive
+            && !GameEngine.IsDeploying(character)
             && character.Definition.Key == "knight" && !character.GuardConsumed);
         var guard = source == DamageSource.ActiveAttack && type == DamageType.Physical
             && target.Definition.Key != "knight" && knight is not null && max > 0;
@@ -283,10 +287,11 @@ public sealed class AttackPreviewService
     private static bool ShouldForecastDeputyDuelist(GameState state, CharacterState attacker, CharacterState defender) =>
         attacker.DeputyEffectId == "deputy-duelist"
         && !state.FindOwner(attacker).DeputyPassivesUsedThisTurn.Contains($"{attacker.Id:N}:deputy-duelist")
-        && defender.Statuses.Any(IsCommonDebuff);
+        && state.FindOwner(defender).SharedShield <= 0;
 
     private static int ForecastDuelSenseAbsoluteBonus(GameState state, CharacterState attacker, CharacterState defender) =>
-        ShouldForecastDuelSense(state, attacker, defender) && attacker.SoldierRank >= 1
+        (ShouldForecastDuelSense(state, attacker, defender) && attacker.SoldierRank >= 1)
+            || ShouldForecastDeputyDuelist(state, attacker, defender)
             ? DuelSenseStrikeStatus.AbsoluteDamage
             : 0;
 
@@ -332,7 +337,7 @@ public sealed class AttackPreviewService
 
         var defenderOwner = state.FindOwner(defender);
         return defenderOwner.SharedShield > 0 && attack.ShieldAbsorb >= defenderOwner.SharedShield
-            ? _engine.GetActiveAttack(attacker)
+            ? _engine.GetActiveAttack(state, attacker)
             : 0;
     }
 
@@ -375,7 +380,7 @@ public sealed class AttackPreviewService
             return (true, L10n.Text("preview.trait.beautyPrincessBacklashTrait"));
 
         var hasPrincess = state.FindOwner(attacker).Characters.Any(character =>
-            character.IsAlive && character.Definition.Key == "princess");
+            character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
         var damage = attacker.Definition.Attack
             + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0);
         var key = attack.Max == 0 ? "preview.trait.beautyGuaranteed"
@@ -393,6 +398,7 @@ public sealed class AttackPreviewService
         if (attacker.PlayerId != state.ActivePlayerId) return L10n.Text("error.notActiveCharacter");
         if (defender.PlayerId == state.ActivePlayerId) return L10n.Text("error.cannotAttackAlly");
         if (!attacker.IsAlive || !defender.IsAlive) return L10n.Text("error.defeatedSelection");
+        if (GameEngine.IsDeploying(attacker) || GameEngine.IsDeploying(defender)) return L10n.Text("error.deploying");
         if (attacker.HasActed || GameEngine.IsActiveAttackBlocked(attacker)) return L10n.Text("error.alreadyActed");
         if (attacker.Definition.Cost > state.ActionPoints) return L10n.Text("error.notEnoughAp");
         return null;

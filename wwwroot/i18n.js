@@ -6,8 +6,8 @@
 
   const load = async () => {
     const [ja, zh] = await Promise.all([
-      fetch('/locales/ja.json').then(response => response.json()),
-      fetch('/locales/zh.json').then(response => response.json())
+      fetch('/locales/ja.json', { cache: 'no-cache' }).then(response => response.json()),
+      fetch('/locales/zh.json', { cache: 'no-cache' }).then(response => response.json())
     ]);
     resources.ja = ja;
     resources.zh = zh;

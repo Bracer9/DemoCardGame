@@ -65,9 +65,9 @@
     "heroDraftHp": "HP",
     "heroDraftCost": "COST",
     "soldierDraftTitleOpening": "选择随从士兵",
-    "soldierDraftSubtitleOpening": "最多选择2名士兵加入初始队伍。",
+    "soldierDraftSubtitleOpening": "选择1名士兵加入初始队伍。",
     "soldierDraftTitleRecruit": "招募士兵",
-    "soldierDraftSubtitleRecruit": "选择1名士兵加入队伍；已拥有时可点击强化并选择同名士兵升阶。",
+    "soldierDraftSubtitleRecruit": "选择1名士兵加入队伍；已拥有时可点击强化并选择同名士兵升阶。Rank1获得光环，Rank2回满HP并最大HP+5。",
     "soldierDraftOwnedHint": "已拥有：可选择强化同名士兵",
     "soldierDraftUpgrade": "强化",
     "soldierDraftUpgradeTargetHint": "请选择手牌中的同名士兵进行升阶。",
@@ -107,7 +107,7 @@
     "shieldFirstBody": "消耗2 AP，展开2点共有盾。",
     "shieldSecond": "二层盾",
     "shieldSecondBody": "如果共有盾还存在，可以再消耗1 AP，使当前盾值增加2。",
-    "shieldNote1": "我方受到伤害时，先由共有盾吸收。",
+    "shieldNote1": "我方受到伤害时，先由共有盾承受；本次伤害不会穿透到HP。",
     "shieldNote2": "如果共有盾已经被打空，再次使用会重新展开一层盾。",
     "shieldNote3": "绝对伤害不会被共有盾吸收。",
     "shieldNote4": "每回合最多使用两次防御阵型。",
@@ -150,7 +150,7 @@
     "shieldStatPdef": "物防",
     "shieldStatMdef": "魔防",
     "shieldStats": "盾 {shield} / 物防 {pdef} / 魔防 {mdef}",
-    "shieldDefenseOrder": "共有盾先承受伤害；若被打穿，剩余伤害再进入目标防御。",
+    "shieldDefenseOrder": "共有盾先承受伤害；即使被打穿，本次伤害也不会穿透到HP。",
     "roleActionSelectEnemy": "请选择一名敌方角色。",
     "roleActionSelectTarget": "请选择一个目标。",
     "deputyTitle": "副官",
@@ -164,6 +164,8 @@
     "deputyConfirmEffect": "副官效果：{deputy}",
     "deputyConfirmNotice": "该士兵会离开手牌区，作为英雄的副官持续支援。",
     "deputyStat.Attack": "攻击",
+    "deputyStat.PhysicalAttack": "物攻",
+    "deputyStat.MagicalAttack": "魔攻",
     "deputyStat.MaxHp": "最大HP",
     "deputyStat.PhysicalDefense": "物防",
     "deputyStat.MagicalDefense": "魔防",
@@ -214,23 +216,23 @@
   "deputies": {
     "deputy-cleric": {
       "name": "战地医护",
-      "stat": "最大HP +2",
+      "stat": "魔防 +2",
       "passive": "每己方回合1次，宿主职业行动成功治疗或净化后，目标获得护咒。"
     },
     "deputy-shieldmaiden": {
       "name": "盾阵辅佐",
-      "stat": "物防 +1",
+      "stat": "物防 +2",
       "passive": "每己方回合1次，宿主强化共有盾后，HP比例最低的我方角色获得坚守。"
     },
     "deputy-duelist": {
       "name": "决斗副手",
-      "stat": "攻击 +1",
-      "passive": "每己方回合1次，宿主攻击带有通用debuff的目标前，获得强攻。"
+      "stat": "物攻 +2",
+      "passive": "每己方回合1次，宿主攻击没有共有盾保护的敌人前，触发决斗嗅觉：获得强攻，并在本次攻击后追加2点绝对伤害。"
     },
     "deputy-arcanist": {
       "name": "秘术参谋",
-      "stat": "魔防 +1",
-      "passive": "每己方回合1次，宿主造成魔法伤害或施加指定debuff后，获得咏唱。"
+      "stat": "魔攻 +2",
+      "passive": "每己方回合1次，宿主造成魔法伤害或施加指定debuff后，获得咏唱，并可以再次主动攻击。"
     }
   },
   "rewards": {
@@ -256,7 +258,7 @@
     },
     "soldier-recruit": {
       "name": "士兵招募",
-      "description": "从4名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。"
+      "description": "从4名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。Rank1获得队伍光环，Rank2回满HP并最大HP+5。"
     }
   },
   "roleActions": {
@@ -427,6 +429,11 @@
       "timing": "受到伤害时",
       "description": "30%概率使伤害减半。"
     },
+    "deploying": {
+      "name": "部署中",
+      "timing": "到拥有者下下个己方回合开始",
+      "description": "不能主动攻击或使用职业行动；不能被攻击、职业行动、Trait、治疗或Buff指定。"
+    },
     "magic-power": {
       "name": "星读魔力",
       "timing": "造成魔法伤害时",
@@ -435,17 +442,37 @@
     "team-shield": {
       "name": "共有盾",
       "timing": "下次受到正数伤害时",
-      "description": "全队共有盾值{magnitude}，用剩余盾值吸收伤害。"
+      "description": "全队共有盾值{magnitude}。共有盾存在时，本次伤害不会穿透到HP。"
     },
     "guard": {
       "name": "守护",
       "timing": "主动物理进攻时",
       "description": "全队共享一次。骑士承担队友受到的部分主动物理伤害。"
     },
+    "field-medic-aura": {
+      "name": "战地护佑",
+      "timing": "1阶修女在战场，或作为副官且宿主存活时",
+      "description": "我方全体魔防+{magnitude}。同名光环不叠加。"
+    },
+    "shield-drill-aura": {
+      "name": "盾阵光环",
+      "timing": "1阶盾姬在战场，或作为副官且宿主存活时",
+      "description": "我方全体物防+{magnitude}。同名光环不叠加。"
+    },
+    "duel-sense-aura": {
+      "name": "决斗号令",
+      "timing": "1阶决斗者在战场，或作为副官且宿主存活时",
+      "description": "我方物理攻击单位攻击+{magnitude}。同名光环不叠加。"
+    },
+    "arcane-resonance-aura": {
+      "name": "秘术光环",
+      "timing": "1阶秘术师在战场，或作为副官且宿主存活时",
+      "description": "我方魔法攻击单位攻击+{magnitude}。同名光环不叠加。"
+    },
     "beast-rage": {
       "name": "野兽之怒",
       "timing": "公主被击败后",
-      "description": "基础攻击+2，同时影响主动进攻和反击。不可驱散。"
+      "description": "基础攻击+3，同时影响主动进攻和反击；物防和魔防-2。不可驱散。"
     },
     "aftershock-axe": {
       "name": "战斧余波"
@@ -536,6 +563,7 @@
     "error.cannotAttackAlly": "不能进攻友方。",
     "error.defeatedSelection": "不能选择已无法战斗的角色。",
     "error.defeatedCharacter": "已无法战斗的角色不能行动。",
+    "error.deploying": "该角色正在部署中，暂时不能互动。",
     "error.alreadyActed": "该角色本回合已经行动。",
     "error.notEnoughAp": "AP不足。",
     "error.notEnoughBp": "BP不足。",
@@ -544,6 +572,7 @@
     "error.rewardWindowClosed": "当前没有可选择的奖励。",
     "error.rewardWindowOpen": "请先处理奖励选择。",
     "reason.defeated": "已无法战斗",
+    "reason.deploying": "部署中",
     "reason.matchFinished": "对战已结束",
     "reason.opponentTurn": "对手回合",
     "reason.alreadyActed": "本回合已经行动",
@@ -772,15 +801,21 @@
       "card": "治疗/净化后赋予护咒。",
       "ranks": {
         "1": {
-          "description": "我方主动治疗或净化成功时，目标获得护咒（魔法伤害减半）。若目标当前HP低于一半，额外回复3 HP。",
-          "card": "治疗/净化后赋予护咒；低血额外治疗。"
+          "description": "我方主动治疗或净化成功时，目标获得护咒（魔法伤害减半）。若目标当前HP低于一半，额外回复3 HP。自身存活时，我方全体魔防+1。",
+          "card": "治疗/净化后赋予护咒；低血额外治疗；全队魔防+1光环。"
         }
       }
     },
     "shield-drill": {
       "name": "盾阵训练",
       "description": "每个己方回合1次，我方共享盾增加或我方角色获得坚守（物理伤害减半）时，当前HP比例最低的存活友军获得坚守。同率时优先HP最低的英雄。",
-      "card": "加盾或获得坚守时，低血友军获得坚守。"
+      "card": "加盾或获得坚守时，低血友军获得坚守。",
+      "ranks": {
+        "1": {
+          "description": "每个己方回合1次，我方共享盾增加或我方角色获得坚守（物理伤害减半）时，当前HP比例最低的存活友军获得坚守。同率时优先HP最低的英雄。自身存活时，我方全体物防+1。",
+          "card": "加盾或获得坚守时，低血友军获得坚守；全队物防+1光环。"
+        }
+      }
     },
     "duel-sense": {
       "name": "决斗嗅觉",
@@ -788,15 +823,21 @@
       "card": "攻击无盾目标前获得强攻。",
       "ranks": {
         "1": {
-          "description": "每个己方回合1次，主动攻击没有共有盾的敌人前，自身获得1层强攻（物理伤害增加），并额外造成2点绝对伤害。",
-          "card": "攻击无盾目标前获得强攻，并追加绝对伤害。"
+          "description": "每个己方回合1次，主动攻击没有共有盾的敌人前，自身获得1层强攻（物理伤害增加），并额外造成2点绝对伤害。自身存活时，我方物理攻击单位攻击+2。",
+          "card": "攻击无盾目标前获得强攻，追加绝对伤害；物理单位攻击+2光环。"
         }
       }
     },
     "arcane-resonance": {
       "name": "秘术共鸣",
       "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，自身获得咏唱（魔法伤害翻倍）。",
-      "card": "魔法链触发时获得咏唱（魔法伤害翻倍）。"
+      "card": "魔法链触发时获得咏唱（魔法伤害翻倍）。",
+      "ranks": {
+        "1": {
+          "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，自身获得咏唱（魔法伤害翻倍）；若由Role Action触发，咏唱层数额外+1。自身存活时，我方魔法攻击单位攻击+2。",
+          "card": "魔法链触发时获得咏唱；Role Action触发更强；魔法单位攻击+2光环。"
+        }
+      }
     }
   }
 }

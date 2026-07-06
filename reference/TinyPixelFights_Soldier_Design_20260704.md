@@ -1,6 +1,6 @@
 # Tiny Pixel Fights - Soldier Design Baseline
 
-更新时间：2026-07-04
+更新时间：2026-07-06
 
 本文定义第一批 4 个士兵的基础属性、初始 Trait、成长终点 Role Action 与英雄联动。  
 设计基准参考：
@@ -14,6 +14,9 @@
 - 士兵初始没有 Role Action，只有 Attack + 初始 Trait。
 - 士兵最终升级时只解锁 1 个固定 Role Action，不做二选一。
 - 士兵初始 Trait 不新增专属 Buff / Debuff，只使用通用状态或既有系统事件。
+- 士兵 Rank1 会在初始 Trait 上附加一个持续光环；光环只要来源士兵存活并在战场就生效，不作为普通 Buff / Debuff，不可驱散。
+- Rank2 士兵成为副官后，Rank1 光环继续生效；此时光环来源视为“副官绑定的宿主英雄存活并在战场”。
+- 同名 Rank1 士兵光环不叠加；不同士兵光环可以同时存在。
 - 通用状态默认可驱散 / 可净化，文本不额外写“可驱散”。
 - 士兵不应压过英雄；初期价值来自协同，终局价值来自成为体系零件。
 
@@ -45,8 +48,8 @@
 | 阶段 | 士兵规则 |
 |---|---|
 | Rank0 | 初始属性 + 初始 Trait，无 Role Action。 |
-| Rank1 | HP +2；强化 Trait 的触发稳定性或持续时间，不增加新状态。 |
-| Rank2 | 进阶为唯一高级兵种，解锁固定 Role Action。 |
+| Rank1 | 小幅属性成长；强化初始 Trait；Trait 额外附加一个持续队伍光环。 |
+| Rank2 | 在 Rank1 基础上最大 HP +5，升阶瞬间 HP 全回复；进阶为唯一高级兵种，解锁固定 Role Action。 |
 
 ## 5. Cleric / Saint Cleric
 
@@ -70,9 +73,14 @@
 ### Rank1
 
 - HP +2。
-- `field-medic` 触发后，若目标当前 HP 低于一半，护咒持续改为 2 turn。
+- `field-medic` 触发后，若目标当前 HP 低于一半，额外回复 3 HP。
+- 持续光环：只要 Cleric 存活并在战场，所有我方角色魔防 +1。
 
-### Rank2 Role Action
+### Rank2
+
+- 在 Rank1 基础上最大 HP +5。
+- 升至 Rank2 时，当前 HP 回复到新的最大 HP。
+- 解锁固定 Role Action：
 
 | Field | Value |
 |---|---|
@@ -117,10 +125,14 @@
 ### Rank1
 
 - HP +2。
-- 物防 +1。
+- 持续光环：只要 Shieldmaiden 存活并在战场，所有我方角色物防 +1。
 - `shield-drill` 触发目标若已经拥有坚守，则改为延长 1 turn。
 
-### Rank2 Role Action
+### Rank2
+
+- 在 Rank1 基础上最大 HP +5。
+- 升至 Rank2 时，当前 HP 回复到新的最大 HP。
+- 解锁固定 Role Action：
 
 | Field | Value |
 |---|---|
@@ -157,7 +169,7 @@
 |---|---|
 | ID | `duel-sense` |
 | 名称 | 决斗嗅觉 |
-| Trigger | 每个己方 turn 第一次 Duelist 主动攻击带有通用 Debuff 的敌人时 |
+| Trigger | 每个己方 turn 第一次 Duelist 主动攻击没有共有盾保护的敌人时 |
 | Scope | Self |
 | Effect | Duelist 在伤害计算前获得 1 turn 强攻 |
 | Limit | 每个己方 turn 1 次 |
@@ -165,9 +177,14 @@
 ### Rank1
 
 - HP +1。
-- `duel-sense` 对带有 2 个及以上 Debuff 的目标触发时，强攻持续改为 2 turn。
+- `duel-sense` 触发的本次攻击额外造成 2 点绝对伤害。
+- 持续光环：只要 Duelist 存活并在战场，我方物理攻击单位攻击 +2。
 
-### Rank2 Role Action
+### Rank2
+
+- 在 Rank1 基础上最大 HP +5。
+- 升至 Rank2 时，当前 HP 回复到新的最大 HP。
+- 解锁固定 Role Action：
 
 | Field | Value |
 |---|---|
@@ -185,10 +202,10 @@
 
 | 对象 | 联动点 |
 |---|---|
-| Druid `weakening-spores-action` / `weakening-spores` | 力竭 / 磨损给 Duelist 创造 Debuff 目标。 |
-| Mage `searing-brand` / `searing-mark` | 燃烧 / 空虚让 Duelist 获得强攻窗口。 |
-| Barbarian `challenge` | 战栗让 Duelist 获得稳定强攻窗口。 |
-| Monster `predatory-gaze` | 猎物是特殊印记，第一版不触发 `duel-sense`；Monster 仍可通过压血创造 Duelist 收割窗口。 |
+| Knight / Shield 系 | 敌方共有盾被打空后，Duelist 获得强攻与绝对伤害窗口。 |
+| Druid `weakening-spores-action` / `weakening-spores` | 力竭 / 磨损降低敌方输出，让 Duelist 更安全地进入无盾目标。 |
+| Mage `searing-brand` / `searing-mark` | 燃烧 / 空虚压低敌方血线，配合 Duelist 的无盾收割。 |
+| Barbarian `challenge` | 战栗让 Duelist 可以攻击无盾目标而不吃反击。 |
 
 ## 8. Arcanist / Astral Arcanist
 
@@ -212,10 +229,14 @@
 ### Rank1
 
 - HP +2。
-- 魔防 +1。
 - `arcane-resonance` 若由 Role Action 触发，咏唱层数 +1。
+- 持续光环：只要 Arcanist 存活并在战场，我方魔法攻击单位攻击 +2。
 
-### Rank2 Role Action
+### Rank2
+
+- 在 Rank1 基础上最大 HP +5。
+- 升至 Rank2 时，当前 HP 回复到新的最大 HP。
+- 解锁固定 Role Action：
 
 | Field | Value |
 |---|---|

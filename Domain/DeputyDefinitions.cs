@@ -3,6 +3,8 @@ namespace TinyPixelFights.Domain;
 public enum DeputyStatKind
 {
     Attack,
+    PhysicalAttack,
+    MagicalAttack,
     MaxHp,
     PhysicalDefense,
     MagicalDefense
@@ -18,10 +20,10 @@ public static class DeputyCatalog
 {
     private static readonly IReadOnlyList<DeputyDefinition> Definitions =
     [
-        new("deputy-cleric", "cleric", DeputyStatKind.MaxHp, 4),
+        new("deputy-cleric", "cleric", DeputyStatKind.MagicalDefense, 2),
         new("deputy-shieldmaiden", "shieldmaiden", DeputyStatKind.PhysicalDefense, 2),
-        new("deputy-duelist", "duelist", DeputyStatKind.Attack, 2),
-        new("deputy-arcanist", "arcanist", DeputyStatKind.MagicalDefense, 2)
+        new("deputy-duelist", "duelist", DeputyStatKind.PhysicalAttack, 2),
+        new("deputy-arcanist", "arcanist", DeputyStatKind.MagicalAttack, 2)
     ];
 
     public static IReadOnlyList<DeputyDefinition> All => Definitions;

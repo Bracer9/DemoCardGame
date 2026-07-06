@@ -17,6 +17,8 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
     {
         if (!owner.IsAlive || state.Phase != GamePhase.Playing)
             return false;
+        if (GameEngine.IsDeploying(owner))
+            return false;
         if (owner.PlayerId != state.ActivePlayerId)
             return false;
         if (!Metadata.IsRepeatable && owner.RoleActionsUsedThisTurn.Contains(Metadata.Id))
@@ -40,6 +42,7 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
     public LocalizedText? UnavailableReason(GameState state, CharacterState owner)
     {
         if (!owner.IsAlive) return L10n.Text("reason.defeated");
+        if (GameEngine.IsDeploying(owner)) return L10n.Text("reason.deploying");
         if (state.Phase == GamePhase.Finished) return L10n.Text("reason.matchFinished");
         if (owner.PlayerId != state.ActivePlayerId) return L10n.Text("reason.opponentTurn");
         if (!Metadata.IsRepeatable && owner.RoleActionsUsedThisTurn.Contains(Metadata.Id))

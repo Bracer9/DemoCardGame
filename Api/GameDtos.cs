@@ -4,6 +4,7 @@ namespace TinyPixelFights.Api;
 
 public sealed record GameView(
     Guid GameId, int TurnNumber, int RoundNumber, int ActionPoints, int MaxActionPoints,
+    bool NextRoundIsRewardRound,
     bool CanDeployShield, int NextShieldCost, int ShieldDeploymentsThisTurn, Guid ActivePlayerId,
     string ActivePlayerName, string Phase, Guid? WinnerPlayerId, bool IsDraw,
     Guid ViewerPlayerId, bool CanControl, bool IsHost, IReadOnlyList<PlayerView> Players,
@@ -52,7 +53,14 @@ public sealed record RoleActionView(
     bool Enabled,
     LocalizedText? DisabledReason);
 public sealed record StatusView(string Id, bool IsBuff, int Magnitude, bool IsAura = false, bool IsDispellable = true);
-public sealed record DeputyView(Guid SoldierId, string SoldierKey, string EffectId, string StatKind, int StatValue);
+public sealed record DeputyView(
+    Guid SoldierId,
+    string SoldierKey,
+    string AssetUrl,
+    string ColoredAssetUrl,
+    string EffectId,
+    string StatKind,
+    int StatValue);
 public sealed record DeputyPreviewView(string EffectId, string StatKind, int StatValue);
 public sealed record AttackRequest(Guid AttackerId, Guid DefenderId);
 public sealed record SelectRewardRequest(string InstanceId);
@@ -95,6 +103,7 @@ public sealed record RewardWindowView(
     int ResetCount,
     int NextResetCost,
     int PurchaseCount,
+    int SkipBattlePoints,
     bool CanChoose,
     IReadOnlyList<RewardOptionView> Options);
 
@@ -122,6 +131,7 @@ public sealed class GameViewFactory
 
     public GameView Create(GameState state, Guid viewerPlayerId, bool isHost)
     {
+        var roundNumber = (state.TurnNumber + 1) / 2;
         var players = state.Players.Select(player => new PlayerView(
             player.Id, player.Name, player.Id == state.ActivePlayerId, player.SharedShield,
             player.SharedShieldPhysicalDefense, player.SharedShieldMagicalDefense,
@@ -136,8 +146,9 @@ public sealed class GameViewFactory
                 .Select(character => CreateCharacter(state, player, character, viewerPlayerId)).ToArray())).ToArray();
 
         return new GameView(
-            state.Id, state.TurnNumber, (state.TurnNumber + 1) / 2, state.ActionPoints,
+            state.Id, state.TurnNumber, roundNumber, state.ActionPoints,
             GameEngine.MaxActionPoints,
+            GameEngine.IsRewardRound(roundNumber + 1),
             state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
                 && state.PendingHeroDraft is null
                 && state.ActionPoints >= GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield)
@@ -207,6 +218,7 @@ public sealed class GameViewFactory
             state.RewardWindow.ResetCount,
             GameEngine.GetRewardResetCost(state.RewardWindow.ResetCount),
             state.RewardWindow.PurchaseCount,
+            GameEngine.RewardSkipBattlePoints,
             state.RewardWindow.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId,
             state.RewardWindow.Options.Select(option =>
             {
@@ -225,7 +237,7 @@ public sealed class GameViewFactory
         Guid viewerPlayerId)
     {
         var trait = _engine.GetTrait(character);
-        var currentAttack = _engine.GetActiveAttack(character);
+        var currentAttack = _engine.GetActiveAttack(state, character);
         if (character.Definition.AttackType == DamageType.Magical
             && character.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
             currentAttack++;
@@ -238,14 +250,17 @@ public sealed class GameViewFactory
                 IsAura: status.Id == "magic-power",
                 IsDispellable: status.IsDispellable)).ToList();
 
-        if (player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && ally.Definition.Key == "princess"))
+        if (!GameEngine.IsDeploying(character)
+            && player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && !GameEngine.IsDeploying(ally) && ally.Definition.Key == "princess"))
             statuses.Add(new StatusView("blessing", true, 1, true, false));
-        if (player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && ally.Definition.Key == "oracle"))
+        if (!GameEngine.IsDeploying(character)
+            && player.Characters.Any(ally => ally.IsAlive && ally.IsInBattle && !GameEngine.IsDeploying(ally) && ally.Definition.Key == "oracle"))
             statuses.Add(new StatusView("foresight", true, 1, true, false));
         var knight = player.Characters.FirstOrDefault(ally => ally.IsAlive
-            && ally.IsInBattle && ally.Definition.Key == "knight" && !ally.GuardConsumed);
-        if (knight is not null && character.IsAlive)
+            && ally.IsInBattle && !GameEngine.IsDeploying(ally) && ally.Definition.Key == "knight" && !ally.GuardConsumed);
+        if (knight is not null && character.IsAlive && !GameEngine.IsDeploying(character))
             statuses.Add(new StatusView("guard", true, 1, true, false));
+        AddSoldierRankAuraStatuses(player, character, statuses);
 
         var canAct = state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
             && state.PendingHeroDraft is null
@@ -299,6 +314,8 @@ public sealed class GameViewFactory
             : new DeputyView(
                 deputySoldier.Id,
                 deputySoldier.Definition.Key,
+                $"/assets/{deputySoldier.Definition.AssetFile}",
+                $"/assets/{GetColoredAssetFile(deputySoldier)}",
                 deputyDefinition.Id,
                 deputyDefinition.StatKind.ToString(),
                 deputyDefinition.StatValue);
@@ -318,11 +335,11 @@ public sealed class GameViewFactory
         return new CharacterView(
             character.Id, character.Definition.Key, $"/assets/{character.Definition.AssetFile}",
             $"/assets/{GetColoredAssetFile(character)}",
-            character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(character),
+            character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(state, character),
             character.Definition.CardType.ToString(), character.SoldierRank,
             character.Definition.AttackType.ToString(),
-            _engine.GetPhysicalDefense(character), character.Definition.PhysicalDefense,
-            _engine.GetMagicalDefense(character), character.Definition.MagicalDefense,
+            _engine.GetPhysicalDefense(state, character), character.Definition.PhysicalDefense,
+            _engine.GetMagicalDefense(state, character), character.Definition.MagicalDefense,
             character.CurrentHp, _engine.GetMaxHp(character),
             character.IsAlive, character.IsInBattle, character.Zone.ToString(), character.HasActed, canAct,
             [
@@ -343,8 +360,26 @@ public sealed class GameViewFactory
             assignDeputyDisabledReason);
     }
 
+    private static void AddSoldierRankAuraStatuses(PlayerState player, CharacterState character, List<StatusView> statuses)
+    {
+        if (!character.IsAlive || !character.IsInBattle || GameEngine.IsDeploying(character))
+            return;
+
+        if (GameEngine.HasActiveRank1SoldierAura(player, "shieldmaiden"))
+            statuses.Add(new StatusView("shield-drill-aura", true, 1, true, false));
+        if (GameEngine.HasActiveRank1SoldierAura(player, "cleric"))
+            statuses.Add(new StatusView("field-medic-aura", true, 1, true, false));
+        if (character.Definition.AttackType == DamageType.Physical && GameEngine.HasActiveRank1SoldierAura(player, "duelist"))
+            statuses.Add(new StatusView("duel-sense-aura", true, 2, true, false));
+        if (character.Definition.AttackType == DamageType.Magical && GameEngine.HasActiveRank1SoldierAura(player, "arcanist"))
+            statuses.Add(new StatusView("arcane-resonance-aura", true, 2, true, false));
+    }
+
     private static string GetColoredAssetFile(CharacterState character) =>
-        character.Definition.CardType == CardType.Soldier
+        character.Definition.Key == "monster"
+        && character.Statuses.Any(status => status.Id == "beast-rage" && !status.Expired)
+            ? "New_Portraits/monster_rage.png"
+            : character.Definition.CardType == CardType.Soldier
         && character.SoldierRank >= 2
         && character.Definition.Rank2ColoredAssetFile is not null
             ? character.Definition.Rank2ColoredAssetFile

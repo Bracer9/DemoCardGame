@@ -31,10 +31,15 @@ public abstract class StatusEffect
 public sealed class BeastRageStatus(Guid sourceCharacterId)
     : StatusEffect("beast-rage", true, sourceCharacterId)
 {
-    public override int Magnitude => 2;
+    private const int AttackBonus = 3;
+    private const int DefensePenalty = 2;
+
+    public override int Magnitude => AttackBonus;
     public override bool IsAttackBuff => true;
     public override bool IsDispellable => false;
-    public override int ModifyBaseAttack(int attack) => attack + Magnitude;
+    public override int ModifyBaseAttack(int attack) => attack + AttackBonus;
+    public override int ModifyPhysicalDefense(int defense) => defense - DefensePenalty;
+    public override int ModifyMagicalDefense(int defense) => defense - DefensePenalty;
 }
 
 public sealed class MagicPowerStatus(Guid sourceCharacterId)
@@ -42,6 +47,24 @@ public sealed class MagicPowerStatus(Guid sourceCharacterId)
 {
     public override int Magnitude => 1;
     public override bool IsDispellable => false;
+}
+
+public sealed class DeployingStatus(Guid sourceCharacterId, Guid ownerPlayerId, int remainingOwnerTurnStarts = 2)
+    : StatusEffect("deploying", true, sourceCharacterId)
+{
+    public Guid OwnerPlayerId { get; } = ownerPlayerId;
+    public int RemainingOwnerTurnStarts { get; private set; } = Math.Max(1, remainingOwnerTurnStarts);
+    public override bool IsDispellable => false;
+    public override bool BlocksActiveAttack => true;
+
+    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId != OwnerPlayerId || Expired)
+            return;
+
+        RemainingOwnerTurnStarts--;
+        Expired = RemainingOwnerTurnStarts <= 0;
+    }
 }
 
 public sealed class BurningStatus(Guid sourceCharacterId, Guid triggerPlayerId, int stacks = 1)

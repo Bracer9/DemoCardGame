@@ -78,7 +78,7 @@ test('structured domain messages render independently in Japanese and Chinese', 
   };
   assert.match(i18n.message(exchange), /農民.*姫.*物理/u);
   assert.equal(i18n.trait('predatory-instinct').name, '美女と野獣');
-  assert.match(i18n.trait('predatory-instinct').card, /姫死亡後攻撃\+2/u);
+  assert.match(i18n.trait('predatory-instinct').card, /姫への攻撃は自傷/u);
   assert.equal(i18n.status({ id: 'beast-rage', magnitude: 2 }).name, '野獣の怒り');
   i18n.setLanguage('zh');
   const chinese = i18n.message(exchange);
@@ -87,8 +87,8 @@ test('structured domain messages render independently in Japanese and Chinese', 
   assert.equal(i18n.trait('interposing-shield').name, '替身之盾');
   const beauty = i18n.trait('predatory-instinct');
   assert.equal(beauty.name, '美女与野兽');
-  assert.match(beauty.card, /公主阵亡后攻击\+2/u);
-  assert.match(beauty.description, /基础攻击\+2/u);
+  assert.match(beauty.card, /攻击公主会自伤/u);
+  assert.match(beauty.description, /野兽之怒/u);
   const rage = i18n.status({ id: 'beast-rage', magnitude: 2 });
   assert.equal(rage.name, '野兽之怒');
   assert.match(rage.description, /主动进攻和反击/u);

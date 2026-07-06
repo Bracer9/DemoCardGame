@@ -80,7 +80,7 @@
     "shieldFirstBody": "2 APを消費し、共有シールド2を展開します。",
     "shieldSecond": "二層シールド",
     "shieldSecondBody": "共有シールドが残っていれば、追加1 APで現在の盾値を2増やします。",
-    "shieldNote1": "味方がダメージを受ける時、共有シールドが先に吸収します。",
+    "shieldNote1": "味方がダメージを受ける時、共有シールドが先に受けます。このダメージはHPへ貫通しません。",
     "shieldNote2": "共有シールドが0になっている場合、次の防御は一層目から展開します。",
     "shieldNote3": "絶対ダメージは共有シールドで吸収できません。",
     "shieldNote4": "防御陣形は1ターンに最大2回まで使用できます。",
@@ -123,7 +123,7 @@
     "shieldStatPdef": "物防",
     "shieldStatMdef": "魔防",
     "shieldStats": "盾 {shield} / 物防 {pdef} / 魔防 {mdef}",
-    "shieldDefenseOrder": "共有シールドが先にダメージを受け、貫通分だけ対象の防御へ進みます。",
+    "shieldDefenseOrder": "共有シールドが先にダメージを受けます。破壊されても、このダメージはHPへ貫通しません。",
     "roleActionSelectEnemy": "敵キャラクターを1体選択してください。",
     "roleActionSelectTarget": "対象を1つ選択してください。",
     "heroDraftTitleOpening": "初期英雄を選択",
@@ -141,9 +141,9 @@
     "heroDraftHp": "HP",
     "heroDraftCost": "COST",
     "soldierDraftTitleOpening": "随伴兵を選択",
-    "soldierDraftSubtitleOpening": "初期隊伍に加える兵士を最大2人選びます。",
+    "soldierDraftSubtitleOpening": "初期隊伍に加える兵士を1人選びます。",
     "soldierDraftTitleRecruit": "兵士招募",
-    "soldierDraftSubtitleRecruit": "兵士を1人選んで加えます。所持済みなら強化を押し、同名兵士を選んで昇格できます。",
+    "soldierDraftSubtitleRecruit": "兵士を1人選んで加えます。所持済みなら強化を押し、同名兵士を選んで昇格できます。Rank1でオーラ、Rank2でHP全回復と最大HP+5。",
     "soldierDraftOwnedHint": "所持済み：強化で同名兵士を昇格",
     "soldierDraftUpgrade": "強化",
     "soldierDraftUpgradeTargetHint": "手札の同名兵士を選んで昇格してください。",
@@ -164,6 +164,8 @@
     "deputyConfirmEffect": "副官効果：{deputy}",
     "deputyConfirmNotice": "この兵士は手札を離れ、英雄の副官として支援します。",
     "deputyStat.Attack": "攻撃",
+    "deputyStat.PhysicalAttack": "物攻",
+    "deputyStat.MagicalAttack": "魔攻",
     "deputyStat.MaxHp": "最大HP",
     "deputyStat.PhysicalDefense": "物防",
     "deputyStat.MagicalDefense": "魔防",
@@ -214,23 +216,23 @@
   "deputies": {
     "deputy-cleric": {
       "name": "戦場医護",
-      "stat": "最大HP +2",
+      "stat": "魔防 +2",
       "passive": "自分のターンに1回、宿主のロールアクションが治療または浄化に成功した後、対象に護咒を付与。"
     },
     "deputy-shieldmaiden": {
       "name": "盾陣補佐",
-      "stat": "物防 +1",
+      "stat": "物防 +2",
       "passive": "自分のターンに1回、宿主が共有シールドを強化した後、HP割合が最も低い味方に堅守を付与。"
     },
     "deputy-duelist": {
       "name": "決闘副手",
-      "stat": "攻撃 +1",
-      "passive": "自分のターンに1回、宿主が汎用デバフを持つ対象へ攻撃する前、強攻を得る。"
+      "stat": "物攻 +2",
+      "passive": "自分のターンに1回、宿主が共有シールドに守られていない敵を攻撃する前、決闘嗅覚を発動：強攻を得て、この攻撃後に2点の絶対ダメージを追加する。"
     },
     "deputy-arcanist": {
       "name": "秘術参謀",
-      "stat": "魔防 +1",
-      "passive": "自分のターンに1回、宿主が魔法ダメージを与えるか指定デバフを付与した後、咏唱を得る。"
+      "stat": "魔攻 +2",
+      "passive": "自分のターンに1回、宿主が魔法ダメージを与えるか指定デバフを付与した後、咏唱を得て、もう一度主動攻撃できる。"
     }
   },
   "rewards": {
@@ -256,7 +258,7 @@
     },
     "soldier-recruit": {
       "name": "兵士招募",
-      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。"
+      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。Rank1で隊伍オーラ、Rank2でHP全回復と最大HP+5。"
     }
   },
   "roleActions": {
@@ -427,6 +429,11 @@
       "timing": "被ダメージ時",
       "description": "30%でダメージ半減。"
     },
+    "deploying": {
+      "name": "配置中",
+      "timing": "所有者の次々回の自分ターン開始まで",
+      "description": "主動攻撃とロールアクション不可。攻撃、ロールアクション、特性、回復、Buffの対象に選べない。"
+    },
     "magic-power": {
       "name": "星読みの魔力",
       "timing": "魔法ダメージを与える時",
@@ -435,17 +442,37 @@
     "team-shield": {
       "name": "共有シールド",
       "timing": "次の正数ダメージ時",
-      "description": "全隊共有の盾値{magnitude}。残量分だけダメージを吸収。"
+      "description": "全隊共有の盾値{magnitude}。共有シールドがある間、このダメージはHPへ貫通しません。"
     },
     "guard": {
       "name": "守護",
       "timing": "主動物理攻撃時",
       "description": "全隊共有1回。騎士が味方への主動物理ダメージの一部を肩代わり。"
     },
+    "field-medic-aura": {
+      "name": "戦場加護",
+      "timing": "Rank1クレリック生存中",
+      "description": "味方全体の魔防+{magnitude}。同名オーラは重複しない。"
+    },
+    "shield-drill-aura": {
+      "name": "盾陣オーラ",
+      "timing": "Rank1シールドメイデン生存中",
+      "description": "味方全体の物防+{magnitude}。同名オーラは重複しない。"
+    },
+    "duel-sense-aura": {
+      "name": "決闘号令",
+      "timing": "Rank1デュエリスト生存中",
+      "description": "味方の物理攻撃ユニットの攻撃+{magnitude}。同名オーラは重複しない。"
+    },
+    "arcane-resonance-aura": {
+      "name": "秘術オーラ",
+      "timing": "Rank1アルカニスト生存中",
+      "description": "味方の魔法攻撃ユニットの攻撃+{magnitude}。同名オーラは重複しない。"
+    },
     "beast-rage": {
       "name": "野獣の怒り",
       "timing": "姫が倒れた後",
-      "description": "基礎攻撃+2。主動攻撃と反撃の両方に適用。解除不可。"
+      "description": "基礎攻撃+3。主動攻撃と反撃の両方に適用。物防と魔防-2。解除不可。"
     },
     "aftershock-axe": {
       "name": "戦斧の余波"
@@ -536,6 +563,7 @@
     "error.cannotAttackAlly": "味方は攻撃できません。",
     "error.defeatedSelection": "戦闘不能のキャラクターは選択できません。",
     "error.defeatedCharacter": "戦闘不能のキャラクターは行動できません。",
+    "error.deploying": "このキャラクターは配置中のため、まだ干渉できません。",
     "error.alreadyActed": "このキャラクターは行動済みです。",
     "error.notEnoughAp": "APが足りません。",
     "error.notEnoughBp": "BPが足りません。",
@@ -544,6 +572,7 @@
     "error.rewardWindowClosed": "現在選択できる報酬はありません。",
     "error.rewardWindowOpen": "先に報酬を選択してください。",
     "reason.defeated": "戦闘不能",
+    "reason.deploying": "配置中",
     "reason.matchFinished": "対戦終了",
     "reason.opponentTurn": "相手のターン",
     "reason.alreadyActed": "行動済み",
@@ -772,15 +801,21 @@
       "card": "回復/浄化後に護呪。",
       "ranks": {
         "1": {
-          "description": "味方への主動回復または浄化成功時、対象に護呪（魔法ダメージ半減）を付与。対象の現在HPが半分未満なら追加で3 HP回復。",
-          "card": "回復/浄化後に護呪。低HPなら追加回復。"
+          "description": "味方への主動回復または浄化成功時、対象に護呪（魔法ダメージ半減）を付与。対象の現在HPが半分未満なら追加で3 HP回復。自身が生存中、味方全体の魔防+1。",
+          "card": "回復/浄化後に護呪。低HPなら追加回復。全体魔防+1オーラ。"
         }
       }
     },
     "shield-drill": {
       "name": "盾陣訓練",
       "description": "自分のターンに1回、共有盾が増えるか味方が堅守（物理ダメージ半減）を得た時、現在HP割合が最も低い味方に堅守を付与。同率ならHPが最も低い英雄を優先。",
-      "card": "加盾や堅守獲得で低HP味方に堅守。"
+      "card": "加盾や堅守獲得で低HP味方に堅守。",
+      "ranks": {
+        "1": {
+          "description": "自分のターンに1回、共有盾が増えるか味方が堅守（物理ダメージ半減）を得た時、現在HP割合が最も低い味方に堅守を付与。同率ならHPが最も低い英雄を優先。自身が生存中、味方全体の物防+1。",
+          "card": "加盾や堅守獲得で低HP味方に堅守。全体物防+1オーラ。"
+        }
+      }
     },
     "duel-sense": {
       "name": "決闘嗅覚",
@@ -788,15 +823,21 @@
       "card": "盾なし敵への攻撃前に強攻。",
       "ranks": {
         "1": {
-          "description": "自分のターンに1回、共有盾のない敵へ主動攻撃する前、自身に強攻（物理ダメージ増加）1層を付与し、追加で2絶対ダメージ。",
-          "card": "盾なし敵への攻撃前に強攻し、絶対ダメージ追加。"
+          "description": "自分のターンに1回、共有盾のない敵へ主動攻撃する前、自身に強攻（物理ダメージ増加）1層を付与し、追加で2絶対ダメージ。自身が生存中、味方の物理攻撃ユニットの攻撃+2。",
+          "card": "盾なし敵への攻撃前に強攻し、絶対ダメージ追加。物理攻撃+2オーラ。"
         }
       }
     },
     "arcane-resonance": {
       "name": "秘術共鳴",
       "description": "自分のターンに1回、味方の魔法ダメージまたは魔法系状態連鎖に反応し、自身に詠唱（魔法ダメージ2倍）を付与。",
-      "card": "魔法連鎖で詠唱（魔法ダメージ2倍）を得る。"
+      "card": "魔法連鎖で詠唱（魔法ダメージ2倍）を得る。",
+      "ranks": {
+        "1": {
+          "description": "自分のターンに1回、味方の魔法ダメージまたは魔法系状態連鎖に反応し、自身に詠唱（魔法ダメージ2倍）を付与。ロールアクションで発動した場合、詠唱層数がさらに+1。自身が生存中、味方の魔法攻撃ユニットの攻撃+2。",
+          "card": "魔法連鎖で詠唱。ロールアクション発動時は強化。魔法攻撃+2オーラ。"
+        }
+      }
     }
   }
 }
