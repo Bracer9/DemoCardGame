@@ -7,6 +7,8 @@ public sealed class CharacterState
     public required int Slot { get; init; }
     public required CharacterDefinition Definition { get; init; }
     public required int CurrentHp { get; set; }
+    public int Morale { get; set; } = 5;
+    public int MaxMorale { get; set; } = 5;
     public CharacterZone Zone { get; set; } = CharacterZone.Battlefield;
     public int AttackUsesThisTurn { get; set; }
     public int BonusAttackUsesThisTurn { get; set; }
@@ -71,6 +73,8 @@ public sealed class PlayerState
     public Guid? SharedShieldDefenseExpireOnTurnStartPlayerId { get; set; }
     public int ShieldDeploymentsThisTurn { get; set; }
     public int PendingActionPointDebt { get; set; }
+    public bool HasClaimedFreeHeroRoleActionUpgrade { get; set; }
+    public bool FirstRoleActionBpGrantedThisTurn { get; set; }
     public HashSet<string> DeputyPassivesUsedThisTurn { get; } = [];
     public int ActiveCharacterCount => Characters.Count(character => character.IsInBattle);
     public bool IsDefeated => Characters.All(character => !character.IsAlive);

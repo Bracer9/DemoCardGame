@@ -13,7 +13,7 @@ class AudioDirector {
 
   defaultSettings() {
     return {
-      bgm: { enabled: true, volume: 1 },
+      bgm: { enabled: true, volume: 1, trackId: null },
       sfx: { enabled: true, volume: 1 },
       voice: { enabled: true, volume: 1 }
     };
@@ -37,6 +37,8 @@ class AudioDirector {
       if (!value?.[group]) continue;
       normalized[group].enabled = value[group].enabled !== false;
       normalized[group].volume = this.clampVolume(value[group].volume);
+      if (group === 'bgm' && typeof value[group].trackId === 'string')
+        normalized[group].trackId = value[group].trackId;
     }
     return normalized;
   }
@@ -61,6 +63,37 @@ class AudioDirector {
 
   getSettings() {
     return this.normalizeSettings(this.groupSettings);
+  }
+
+  getBgmTracks() {
+    if (!this.manifest) return [];
+    return Object.entries(this.manifest.tracks || {})
+      .filter(([, definition]) => definition.bus === 'bgm')
+      .map(([id, definition]) => ({ id, title: definition.title || id }));
+  }
+
+  defaultBgmTrackId() {
+    const configured = this.manifest?.defaultBgmTrackId;
+    if (configured && this.tracks.get(configured)?.definition.bus === 'bgm') return configured;
+    return this.getBgmTracks()[0]?.id || null;
+  }
+
+  getCurrentBgmTrackId(fallbackId = null) {
+    const saved = this.groupSettings.bgm?.trackId;
+    if (saved && this.tracks.get(saved)?.definition.bus === 'bgm') return saved;
+    if (fallbackId && this.tracks.get(fallbackId)?.definition.bus === 'bgm') return fallbackId;
+    return this.defaultBgmTrackId();
+  }
+
+  setBgmTrack(trackId) {
+    if (!trackId || this.tracks.get(trackId)?.definition.bus !== 'bgm') return false;
+    this.groupSettings.bgm.trackId = trackId;
+    this.saveSettings();
+    if (this.unlocked && !this.muted && this.isGroupEnabled('bgm'))
+      this.playBgmTrack(trackId);
+    else
+      this.applyVolumes();
+    return true;
   }
 
   isGroupEnabled(groupOrBus) {
@@ -166,10 +199,7 @@ class AudioDirector {
     const group = this.groupForBus(definition.bus);
 
     if (definition.bus === 'bgm') {
-      entry.requested = true;
-      if (!this.isGroupEnabled(group)) { audio.muted = true; return; }
-      if (entry.requested && !audio.paused && !audio.muted) return;
-      if (!entry.unlockPromise) this.startBgm(entry);
+      this.playBgmTrack(this.getCurrentBgmTrackId(trackId));
       return;
     }
 
@@ -177,6 +207,22 @@ class AudioDirector {
     const instance = audio.cloneNode(true);
     instance.volume = this.volumeFor(definition);
     instance.play().catch(() => {});
+  }
+
+  playBgmTrack(trackId) {
+    const entry = this.tracks.get(trackId);
+    if (!entry || entry.definition.bus !== 'bgm' || this.muted) return;
+    for (const [id, other] of this.tracks) {
+      if (other.definition.bus !== 'bgm' || id === trackId) continue;
+      other.requested = false;
+      other.audio.muted = true;
+      if (!other.audio.paused && typeof other.audio.pause === 'function') other.audio.pause();
+      try { other.audio.currentTime = 0; } catch {}
+    }
+    entry.requested = true;
+    if (!this.isGroupEnabled('bgm')) { entry.audio.muted = true; return; }
+    if (!entry.audio.paused && !entry.audio.muted) return;
+    if (!entry.unlockPromise) this.startBgm(entry);
   }
 
   playOneShotSource(source, options = {}) {

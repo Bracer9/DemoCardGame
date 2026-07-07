@@ -97,6 +97,13 @@
               <input id="bgm-volume" class="audio-slider" type="range" min="0" max="100" value="100" aria-label="BGM volume">
               <output id="bgm-volume-value" class="audio-volume-value">100%</output>
             </div>
+            <div class="audio-control-row audio-track-row" data-audio-control="bgm-track">
+              <div class="audio-control-label">
+                <strong>TRACK</strong>
+                <small data-i18n="bgmTrackControl">曲目</small>
+              </div>
+              <select id="bgm-track-select" class="audio-track-select" aria-label="BGM track"></select>
+            </div>
             <div class="audio-control-row" data-audio-control="sfx">
               <div class="audio-control-label">
                 <strong>SFX</strong>
@@ -169,13 +176,9 @@
     <aside id="battle-point-hud" class="battle-point-hud" aria-label="Battle Point">
       <div class="bp-medal" aria-hidden="true"></div>
       <div class="bp-values">
-        <div class="bp-row bp-row--opponent">
-          <span>ENEMY</span>
-          <strong id="opponent-bp-value">0/0</strong>
-        </div>
         <div class="bp-row bp-row--active">
-          <span>YOU</span>
           <strong id="active-bp-value">0/0</strong>
+          <b id="active-bp-turn-gain" class="bp-turn-gain" aria-live="polite"></b>
         </div>
       </div>
     </aside>

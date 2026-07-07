@@ -27,7 +27,8 @@ public sealed record CharacterView(
     Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack,
     string CardType, int SoldierRank,
     string AttackType, int PhysicalDefense, int BasePhysicalDefense, int MagicalDefense, int BaseMagicalDefense,
-    int CurrentHp, int MaxHp, bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
+    int CurrentHp, int MaxHp, int Morale, int MaxMorale,
+    bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
     IReadOnlyList<TraitView> Traits, IReadOnlyList<RoleActionView> RoleActions,
     IReadOnlyList<RoleActionView> RoleActionChoices, IReadOnlyList<StatusView> Statuses,
     DeputyView? Deputy, DeputyPreviewView? DeputyPreview,
@@ -116,7 +117,8 @@ public sealed record RewardOptionView(
 
 public sealed record DamageForecast(
     int Min, int Max, string DamageType, int ShieldDefenseReduction, int DefenseReduction,
-    int ReductionChancePercent, bool ShieldWillAbsorb, int ShieldAbsorb, bool GuardWillTrigger, int GuardDamage);
+    int ReductionChancePercent, bool ShieldWillAbsorb, int ShieldAbsorb, bool GuardWillTrigger, int GuardDamage,
+    int MoraleDamageMin = 0, int MoraleDamageMax = 0, int HpDamageMin = 0, int HpDamageMax = 0);
 
 public sealed record AttackPreview(
     bool IsValid, LocalizedText? Error, Guid AttackerId, Guid DefenderId, int Cost,
@@ -340,7 +342,7 @@ public sealed class GameViewFactory
             character.Definition.AttackType.ToString(),
             _engine.GetPhysicalDefense(state, character), character.Definition.PhysicalDefense,
             _engine.GetMagicalDefense(state, character), character.Definition.MagicalDefense,
-            character.CurrentHp, _engine.GetMaxHp(character),
+            character.CurrentHp, _engine.GetMaxHp(character), character.Morale, character.MaxMorale,
             character.IsAlive, character.IsInBattle, character.Zone.ToString(), character.HasActed, canAct,
             [
                 new TraitView(

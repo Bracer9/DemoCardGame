@@ -14,7 +14,7 @@ const ui = {
   gameOver: document.querySelector('#game-over'), resultTitle: document.querySelector('#result-title'), resultCopy: document.querySelector('#result-copy'),
   inspector: document.querySelector('#character-inspector'), apHud: document.querySelector('#action-point-hud'),
   roleActionInspector: document.querySelector('#role-action-inspector'),
-  bpHud: document.querySelector('#battle-point-hud'), bpInspector: document.querySelector('#bp-inspector'), opponentBpValue: document.querySelector('#opponent-bp-value'), activeBpValue: document.querySelector('#active-bp-value'),
+  bpHud: document.querySelector('#battle-point-hud'), bpInspector: document.querySelector('#bp-inspector'), activeBpValue: document.querySelector('#active-bp-value'), activeBpTurnGain: document.querySelector('#active-bp-turn-gain'),
   statusInspector: document.querySelector('#status-inspector'), shieldInspector: document.querySelector('#shield-inspector'), shieldButton: document.querySelector('#deploy-shield'),
   activeShield: document.querySelector('#active-shield'), opponentShield: document.querySelector('#opponent-shield'),
   activeShieldDome: document.querySelector('#active-shield-dome'), opponentShieldDome: document.querySelector('#opponent-shield-dome'),
@@ -156,6 +156,7 @@ ui.voiceVolume = document.querySelector('#voice-volume');
 ui.bgmVolumeValue = document.querySelector('#bgm-volume-value');
 ui.sfxVolumeValue = document.querySelector('#sfx-volume-value');
 ui.voiceVolumeValue = document.querySelector('#voice-volume-value');
+ui.bgmTrackSelect = document.querySelector('#bgm-track-select');
 ui.languageToggle = document.querySelector('#language-toggle');
 ui.modeSelect = document.querySelector('#mode-select');
 ui.onlineLobby = document.querySelector('#online-lobby');
@@ -177,7 +178,10 @@ const audioGateButtons = [ui.startTrigger, ui.startTest, document.querySelector(
 audioGateButtons.forEach(button => { button.disabled = true; });
 const audioLoadPromise = sound.load('/config/audio.json')
   .catch(error => console.warn(error.message))
-  .finally(() => audioGateButtons.forEach(button => { button.disabled = false; }));
+  .finally(() => {
+    audioGateButtons.forEach(button => { button.disabled = false; });
+    renderAudioControls();
+  });
 const voiceLoadPromise = voice.load('/config/voice.json')
   .catch(error => console.warn(error.message));
 art.load('/config/ui-assets.json').then(() => { if (game) render(); }).catch(error => console.warn(error.message));
@@ -211,6 +215,7 @@ let pollTimer = null;
 let lastGameJson = '';
 let endTurnQueued = false;
 let lastApSnapshot = null;
+let lastBpGainSnapshot = null;
 let lastRewardRenderKey = '';
 let lastAnimatedLogSequence = 0;
 let eventPlayback = false;
@@ -376,6 +381,7 @@ const loadGame = async () => {
   game = payload.data;
   lastGameJson = JSON.stringify(game);
   lastApSnapshot = null;
+  lastBpGainSnapshot = null;
   resetEventCursor(game);
   render();
 };
@@ -393,7 +399,7 @@ function render() {
   ui.opponentName.textContent = i18n.playerName(opponent.name);
   renderShieldBadge(ui.activeShield, me.sharedShield);
   renderShieldBadge(ui.opponentShield, opponent.sharedShield);
-  renderBattlePoints(me, opponent);
+  renderBattlePoints(me);
   renderRewardWindow();
   renderHeroDraftWindow();
   renderRewardChildBack();
@@ -759,13 +765,31 @@ function renderShieldBadge(element, value) {
   element.classList.toggle('active', value > 0);
 }
 
-function renderBattlePoints(me, opponent) {
+function renderBattlePoints(me) {
   if (!ui.bpHud) return;
   const format = bp => bp ? `${bp.current}/${bp.max}` : '0/0';
+  const gainedThisTurn = me?.isActive ? Math.max(0, Number(me?.battlePoints?.gainedThisTurn || 0)) : 0;
+  const gainContext = `${game?.gameId || ''}:${game?.turnNumber || 0}:${game?.activePlayerId || ''}:${me?.id || ''}`;
   ui.activeBpValue.textContent = format(me?.battlePoints);
-  ui.opponentBpValue.textContent = format(opponent?.battlePoints);
+  if (ui.activeBpTurnGain) {
+    ui.activeBpTurnGain.textContent = gainedThisTurn > 0 ? `+${gainedThisTurn}` : '';
+    ui.activeBpTurnGain.classList.toggle('active', gainedThisTurn > 0);
+    const previous = lastBpGainSnapshot?.context === gainContext ? Number(lastBpGainSnapshot.gained || 0) : gainedThisTurn;
+    if (gainedThisTurn > previous) {
+      ui.activeBpTurnGain.classList.remove('gain-pop');
+      void ui.activeBpTurnGain.offsetWidth;
+      ui.activeBpTurnGain.classList.add('gain-pop');
+      ui.activeBpTurnGain.addEventListener('animationend', () => ui.activeBpTurnGain.classList.remove('gain-pop'), { once: true });
+    }
+    lastBpGainSnapshot = { context: gainContext, gained: gainedThisTurn };
+  }
   ui.activeBpValue.parentElement?.setAttribute('title', me?.battlePoints?.lastReasonId ? i18n.bpReason(me.battlePoints.lastReasonId) : '');
-  ui.opponentBpValue.parentElement?.setAttribute('title', opponent?.battlePoints?.lastReasonId ? i18n.bpReason(opponent.battlePoints.lastReasonId) : '');
+}
+
+function clearBpTurnGainDisplay() {
+  if (!ui.activeBpTurnGain) return;
+  ui.activeBpTurnGain.classList.remove('active', 'gain-pop');
+  ui.activeBpTurnGain.textContent = '';
 }
 
 function hasPendingShieldBreakForPlayer(state, player) {
@@ -931,6 +955,10 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
   const hpRatio = card.maxHp > 0 ? Math.max(0, Math.min(1, visualCurrentHp / card.maxHp)) : 0;
   const hpEmpty = visualCurrentHp <= 0 ? ' hp-empty' : '';
+  const morale = Math.max(0, Number(card.morale ?? 0));
+  const maxMorale = Math.max(0, Number(card.maxMorale ?? 0));
+  const moraleRatio = maxMorale > 0 ? Math.max(0, Math.min(1, morale / maxMorale)) : 0;
+  const moraleTone = moraleRatio <= .25 ? 'low' : moraleRatio >= .72 ? 'high' : 'mid';
   const cardDescription = truncateCardText(localizedTrait.card, 28);
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
   const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}">`;
@@ -948,7 +976,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
     && isActiveSide && visualIsDraftCandidate && inspectedCardId === card.id
     ? `<button class="hero-draft-confirm-card" type="button" data-hero-key="${escapeHtml(card.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>`
     : '';
-  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
+  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}--morale-ratio:${moraleRatio.toFixed(3)};" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-morale="${morale}" data-max-morale="${maxMorale}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
     ${deputyStack}
     <div class="card-front">
       ${draftConfirm}
@@ -963,6 +991,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
       </div>
       <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong><em class="attack-type-label">${escapeHtml(damageTypeGlyph(card.attackType))}</em></div>
       <div class="stat-orb defense"><span>物防</span>${defenseMarkup(card.physicalDefense)}<span>魔防</span>${defenseMarkup(card.magicalDefense)}</div>
+      <i class="morale-ring morale-${moraleTone}" aria-hidden="true" title="Morale ${morale}/${maxMorale}"></i>
       <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${visualCurrentHp}<small>/${card.maxHp}</small></strong></div>
     </div>
   </article>`;
@@ -1210,6 +1239,8 @@ function showCharacterInspector(element) {
     : `<li class="empty-status">${i18n.t('noEffects')}</li>`;
   const attackDelta = card.attack - card.baseAttack;
   const attackDisplay = attackDelta === 0 ? `${card.attack}` : `${card.attack} (${attackDelta > 0 ? '+' : ''}${attackDelta})`;
+  const morale = Math.max(0, Number(card.morale ?? 0));
+  const maxMorale = Math.max(0, Number(card.maxMorale ?? 0));
   const isUpgradeChoiceMode = Boolean(game?.pendingRoleActionUpgrade?.canChoose)
     && Array.isArray(card.roleActionChoices) && card.roleActionChoices.length > 0;
   const visibleRoleActions = isUpgradeChoiceMode ? card.roleActionChoices : card.roleActions;
@@ -1238,7 +1269,7 @@ function showCharacterInspector(element) {
         </button>`;
       }).join('')
     : `<p class="role-action-empty">${escapeHtml(i18n.t('roleActionLocked'))}</p>`;
-  ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><strong>${escapeHtml(i18n.characterName(card.key))}</strong></header>
+  ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><div class="inspector-name-row"><strong>${escapeHtml(i18n.characterName(card.key))}</strong><b class="inspector-morale">${escapeHtml(i18n.t('moraleDamageShort'))} ${morale}/${maxMorale}</b></div></header>
     <div class="inspector-stats">
       <div class="stat-card stat-attack"><span>ATK</span><b>${escapeHtml(attackDisplay)}</b></div>
       <div class="stat-card stat-hp"><span>HP</span><b>${card.currentHp}/${card.maxHp}</b></div>
@@ -1484,9 +1515,10 @@ function showShieldDomeInspector(dome) {
 function showBpInspector() {
   if (!game || dealing || !ui.bpHud || !ui.bpInspector) return;
   hideShieldInspector();
-  const active = game.players.find(player => player.id === game.activePlayerId);
-  const bp = active?.battlePoints;
+  const me = game.players.find(player => player.id === game.viewerPlayerId);
+  const bp = me?.battlePoints;
   const current = bp ? `${bp.current}/${bp.max}` : '0/0';
+  const gainCap = Math.max(0, Number(bp?.gainCapPerTurn || 5));
   ui.bpInspector.innerHTML = `<header><span>TACTICAL RESOURCE</span><strong>${i18n.t('bpTitle')}</strong><b>${current}</b></header>
     <p class="shield-rule-lead">${i18n.t('bpLead')}</p>
     <div class="shield-tier-list bp-rule-list">
@@ -1494,10 +1526,12 @@ function showBpInspector() {
       <section class="shield-tier"><div><span>ATTACK</span><b>${i18n.t('bpRuleDamage')}</b><em>+1 BP</em></div></section>
       <section class="shield-tier"><div><span>SHIELD</span><b>${i18n.t('bpRuleBreakShield')}</b><em>+1 BP</em></div></section>
       <section class="shield-tier"><div><span>COMMAND</span><b>${i18n.t('bpRuleFullShield')}</b><em>+1 BP</em></div></section>
+      <section class="shield-tier"><div><span>ROLE</span><b>${i18n.t('bpRuleFirstRoleAction')}</b><em>+1 BP</em></div></section>
     </div>
     <ul class="shield-rule-notes">
-      <li>${i18n.t('bpNote1')}</li>
+      <li>${i18n.t('bpNote1', { cap: gainCap })}</li>
       <li>${i18n.t('bpNote2')}</li>
+      <li>${i18n.t('bpNoteMoraleRecovery')}</li>
     </ul>`;
   const rect = stageRect(ui.bpHud);
   ui.bpInspector.classList.add('open');
@@ -1785,9 +1819,18 @@ function renderPreview() {
 }
 
 function setForecast(element, forecast, label, iconId) {
-  const value = forecast.min === forecast.max ? forecast.max : `${forecast.min}~${forecast.max}`;
-  element.className = `forecast-box ${forecast.damageType === 'Magical' ? 'magic' : 'physical'}`;
-  element.innerHTML = `<div class="forecast-heading">${art.icon(iconId, { size: 'sm', label })}<small>${label} / ${i18n.damageType(forecast.damageType)}</small></div><strong>${value}</strong>`;
+  const value = forecastRange(forecast.min, forecast.max);
+  const moraleValue = forecastRange(forecast.moraleDamageMin ?? 0, forecast.moraleDamageMax ?? 0);
+  const hpValue = forecastRange(forecast.hpDamageMin ?? 0, forecast.hpDamageMax ?? 0);
+  const forecastClass = forecast.damageType === 'Magical' ? 'magic' : forecast.damageType === 'Absolute' ? 'absolute' : 'physical';
+  element.className = `forecast-box ${forecastClass}`;
+  element.innerHTML = `<div class="forecast-heading">${art.icon(iconId, { size: 'sm', label })}<small>${label} / ${i18n.damageType(forecast.damageType)}</small></div><div class="forecast-values"><strong>${escapeHtml(String(value))}</strong><div class="forecast-landing"><span>${escapeHtml(i18n.t('moraleDamageShort'))} -${escapeHtml(String(moraleValue))}</span><span>HP -${escapeHtml(String(hpValue))}</span></div></div>`;
+}
+
+function forecastRange(min, max) {
+  const low = Number(min ?? 0);
+  const high = Number(max ?? low);
+  return low === high ? String(high) : `${low}~${high}`;
 }
 
 async function executeAttack() {
@@ -1823,7 +1866,10 @@ async function endTurn() {
   busy = true;
   try {
     pendingVisualBaselines = captureCharacterVisualBaselines(game);
+    const endingPlayer = game.players.find(player => player.id === game.viewerPlayerId);
+    const bpRecoveryAmount = Math.max(0, Number(endingPlayer?.battlePoints?.gainedThisTurn || 0));
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
+    await animateBpRecoveryToHp(bpRecoveryAmount);
     sound.emit('turn.change');
     game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     ui.curtainPlayer.textContent = i18n.playerName(game.activePlayerName); ui.curtain.classList.remove('play'); void ui.curtain.offsetWidth; ui.curtain.classList.add('play');
@@ -2193,7 +2239,7 @@ async function newGame() {
     sound.emit('game.restart');
     const payload = await gameApi(sessionMode === 'test' ? '/game/test/new' : '/game/new', { method: 'POST', body: '{}' });
     if (sessionMode === 'online' && room) room.dealStarted = false;
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     await playDealSequence();
   }
@@ -2209,7 +2255,7 @@ async function startLocalGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -2232,7 +2278,7 @@ async function startTestGame() {
   sound.unlock({ primeUnrequested: false });
   try {
     const payload = await gameApi('/game/test/new', { method: 'POST', body: '{}' });
-    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     openDealLayer();
     ui.startScreen.classList.add('leaving');
@@ -2851,6 +2897,87 @@ function shieldBlock(target, amount, remaining) {
   }
   setTimeout(() => text.remove(), 920);
 }
+function animateBpRecoveryToHp(amount) {
+  const value = Math.max(0, Number(amount || 0));
+  if (!value || !ui.fx) return Promise.resolve();
+  const source = ui.activeBpTurnGain?.classList.contains('active') ? ui.activeBpTurnGain : ui.activeBpValue;
+  const start = center(source || ui.bpHud);
+  const targets = [...ui.activeCards.querySelectorAll('.fighter-card:not(.defeated) .stat-orb.hp')];
+  if (!targets.length) {
+    clearBpTurnGainDisplay();
+    return Promise.resolve();
+  }
+  clearBpTurnGainDisplay();
+  emitSoundThrottled('status.blessing-heal', 360);
+  const centerIndex = (targets.length - 1) / 2;
+  const staggerMs = 64;
+  const flightMs = 1020;
+  targets.forEach((target, index) => {
+    const end = center(target);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const distance = Math.hypot(dx, dy);
+    const lift = Math.max(34, Math.min(86, distance * .18));
+    const drift = (index - centerIndex) * 7;
+    const sidePull = dx >= 0 ? 18 : -18;
+    const token = document.createElement('b');
+    token.className = 'bp-recovery-fly';
+    token.textContent = `+${value}`;
+    token.style.left = `${start.x}px`;
+    token.style.top = `${start.y}px`;
+    token.style.setProperty('--mx', `${dx * .44 + sidePull + drift}px`);
+    token.style.setProperty('--my', `${dy * .38 - lift}px`);
+    token.style.setProperty('--nx', `${dx * .84 + drift * .32}px`);
+    token.style.setProperty('--ny', `${dy * .84 - 10}px`);
+    token.style.setProperty('--tx', `${end.x - start.x}px`);
+    token.style.setProperty('--ty', `${end.y - start.y}px`);
+    token.style.setProperty('--delay', `${index * staggerMs}ms`);
+    ui.fx.appendChild(token);
+    window.setTimeout(() => {
+      animateMoraleRingRecovery(target.closest('.fighter-card'), value);
+      target.classList.remove('bp-recovery-hit');
+      void target.offsetWidth;
+      target.classList.add('bp-recovery-hit');
+    }, 760 + index * staggerMs);
+    window.setTimeout(() => {
+      token.remove();
+      target.classList.remove('bp-recovery-hit');
+    }, flightMs + 120 + index * staggerMs);
+  });
+  const totalMs = flightMs + Math.max(0, targets.length - 1) * staggerMs;
+  return wait(totalMs + 120);
+}
+
+function animateMoraleRingRecovery(card, amount) {
+  if (!card) return;
+  const ring = card.querySelector('.morale-ring');
+  const maxMorale = Math.max(0, Number(card.dataset.maxMorale || 0));
+  const currentMorale = Math.max(0, Number(card.dataset.morale || 0));
+  const recovery = Math.max(0, Number(amount || 0));
+  if (!ring || !maxMorale || !recovery) return;
+  const nextMorale = Math.min(maxMorale, currentMorale + recovery);
+  if (nextMorale <= currentMorale) return;
+  const from = Math.max(0, Math.min(1, currentMorale / maxMorale));
+  const to = Math.max(0, Math.min(1, nextMorale / maxMorale));
+  const durationMs = 360;
+  const startedAt = performance.now();
+  card.dataset.morale = String(nextMorale);
+  ring.title = `Morale ${nextMorale}/${maxMorale}`;
+  ring.classList.remove('morale-recovering');
+  void ring.offsetWidth;
+  ring.classList.add('morale-recovering');
+  const step = now => {
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    card.style.setProperty('--morale-ratio', (from + (to - from) * eased).toFixed(3));
+    if (progress < 1) requestAnimationFrame(step);
+    else {
+      card.style.setProperty('--morale-ratio', to.toFixed(3));
+      window.setTimeout(() => ring.classList.remove('morale-recovering'), 180);
+    }
+  };
+  requestAnimationFrame(step);
+}
 function breakShieldDome(dome) {
   const wasActive = dome.classList.contains('active');
   const shouldHideAfterBreak = dome.dataset.pendingBreak === 'true' || !wasActive;
@@ -2962,12 +3089,27 @@ function updateAudioGroupControls(group, settings) {
   value.textContent = `${percent}%`;
 }
 
+function renderBgmTrackSelect() {
+  if (!ui.bgmTrackSelect || !sound.getBgmTracks) return;
+  const tracks = sound.getBgmTracks();
+  const currentTrackId = sound.getCurrentBgmTrackId?.() || '';
+  const optionsMarkup = tracks.map(track =>
+    `<option value="${escapeHtml(track.id)}">${escapeHtml(track.title)}</option>`).join('');
+  if (ui.bgmTrackSelect.dataset.optionsMarkup !== optionsMarkup) {
+    ui.bgmTrackSelect.innerHTML = optionsMarkup;
+    ui.bgmTrackSelect.dataset.optionsMarkup = optionsMarkup;
+  }
+  ui.bgmTrackSelect.disabled = tracks.length === 0;
+  ui.bgmTrackSelect.value = currentTrackId;
+}
+
 function renderAudioControls() {
   if (!ui.soundToggle || !sound.getSettings) return;
   const settings = sound.getSettings();
   updateAudioGroupControls('bgm', settings);
   updateAudioGroupControls('sfx', settings);
   updateAudioGroupControls('voice', settings);
+  renderBgmTrackSelect();
   const hasAnySound = settings.bgm.enabled || settings.sfx.enabled || settings.voice.enabled;
   ui.soundToggle.classList.toggle('muted', !hasAnySound);
   ui.soundToggle.querySelector('span').textContent = hasAnySound ? i18n.t('audio') : i18n.t('muted');
@@ -2989,6 +3131,12 @@ function setAudioGroupVolume(group, value, preview = false) {
   sound.setGroupVolume(group, Number(value) / 100);
   if (preview && group === 'sfx' && sound.getSettings().sfx.enabled) sound.emit('ui.audio-toggle');
   if (preview && group === 'voice' && sound.getSettings().voice.enabled) emitVoice('select', 'princess');
+  renderAudioControls();
+}
+
+function selectBgmTrack(trackId) {
+  sound.unlock();
+  if (sound.setBgmTrack?.(trackId)) sound.emit('ui.audio-toggle');
   renderAudioControls();
 }
 
@@ -3111,6 +3259,7 @@ async function enterOnlineGame(initialGame = null) {
       game = initialGame;
       lastGameJson = JSON.stringify(game);
       lastApSnapshot = null;
+      lastBpGainSnapshot = null;
       resetEventCursor(game);
     } else {
       await loadGame();
@@ -3144,7 +3293,10 @@ async function pollOnlineState() {
     if (isNewGame) dealing = true;
     pendingVisualBaselines = isNewGame ? null : captureCharacterVisualBaselines(game);
     game = payload.data; lastGameJson = json;
-    if (isNewGame) lastApSnapshot = null;
+    if (isNewGame) {
+      lastApSnapshot = null;
+      lastBpGainSnapshot = null;
+    }
     selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview(); render();
     if (isNewGame) {
       resetEventCursor(game);
@@ -3421,6 +3573,7 @@ ui.voiceToggle.addEventListener('click', () => toggleAudioGroup('voice'));
 ui.bgmVolume.addEventListener('input', () => setAudioGroupVolume('bgm', ui.bgmVolume.value));
 ui.sfxVolume.addEventListener('input', () => setAudioGroupVolume('sfx', ui.sfxVolume.value));
 ui.voiceVolume.addEventListener('input', () => setAudioGroupVolume('voice', ui.voiceVolume.value));
+ui.bgmTrackSelect.addEventListener('change', () => selectBgmTrack(ui.bgmTrackSelect.value));
 ui.sfxVolume.addEventListener('change', () => setAudioGroupVolume('sfx', ui.sfxVolume.value, true));
 ui.voiceVolume.addEventListener('change', () => setAudioGroupVolume('voice', ui.voiceVolume.value, true));
 document.addEventListener('click', event => {

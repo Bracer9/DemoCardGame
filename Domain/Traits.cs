@@ -20,6 +20,9 @@ public sealed class DamagePacket
     public int ShieldDefenseReduced { get; set; }
     public int DefenseReduced { get; set; }
     public int ShieldAbsorbed { get; set; }
+    public int FinalCharacterDamage { get; set; }
+    public int MoraleDamage { get; set; }
+    public int HpDamage { get; set; }
     public List<CollateralDamage> Collateral { get; } = [];
     public List<LocalizedText> Notes { get; } = [];
 }
@@ -320,7 +323,7 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
     {
         if (exchange.Defender.Definition.Key == "princess")
         {
-            DealPrincessBacklash(context, owner, exchange.AttackDamageDealt);
+            DealPrincessBacklash(context, owner, context.GetActiveAttack(owner));
             return;
         }
 

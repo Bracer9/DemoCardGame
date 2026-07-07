@@ -30,24 +30,28 @@ public sealed class AttackPreviewService
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
+        attack = ForecastDamageLanding(defender, attack);
+        var attackHp = attack;
         attack = ApplyPreyForecast(defender, attack);
         var pactBonus = attacker.Statuses.Any(status => status.Id == "pact" && !status.Expired)
             ? PactStatus.AbsoluteDamage
             : 0;
         if (pactBonus > 0)
-            attack = attack with { Min = attack.Min + pactBonus, Max = attack.Max + pactBonus };
+            attack = AddDirectHpDamage(attack, pactBonus);
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
-            attack = attack with { Min = attack.Min + rageShieldBreakBonus, Max = attack.Max + rageShieldBreakBonus };
+            attack = AddDirectHpDamage(attack, rageShieldBreakBonus);
         var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker, defender);
         if (duelSenseBonus > 0)
-            attack = attack with { Min = attack.Min + duelSenseBonus, Max = attack.Max + duelSenseBonus };
+            attack = AddDirectHpDamage(attack, duelSenseBonus);
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defender.Definition.AttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
         var counter = ForecastDamage(state, attacker, counterBase, defender.Definition.AttackType, DamageSource.CounterAttack);
+        counter = ForecastDamageLanding(attacker, counter);
+        var counterHp = counter;
         counter = ApplyPreyForecast(attacker, counter);
         var trait = _engine.GetTrait(attacker);
-        var (possible, traitText) = ForecastTrait(state, attacker, defender, attack);
+        var (possible, traitText) = ForecastTrait(state, attacker, defender, attackHp);
 
         var notes = new List<LocalizedText>
         {
@@ -123,10 +127,10 @@ public sealed class AttackPreviewService
         if (pactBonus > 0)
             notes.Add(L10n.Text("preview.roleAction.darkPact",
                 ("value", L10n.Raw(pactBonus))));
-        if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attack.Min <= PreyStatus.AbsoluteDamage)
+        if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attackHp.HpDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGaze",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
-        if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired) && counter.Min <= PreyStatus.AbsoluteDamage)
+        if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired) && counterHp.HpDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGazeCounter",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
 
@@ -136,14 +140,56 @@ public sealed class AttackPreviewService
 
     private static DamageForecast ApplyPreyForecast(CharacterState target, DamageForecast forecast)
     {
-        if (target.Statuses.All(status => status.Id != "prey" || status.Expired) || forecast.Min > 0)
+        if (target.Statuses.All(status => status.Id != "prey" || status.Expired) || forecast.HpDamageMin > 0)
             return forecast;
 
-        var min = PreyStatus.AbsoluteDamage;
-        var max = forecast.Max == 0
-            ? PreyStatus.AbsoluteDamage
-            : Math.Max(forecast.Max, PreyStatus.AbsoluteDamage);
-        return forecast with { Min = min, Max = max };
+        if (forecast.HpDamageMax == 0)
+            return AddDirectHpDamage(forecast, PreyStatus.AbsoluteDamage);
+
+        var triggeredTotal = forecast.Min + PreyStatus.AbsoluteDamage;
+        var triggeredHp = forecast.HpDamageMin + PreyStatus.AbsoluteDamage;
+        return forecast with
+        {
+            Min = Math.Min(triggeredTotal, forecast.Max),
+            Max = Math.Max(triggeredTotal, forecast.Max),
+            HpDamageMin = Math.Min(triggeredHp, forecast.HpDamageMax),
+            HpDamageMax = Math.Max(triggeredHp, forecast.HpDamageMax)
+        };
+    }
+
+    private static DamageForecast AddDirectHpDamage(DamageForecast forecast, int amount)
+    {
+        var damage = Math.Max(0, amount);
+        return damage <= 0
+            ? forecast
+            : forecast with
+            {
+                Min = forecast.Min + damage,
+                Max = forecast.Max + damage,
+                HpDamageMin = forecast.HpDamageMin + damage,
+                HpDamageMax = forecast.HpDamageMax + damage
+            };
+    }
+
+    private static DamageForecast ForecastDamageLanding(CharacterState target, DamageForecast forecast)
+    {
+        if (Enum.TryParse<DamageType>(forecast.DamageType, out var damageType) && damageType == DamageType.Absolute)
+            return forecast with
+            {
+                MoraleDamageMin = 0,
+                MoraleDamageMax = 0,
+                HpDamageMin = forecast.Min,
+                HpDamageMax = forecast.Max
+            };
+
+        var morale = Math.Max(0, target.Morale);
+        return forecast with
+        {
+            MoraleDamageMin = Math.Min(morale, forecast.Min),
+            MoraleDamageMax = Math.Min(morale, forecast.Max),
+            HpDamageMin = Math.Max(0, forecast.Min - morale),
+            HpDamageMax = Math.Max(0, forecast.Max - morale)
+        };
     }
 
     private DamageForecast ForecastActiveAttackDamage(
@@ -353,8 +399,8 @@ public sealed class AttackPreviewService
             status.Id == "magic-power" && !status.Expired)
             ? "preview.trait.burningBoosted" : "preview.trait.burning")),
         "druid" => ForecastDruidTrait(defender, attack),
-        "barbarian" => (attack.Max >= AftershockAxeTrait.TriggerDamage,
-            L10n.Text(attack.Min >= AftershockAxeTrait.TriggerDamage
+        "barbarian" => (attack.HpDamageMax >= AftershockAxeTrait.TriggerDamage,
+            L10n.Text(attack.HpDamageMin >= AftershockAxeTrait.TriggerDamage
                 ? "preview.trait.aftershockGuaranteed" : "preview.trait.aftershockPossible")),
         "monster" => ForecastMonsterTrait(state, attacker, defender, attack),
         _ => (false, L10n.Text("preview.trait.none"))
@@ -362,8 +408,8 @@ public sealed class AttackPreviewService
 
     private static (bool, LocalizedText) ForecastDruidTrait(CharacterState defender, DamageForecast attack)
     {
-        var guaranteed = attack.Min > 0;
-        var noDamage = attack.Max == 0;
+        var guaranteed = attack.HpDamageMin > 0;
+        var noDamage = attack.HpDamageMax == 0;
         var key = (guaranteed, noDamage) switch
         {
             (true, _) => "preview.trait.sporesGuaranteed",
@@ -383,10 +429,10 @@ public sealed class AttackPreviewService
             character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
         var damage = attacker.Definition.Attack
             + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0);
-        var key = attack.Max == 0 ? "preview.trait.beautyGuaranteed"
-            : attack.Min == 0 ? "preview.trait.beautyPossible"
+        var key = attack.HpDamageMax == 0 ? "preview.trait.beautyGuaranteed"
+            : attack.HpDamageMin == 0 ? "preview.trait.beautyPossible"
             : "preview.trait.beautyUnavailable";
-        return (attack.Min == 0, L10n.Text(key, ("amount", L10n.Raw(damage))));
+        return (attack.HpDamageMin == 0, L10n.Text(key, ("amount", L10n.Raw(damage))));
     }
 
     private static LocalizedText? Validate(GameState state, CharacterState attacker, CharacterState defender)

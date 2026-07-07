@@ -1,6 +1,6 @@
 # Tiny Pixel Fights — 音频资产与事件映射
 
-> 更新日期：2026-06-23  
+> 更新日期：2026-07-07
 > 实装状态：BGM、用户原始素材、用户指定的 `fireball`，以及从三个 Library 补入的战斗／状态／UI／联网／结算音效，已接入本地与在线共用的事件系统。
 
 完整的已完成／待制作音效清单见 [`assets/audio/SFX_CHECKLIST.md`](../assets/audio/SFX_CHECKLIST.md)。
@@ -9,7 +9,8 @@
 
 - 右上角 `AUDIO` 现在展开为中世纪暗黑风下拉菜单。
 - BGM 与音效分开控制：BGM 控制 `bgm` bus；音效控制 `sfx` 与 `ui` bus。
-- 两组都支持独立 ON/OFF 与 0–100% 音量滑块。
+- BGM、音效、语音支持独立 ON/OFF 与 0–100% 音量滑块。
+- BGM 菜单支持切换当前曲目；默认曲目是 `Castle Hall Tactics`，选择会保存在浏览器 localStorage。
 - 玩家设置保存在浏览器 localStorage，不影响服务器同步，也不写入 C# 战斗规则。
 - 运行时音量计算为：`manifest bus volume × track volume × user group volume`。
 
@@ -26,7 +27,8 @@ assets 中的实际音频文件
 | 文件／目录 | 职责 |
 |---|---|
 | `assets/audio/` | 音效文件；英文 kebab-case WAV 原始文件与浏览器运行用 MP3 |
-| `assets/Ashen Banner.mp3` | 当前战斗 BGM |
+| `assets/Castle_Hall_Tactics.mp3` | 默认战斗 BGM |
+| `assets/Ashen Banner.mp3` / `assets/Dorian Hall Tactics.mp3` | 可在音频菜单切换的备用 BGM |
 | `wwwroot/config/audio.json` | 音轨、总线、音量及事件映射的唯一清单 |
 | `wwwroot/audio.js` | 加载、浏览器音频解锁、BGM 循环／淡入及可重叠 SFX 播放 |
 | `wwwroot/app.js` | 在 UI 操作和同步战斗事件发生时，只触发稳定事件 ID |
@@ -47,7 +49,9 @@ assets 中的实际音频文件
 
 | Track ID | 文件 | Bus | Track volume | 用途 |
 |---|---|---|---:|---|
-| `bgm.battle` | `assets/Ashen Banner.mp3` | bgm | 1.00 | 对局 BGM，循环并淡入 |
+| `bgm.castle-hall-tactics` | `assets/Castle_Hall_Tactics.mp3` | bgm | 0.90 | 默认对局 BGM，循环并淡入 |
+| `bgm.battle` | `assets/Ashen Banner.mp3` | bgm | 0.90 | 可选对局 BGM，循环并淡入 |
+| `bgm.dorian-hall-tactics` | `assets/Dorian Hall Tactics.mp3` | bgm | 0.90 | 可选对局 BGM，循环并淡入 |
 | `sfx.magic-attack` | `assets/audio/fireball.mp3` | sfx | 0.78 | 主动魔法攻击；用户指定替换旧素材 |
 | `sfx.weakness-activated` | `assets/audio/weakness-activated.mp3` | sfx | 0.78 | 所有目标的待机衰弱在其下回合开始时正式生效 |
 | `sfx.card-pickup-confirm` | `assets/audio/card-pickup-confirm.mp3` | ui | 0.82 | 选中可行动卡牌、确认结束回合 |
@@ -95,8 +99,8 @@ assets 中的实际音频文件
 
 | Event ID | Track ID | 触发条件 |
 |---|---|---|
-| `game.start` | `bgm.battle` | 本地或在线对局开始 |
-| `game.restart` | `bgm.battle` | 再战／新对局 |
+| `game.start` | 当前选择的 BGM，默认 `bgm.castle-hall-tactics` | 本地或在线对局开始 |
+| `game.restart` | 当前选择的 BGM，默认 `bgm.castle-hall-tactics` | 再战／新对局 |
 | `ui.card-select` | `sfx.card-pickup-confirm` | 点击或开始拖动一张可行动卡牌；取消选择不播放 |
 | `ui.turn-end` | `sfx.card-pickup-confirm` | 合法点击结束回合 |
 | `ui.deck-touch` | `sfx.deck-shuffle` | 任意一方触碰牌堆；在线双方随后都会进入发牌演出 |

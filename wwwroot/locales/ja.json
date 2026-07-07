@@ -28,6 +28,7 @@
     "combatForecast": "戦闘予測",
     "damageDealt": "与えるダメージ",
     "counterTaken": "受ける反撃",
+    "moraleDamageShort": "士気",
     "eventPhysical": "物理攻撃",
     "eventMagical": "魔法攻撃",
     "eventCounter": "反撃",
@@ -57,6 +58,7 @@
     "muted": "ミュート",
     "audioSettings": "音声設定",
     "bgmControl": "背景音楽",
+    "bgmTrackControl": "曲目",
     "sfxControl": "効果音",
     "languageButton": "中文",
     "languageAria": "中国語に切り替える",
@@ -92,8 +94,10 @@
     "bpRuleDamage": "自分のターン中に敵のHPへダメージ",
     "bpRuleBreakShield": "敵の共有シールドを破壊",
     "bpRuleFullShield": "防御陣形を最大まで展開",
-    "bpNote1": "1ターン中に獲得できるBPには上限があります。上限を超えた分は獲得できません。",
+    "bpRuleFirstRoleAction": "このターン最初のロールアクション使用",
+    "bpNote1": "1ターンに獲得できるBPは最大{cap}です。上限を超えた分は獲得できません。",
     "bpNote2": "報酬ウィンドウでは購入とリセットにBPを使い、スキップで追加BPを得ようとします。",
+    "bpNoteMoraleRecovery": "ターン終了時、このターンに獲得したBPと同じ量だけ、生存中の味方の士気を回復します。",
     "currentSelected": "{name}を選択中",
     "selectUpperEnemy": "上側の敵へドラッグ、またはクリック",
     "cannotAct": "このカードは現在行動できません。",
@@ -143,10 +147,10 @@
     "soldierDraftTitleOpening": "随伴兵を選択",
     "soldierDraftSubtitleOpening": "初期隊伍に加える兵士を1人選びます。",
     "soldierDraftTitleRecruit": "兵士招募",
-    "soldierDraftSubtitleRecruit": "兵士を1人選んで加えます。所持済みなら強化を押し、同名兵士を選んで昇格できます。Rank1でオーラ、Rank2でHP全回復と最大HP+5。",
+    "soldierDraftSubtitleRecruit": "兵士を1人選んで加えます。所持済みなら強化を押し、同名兵士を選んで昇格できます。Rank1で最大HPの50%回復とオーラ、Rank2でHP全回復と最大HP+5。",
     "soldierDraftOwnedHint": "所持済み：強化で同名兵士を昇格",
     "soldierDraftUpgrade": "強化",
-    "soldierDraftUpgradeTargetHint": "手札の同名兵士を選んで昇格してください。",
+    "soldierDraftUpgradeTargetHint": "手札の同名兵士を選んで昇格。Rank1は最大HPの50%回復、Rank2はHP全回復。",
     "soldierDraftFullUpgradeOnly": "隊伍が満員です。同名兵士の強化、または戻ることのみ可能です。",
     "soldierDraftSubtitleFull": "隊伍が満員です。所持済みで最高ランクでない同名兵士を選ぶと強化できます。不要なら戻ってください。",
     "soldierDraftSubtitleFullUpgradeReady": "隊伍が満員です。強化を押し、光っている手札の同名兵士を選んでください。",
@@ -211,7 +215,8 @@
     "reward-reroll": "報酬リセット",
     "reward-skip": "報酬スキップ",
     "role-action-cleanse": "ロールアクションで浄化成功",
-    "role-action-dark-pact": "闇の契約で瀕死"
+    "role-action-dark-pact": "闇の契約で瀕死",
+    "first-role-action": "初回ロールアクション"
   },
   "deputies": {
     "deputy-cleric": {
@@ -250,7 +255,7 @@
     },
     "hero-role-action-upgrade": {
       "name": "英雄職業訓練",
-      "description": "強化可能な英雄を選び、2つの初期ロールアクションから1つを解放する。"
+      "description": "強化可能な英雄を選び、2つの初期ロールアクションから1つを解放し、最大HPの50%回復。初回無料。"
     },
     "hero-recruit": {
       "name": "新英雄招募",
@@ -258,7 +263,7 @@
     },
     "soldier-recruit": {
       "name": "兵士招募",
-      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。Rank1で隊伍オーラ、Rank2でHP全回復と最大HP+5。"
+      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。Rank1で最大HPの50%回復と隊伍オーラ、Rank2でHP全回復と最大HP+5。"
     }
   },
   "roleActions": {
@@ -596,15 +601,15 @@
     "preview.trait.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
     "preview.trait.burningBoosted": "50%で炎上（ターンダメージ）1層を付与。星読みの加護により1層ごとに2魔法ダメージ。",
     "preview.trait.burning": "50%で炎上（ターンダメージ）1層を付与。",
-    "preview.trait.sporesGuaranteed": "有効打：100%発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
-    "preview.trait.sporesChance": "無効打：50%発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
-    "preview.trait.sporesVariable": "結果に応じて発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
-    "preview.trait.aftershockGuaranteed": "3以上の主動ダメージが確定。隣接する敵に、そのダメージの1/3切り上げの物理ダメージ。",
-    "preview.trait.aftershockPossible": "軽減結果次第で主動ダメージが3以上なら、隣接する敵に1/3切り上げの物理ダメージ。",
+    "preview.trait.sporesGuaranteed": "HPダメージあり：100%発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
+    "preview.trait.sporesChance": "HPダメージなし：50%発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
+    "preview.trait.sporesVariable": "HPダメージ結果に応じて発動。強化を1つ解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
+    "preview.trait.aftershockGuaranteed": "3以上のHPダメージが確定。隣接する敵に、そのダメージの1/3切り上げの物理ダメージ。",
+    "preview.trait.aftershockPossible": "軽減結果次第でHPダメージが3以上なら、隣接する敵に1/3切り上げの物理ダメージ。",
     "preview.trait.beautyPrincessImmune": "姫には美女と野獣を発動できません。",
-    "preview.trait.beautyGuaranteed": "主動攻撃は0ダメージ。追撃で{amount}絶対ダメージ。",
-    "preview.trait.beautyPossible": "軽減結果が0ダメージなら、追撃で{amount}絶対ダメージ。",
-    "preview.trait.beautyUnavailable": "主動攻撃がダメージを与えるため、追撃は発動しません。",
+    "preview.trait.beautyGuaranteed": "主動攻撃は0HPダメージ。追撃で{amount}絶対ダメージ。",
+    "preview.trait.beautyPossible": "軽減結果でHPダメージが0なら、追撃で{amount}絶対ダメージ。",
+    "preview.trait.beautyUnavailable": "主動攻撃がHPダメージを与えるため、追撃は発動しません。",
     "preview.trait.none": "この攻撃で能動的に発動する効果はありません。",
     "log.firstPlayer": "{player}が先攻。",
     "log.firstTurnNoStartEffects": "最初のターンはターン開始効果を発動しません。",
@@ -777,13 +782,13 @@
     },
     "weakening-spores": {
       "name": "衰弱の胞子",
-      "description": "有効打なら100%、無効打なら50%で発動。対象の解除可能なBuffをランダムに1つ即座に解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与する。",
+      "description": "HPダメージを与えたなら100%、与えなければ50%で発動。対象の解除可能なBuffをランダムに1つ即座に解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与する。",
       "card": "発動時、Buffを1つ解除して力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。"
     },
     "aftershock-axe": {
       "name": "戦斧の余波",
       "description": "主動攻撃で対象に3以上のHPダメージを与えた時、隣接する敵にそのダメージの1/3切り上げの物理ダメージ。",
-      "card": "主動ダメージ3以上で、隣接敵に1/3余波。"
+      "card": "主動HPダメージ3以上で、隣接敵に1/3余波。"
     },
     "predatory-instinct": {
       "name": "美女と野獣",

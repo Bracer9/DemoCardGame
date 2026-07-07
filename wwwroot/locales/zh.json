@@ -28,6 +28,7 @@
     "combatForecast": "战斗预测",
     "damageDealt": "造成伤害",
     "counterTaken": "受到反击",
+    "moraleDamageShort": "士气",
     "eventPhysical": "物理攻击",
     "eventMagical": "魔法攻击",
     "eventCounter": "反击",
@@ -67,10 +68,10 @@
     "soldierDraftTitleOpening": "选择随从士兵",
     "soldierDraftSubtitleOpening": "选择1名士兵加入初始队伍。",
     "soldierDraftTitleRecruit": "招募士兵",
-    "soldierDraftSubtitleRecruit": "选择1名士兵加入队伍；已拥有时可点击强化并选择同名士兵升阶。Rank1获得光环，Rank2回满HP并最大HP+5。",
+    "soldierDraftSubtitleRecruit": "选择1名士兵加入队伍；已拥有时可点击强化并选择同名士兵升阶。Rank1回复50%最大HP并获得光环，Rank2回满HP并最大HP+5。",
     "soldierDraftOwnedHint": "已拥有：可选择强化同名士兵",
     "soldierDraftUpgrade": "强化",
-    "soldierDraftUpgradeTargetHint": "请选择手牌中的同名士兵进行升阶。",
+    "soldierDraftUpgradeTargetHint": "请选择手牌中的同名士兵进行升阶；升至Rank1回复50%最大HP，升至Rank2回满HP。",
     "soldierDraftFullUpgradeOnly": "队伍已满，只能强化同名士兵或返回。",
     "soldierDraftSubtitleFull": "队伍已满。选择已拥有且未满阶的同名士兵后，可以点击强化；否则请返回。",
     "soldierDraftSubtitleFullUpgradeReady": "队伍已满。点击强化后，选择手牌中发光的同名士兵升阶。",
@@ -84,6 +85,7 @@
     "muted": "静音",
     "audioSettings": "音频设置",
     "bgmControl": "背景音乐",
+    "bgmTrackControl": "曲目",
     "sfxControl": "音效",
     "languageButton": "日本語",
     "languageAria": "切换为日语",
@@ -119,8 +121,10 @@
     "bpRuleDamage": "己方回合对敌方造成HP伤害",
     "bpRuleBreakShield": "击破敌方共有盾",
     "bpRuleFullShield": "将防御阵型展开到满层",
-    "bpNote1": "每回合可获得的BP有上限；达到上限后额外获得会被阻止。",
+    "bpRuleFirstRoleAction": "本回合首次使用职业行动",
+    "bpNote1": "每回合最多获得{cap} BP；达到上限后额外获得会被阻止。",
     "bpNote2": "奖励窗口中刷新和购买会消耗BP，跳过奖励会尝试获得额外BP。",
+    "bpNoteMoraleRecovery": "回合结束时，本回合获得的BP会为存活角色回复同等士气。",
     "currentSelected": "已选择{name}",
     "selectUpperEnemy": "拖向上方敌人，或点击选择",
     "cannotAct": "这张卡现在无法行动。",
@@ -211,7 +215,8 @@
     "reward-reroll": "刷新奖励",
     "reward-skip": "跳过奖励",
     "role-action-cleanse": "职业行动净化成功",
-    "role-action-dark-pact": "黑暗契约濒危"
+    "role-action-dark-pact": "黑暗契约濒危",
+    "first-role-action": "首次职业行动"
   },
   "deputies": {
     "deputy-cleric": {
@@ -250,7 +255,7 @@
     },
     "hero-role-action-upgrade": {
       "name": "英雄职业训练",
-      "description": "选择一名可升级英雄，并在两个初始职业行动中选择一个解锁。"
+      "description": "选择一名可升级英雄，在两个初始职业行动中选择一个解锁，并回复50%最大HP。第一次免费。"
     },
     "hero-recruit": {
       "name": "新英雄招募",
@@ -258,7 +263,7 @@
     },
     "soldier-recruit": {
       "name": "士兵招募",
-      "description": "从4名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。Rank1获得队伍光环，Rank2回满HP并最大HP+5。"
+      "description": "从4名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。Rank1回复50%最大HP并获得队伍光环，Rank2回满HP并最大HP+5。"
     }
   },
   "roleActions": {
@@ -596,15 +601,15 @@
     "preview.trait.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
     "preview.trait.burningBoosted": "50%赋予1层燃烧（回合伤害）；受星读加护时每层造成2点魔法伤害。",
     "preview.trait.burning": "50%赋予1层燃烧（回合伤害）。",
-    "preview.trait.sporesGuaranteed": "造成伤害：100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
-    "preview.trait.sporesChance": "未造成伤害：50%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
-    "preview.trait.sporesVariable": "根据伤害结果以50%或100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
-    "preview.trait.aftershockGuaranteed": "确定造成至少3点主动伤害；相邻敌人受到该伤害1/3向上取整的物理伤害。",
-    "preview.trait.aftershockPossible": "根据减伤结果，主动伤害达到3点时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
+    "preview.trait.sporesGuaranteed": "造成HP伤害：100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.sporesChance": "未造成HP伤害：50%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.sporesVariable": "根据HP伤害结果以50%或100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+    "preview.trait.aftershockGuaranteed": "确定造成至少3点HP伤害；相邻敌人受到该伤害1/3向上取整的物理伤害。",
+    "preview.trait.aftershockPossible": "根据减伤结果，HP伤害达到3点时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
     "preview.trait.beautyPrincessImmune": "无法对公主发动美女与野兽。",
-    "preview.trait.beautyGuaranteed": "主动进攻确定为0伤害；追击造成{amount}点绝对伤害。",
-    "preview.trait.beautyPossible": "若减伤结果使主动伤害变为0，则追击造成{amount}点绝对伤害。",
-    "preview.trait.beautyUnavailable": "主动进攻会造成伤害，因此不会发动追击。",
+    "preview.trait.beautyGuaranteed": "主动进攻确定为0点HP伤害；追击造成{amount}点绝对伤害。",
+    "preview.trait.beautyPossible": "若减伤结果使HP伤害变为0，则追击造成{amount}点绝对伤害。",
+    "preview.trait.beautyUnavailable": "主动进攻会造成HP伤害，因此不会发动追击。",
     "preview.trait.none": "这次进攻没有主动触发的效果。",
     "log.firstPlayer": "{player}先攻。",
     "log.firstTurnNoStartEffects": "第一回合不发动回合开始效果。",
@@ -777,13 +782,13 @@
     },
     "weakening-spores": {
       "name": "衰弱孢子",
-      "description": "进攻造成伤害时100%、未造成伤害时50%发动：立即随机移除目标一个可驱散Buff，并施加力竭（物理伤害降低）和磨损（魔法伤害降低）。",
+      "description": "进攻造成HP伤害时100%、未造成HP伤害时50%发动：立即随机移除目标一个可驱散Buff，并施加力竭（物理伤害降低）和磨损（魔法伤害降低）。",
       "card": "发动时消除1个Buff，并施加力竭（物理伤害降低）与磨损（魔法伤害降低）。"
     },
     "aftershock-axe": {
       "name": "战斧余波",
       "description": "主动进攻对目标造成至少3点HP伤害时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
-      "card": "主动伤害≥3时，相邻敌人受到1/3余波。"
+      "card": "主动HP伤害≥3时，相邻敌人受到1/3余波。"
     },
     "predatory-instinct": {
       "name": "美女与野兽",

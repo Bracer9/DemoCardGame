@@ -1,14 +1,34 @@
 {
   "version": 1,
   "buses": {
-    "bgm": 0.25,
+    "bgm": 0.5,
     "sfx": 0.5,
     "ui": 0.5,
     "voice": 1
   },
+  "defaultBgmTrackId": "bgm.castle-hall-tactics",
   "tracks": {
+    "bgm.castle-hall-tactics": {
+      "title": "Castle Hall Tactics",
+      "source": "/assets/Castle_Hall_Tactics.mp3",
+      "bus": "bgm",
+      "volume": 1,
+      "loop": true,
+      "preload": "auto",
+      "fadeInMs": 1200
+    },
     "bgm.battle": {
+      "title": "Ashen Banner",
       "source": "/assets/Ashen%20Banner.mp3",
+      "bus": "bgm",
+      "volume": 0.9,
+      "loop": true,
+      "preload": "auto",
+      "fadeInMs": 1200
+    },
+    "bgm.dorian-hall-tactics": {
+      "title": "Dorian Hall Tactics",
+      "source": "/assets/Dorian%20Hall%20Tactics.mp3",
       "bus": "bgm",
       "volume": 0.9,
       "loop": true,
@@ -148,6 +168,11 @@
     "sfx.beast-rage": { "source": "/assets/audio/beast-rage.mp3", "bus": "sfx", "volume": 0.84, "preload": "auto" },
     "sfx.buff-applied": { "source": "/assets/audio/buff-applied.mp3", "bus": "sfx", "volume": 0.55, "preload": "auto" },
     "sfx.debuff-applied": { "source": "/assets/audio/debuff-applied.mp3", "bus": "sfx", "volume": 0.55, "preload": "auto" },
+    "sfx.complacency-applied": { "source": "/assets/audio/complacency-applied.mp3", "bus": "sfx", "volume": 0.55, "preload": "auto" },
+    "sfx.complacency-consumed": { "source": "/assets/audio/complacency-consumed.mp3", "bus": "sfx", "volume": 0.62, "preload": "auto" },
+    "sfx.weakness-activated": { "source": "/assets/audio/weakness-activated.mp3", "bus": "sfx", "volume": 0.78, "preload": "auto" },
+    "sfx.weakness-failed": { "source": "/assets/audio/weakness-failed.mp3", "bus": "sfx", "volume": 0.48, "preload": "auto" },
+    "sfx.weakness-pending": { "source": "/assets/audio/weakness-pending.mp3", "bus": "sfx", "volume": 0.54, "preload": "auto" },
     "sfx.status-expired": { "source": "/assets/audio/status-expired.mp3", "bus": "sfx", "volume": 0.48, "preload": "auto" },
     "sfx.beauty-and-beast-chase": { "source": "/assets/audio/beauty-and-beast-chase.mp3", "bus": "sfx", "volume": 0.86, "preload": "auto" },
     "sfx.room-created": { "source": "/assets/audio/room-created.mp3", "bus": "ui", "volume": 0.65, "preload": "auto" },
@@ -160,8 +185,8 @@
     "sfx.result-panel": { "source": "/assets/audio/result-panel.mp3", "bus": "ui", "volume": 0.58, "preload": "auto" }
   },
   "events": {
-    "game.start": ["bgm.battle"],
-    "game.restart": ["bgm.battle", "sfx.rematch-confirm"],
+    "game.start": ["bgm.castle-hall-tactics"],
+    "game.restart": ["bgm.castle-hall-tactics", "sfx.rematch-confirm"],
     "game.match-start": ["sfx.match-start"],
     "ui.card-select": ["sfx.card-pickup-confirm"],
     "ui.turn-end": ["sfx.card-pickup-confirm"],

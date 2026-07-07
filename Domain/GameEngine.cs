@@ -67,7 +67,7 @@ public sealed class GameEngine
     public const int CounterAttackPenalty = 1;
     public const int InitialBattlePoints = 5;
     public const int MaxBattlePoints = 20;
-    public const int BattlePointGainCapPerTurn = 4;
+    public const int BattlePointGainCapPerTurn = 5;
     public const int FirstRewardRound = 4;
     public const int RewardRoundInterval = 4;
     public const int RewardSkipBattlePoints = 2;
@@ -78,6 +78,7 @@ public sealed class GameEngine
     private const string BpReasonRewardSkip = "reward-skip";
     private const string BpReasonRoleActionCleanse = "role-action-cleanse";
     private const string BpReasonRoleActionDarkPact = "role-action-dark-pact";
+    private const string BpReasonFirstRoleAction = "first-role-action";
     private const string BpSpendReasonRewardPurchase = "reward-purchase";
     private const string BpSpendReasonRewardReroll = "reward-reroll";
     private readonly TraitRegistry _traits;
@@ -497,13 +498,11 @@ public sealed class GameEngine
     private void PromoteSoldier(CharacterState soldier)
     {
         var beforeRank = soldier.SoldierRank;
-        var beforeMaxHp = GetMaxHp(soldier);
         soldier.SoldierRank = Math.Min(2, soldier.SoldierRank + 1);
-        var afterMaxHp = GetMaxHp(soldier);
         if (beforeRank < 2 && soldier.SoldierRank >= 2)
-            soldier.CurrentHp = Math.Max(soldier.CurrentHp, afterMaxHp);
-        else if (afterMaxHp > beforeMaxHp)
-            soldier.CurrentHp += afterMaxHp - beforeMaxHp;
+            soldier.CurrentHp = Math.Max(soldier.CurrentHp, GetMaxHp(soldier));
+        else if (soldier.SoldierRank > beforeRank)
+            RecoverRankUpHp(soldier);
 
         if (soldier.SoldierRank >= 2)
         {
@@ -516,8 +515,14 @@ public sealed class GameEngine
                 _ => null
             };
             if (actionId is not null && !soldier.RoleActionIds.Contains(actionId, StringComparer.OrdinalIgnoreCase))
-                soldier.RoleActionIds.Add(actionId);
+            soldier.RoleActionIds.Add(actionId);
         }
+    }
+
+    private int RecoverRankUpHp(CharacterState character)
+    {
+        var amount = (int)Math.Ceiling(GetMaxHp(character) * 0.5);
+        return Heal(character, amount);
     }
 
     public AttackResult Attack(GameState state, Guid attackerId, Guid defenderId)
@@ -702,6 +707,8 @@ public sealed class GameEngine
             character.Statuses.RemoveAll(status => status.Expired);
         }
 
+        RecoverMoraleAtTurnEnd(state.ActivePlayer);
+
         state.ActivePlayerId = state.Opponent.Id;
         state.TurnNumber++;
         state.ActionPoints = MaxActionPoints;
@@ -709,6 +716,7 @@ public sealed class GameEngine
         state.ActionsTakenThisTurn = 0;
         state.ActiveAttacksTakenThisTurn = 0;
         state.ActivePlayer.BattlePoints.GainedThisTurn = 0;
+        state.ActivePlayer.FirstRoleActionBpGrantedThisTurn = false;
         state.ActivePlayer.DeputyPassivesUsedThisTurn.Clear();
 
         if (state.ActivePlayer.SharedShield > 0)
@@ -737,6 +745,16 @@ public sealed class GameEngine
         TryOpenRewardWindowForActivePlayer(state);
         ResolveDefeats(state);
         EvaluateGameEnd(state);
+    }
+
+    private static void RecoverMoraleAtTurnEnd(PlayerState player)
+    {
+        var recovery = Math.Max(0, player.BattlePoints.GainedThisTurn);
+        if (recovery <= 0)
+            return;
+
+        foreach (var character in player.Characters.Where(character => character.IsAlive))
+            character.Morale = Math.Min(character.MaxMorale, character.Morale + recovery);
     }
 
     private void ApplyPendingActionPointDebt(GameState state, PlayerState player)
@@ -1089,7 +1107,10 @@ public sealed class GameEngine
         if (!packet.IgnoresSharedShield)
             ApplySharedShield(targetOwner, packet);
         if (packet.BlockedBySharedShield)
+        {
+            packet.Amount = 0;
             return;
+        }
         if (!packet.IgnoresTargetDefense)
             ApplyTypeDefense(state, packet);
 
@@ -1105,7 +1126,38 @@ public sealed class GameEngine
             _traits.Get(traitOwner.Definition.TraitId).ModifyIncomingDamage(
                 new GameEngineContext(this, state), traitOwner, packet);
 
-        packet.Amount = Math.Max(0, packet.Amount);
+        if (packet.DamageType == DamageType.Absolute)
+            ApplyDirectHpDamage(packet);
+        else
+            ApplyMoraleDamage(packet.TargetCharacter, packet);
+    }
+
+    private static void ApplyDirectHpDamage(DamagePacket packet)
+    {
+        var finalDamage = Math.Max(0, packet.Amount);
+        packet.FinalCharacterDamage = finalDamage;
+        packet.MoraleDamage = 0;
+        packet.HpDamage = finalDamage;
+        packet.Amount = finalDamage;
+    }
+
+    private static void ApplyMoraleDamage(CharacterState target, DamagePacket packet)
+    {
+        var finalDamage = Math.Max(0, packet.Amount);
+        packet.FinalCharacterDamage = finalDamage;
+        if (finalDamage <= 0)
+        {
+            packet.Amount = 0;
+            return;
+        }
+
+        var moraleDamage = Math.Min(Math.Max(0, target.Morale), finalDamage);
+        target.Morale = Math.Max(0, target.Morale - moraleDamage);
+        var hpDamage = Math.Max(0, finalDamage - moraleDamage);
+
+        packet.MoraleDamage = moraleDamage;
+        packet.HpDamage = hpDamage;
+        packet.Amount = hpDamage;
     }
 
     private void ApplyTypeDefense(GameState state, DamagePacket packet)
@@ -1431,8 +1483,16 @@ public sealed class GameEngine
             .Take(Math.Max(0, 3 - options.Count)));
 
         foreach (var reward in options)
-            window.Options.Add(new RewardOptionState($"{reward.Id}-{Guid.NewGuid():N}", reward.Id, reward.Cost));
+            window.Options.Add(new RewardOptionState(
+                $"{reward.Id}-{Guid.NewGuid():N}",
+                reward.Id,
+                GetRewardOptionCost(player, reward)));
     }
+
+    private static int GetRewardOptionCost(PlayerState player, RewardDefinition reward) =>
+        reward.Kind == RewardKind.HeroRoleActionUpgrade && !player.HasClaimedFreeHeroRoleActionUpgrade
+            ? 0
+            : reward.Cost;
 
     private bool HasEligibleRoleActionUpgradeTarget(PlayerState player) =>
         player.Characters.Any(character => GetRoleActionUpgradeChoices(character).Count > 0);
@@ -1473,6 +1533,8 @@ public sealed class GameEngine
 
         window.Options.Remove(option);
         window.PurchaseCount++;
+        if (option.RewardId == RewardCatalog.HeroRoleActionUpgrade.Id && option.Cost == 0)
+            player.HasClaimedFreeHeroRoleActionUpgrade = true;
         Log(state, L10n.Text("log.rewardPurchased",
             ("player", L10n.Player(player.Name)),
             ("reward", L10n.Reward(option.RewardId)),
@@ -1581,6 +1643,7 @@ public sealed class GameEngine
         var player = state.Players.Single(item => item.Id == state.ActivePlayerId);
         ConfirmPendingRewardPurchase(state, player, pending.RewardInstanceId);
         character.RoleActionIds.Add(roleActionId);
+        RecoverRankUpHp(character);
         state.PendingRoleActionUpgrade = null;
         Log(state, L10n.Text("log.roleActionUnlocked",
             ("character", L10n.Character(character.Definition.Key)),
@@ -1679,8 +1742,18 @@ public sealed class GameEngine
             actor.RoleActionsUsedThisTurn.Add(roleActionId);
         StartRoleActionCooldown(actor, action);
         state.ActionsTakenThisTurn++;
+        TryGrantFirstRoleActionBp(state, state.ActivePlayer);
         ResolveDefeats(state);
         EvaluateGameEnd(state);
+    }
+
+    private void TryGrantFirstRoleActionBp(GameState state, PlayerState player)
+    {
+        if (player.FirstRoleActionBpGrantedThisTurn)
+            return;
+
+        player.FirstRoleActionBpGrantedThisTurn = true;
+        TryGainBp(state, player, 1, BpReasonFirstRoleAction);
     }
 
     private static CharacterState RequireAllyTarget(GameState state, CharacterState actor, Guid? targetCharacterId)
@@ -2310,9 +2383,9 @@ public sealed class GameEngine
         GameState state,
         PlayerState sourceOwner,
         PlayerState targetOwner,
-        int damage)
+        int hpDamage)
     {
-        if (damage <= 0 || sourceOwner.Id != state.ActivePlayerId || targetOwner.Id == sourceOwner.Id)
+        if (hpDamage <= 0 || sourceOwner.Id != state.ActivePlayerId || targetOwner.Id == sourceOwner.Id)
             return;
 
         TryGainBp(state, sourceOwner, 1, BpReasonOwnTurnEnemyHpDamage);
@@ -2421,18 +2494,28 @@ public sealed class GameEngine
         var source = state.FindCharacter(sourceCharacterId);
         var sourceOwner = state.FindOwner(source);
         var targetOwner = state.FindOwner(target);
-        var dealt = Math.Max(0, amount);
-        target.CurrentHp = Math.Max(0, target.CurrentHp - dealt);
+        var packet = new DamagePacket
+        {
+            SourceCharacter = source,
+            TargetCharacter = target,
+            DamageType = DamageType.Absolute,
+            Source = DamageSource.Trait,
+            Amount = Math.Max(0, amount),
+            IgnoresSharedShield = true,
+            IgnoresTargetDefense = true
+        };
+        ApplyDirectHpDamage(packet);
+        target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
         Log(state, L10n.Text("log.effectDamage",
             ("effect", effectArg),
             ("source", L10n.Character(source.Definition.Key)),
             ("sourceId", L10n.Raw(source.Id)),
             ("character", L10n.Character(target.Definition.Key)),
             ("characterId", L10n.Raw(target.Id)),
-            ("amount", L10n.Raw(dealt)),
+            ("amount", L10n.Raw(packet.Amount)),
             ("damageType", L10n.Damage(DamageType.Absolute))), "trait");
-        TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, dealt);
-        return dealt;
+        TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
+        return packet.Amount;
     }
 
     private static void ValidateAttack(GameState state, CharacterState attacker, CharacterState defender)

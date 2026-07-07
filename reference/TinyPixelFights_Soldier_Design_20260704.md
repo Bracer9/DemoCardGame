@@ -51,6 +51,8 @@
 | Rank1 | 小幅属性成长；强化初始 Trait；Trait 额外附加一个持续队伍光环。 |
 | Rank2 | 在 Rank1 基础上最大 HP +5，升阶瞬间 HP 全回复；进阶为唯一高级兵种，解锁固定 Role Action。 |
 
+士兵升至 Rank1 时，当前 HP 回复新的最大 HP 的 50%；升至 Rank2 时，当前 HP 回复到新的最大 HP。
+
 ## 5. Cleric / Saint Cleric
 
 ### Rank0 属性
