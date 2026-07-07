@@ -6,6 +6,8 @@
     "localPlayHint": "1台のPCで交互にプレイ",
     "testPlay": "テストモード",
     "testPlayHint": "英雄とロールアクションを確認",
+    "aiPlay": "一人用対戦",
+    "aiPlayHint": "シンプルAIと対戦",
     "onlinePlay": "オンライン対戦",
     "onlinePlayHint": "招待リンクで友達とプレイ",
     "backToModes": "← モード選択へ",
@@ -50,6 +52,18 @@
     "roleActionTitle": "ロールアクション",
     "roleActionLocked": "ロールアクションはまだ解放されていません。",
     "roleActionComingSoon": "発動処理はまだ実装されていません。",
+    "roleActionPredictionPrefix": "現在予測",
+    "roleActionPredictionSeparator": " / ",
+    "roleActionPredictionDamage": "{amount}{damageType}ダメージ",
+    "roleActionPredictionAbsoluteDamage": "{amount}絶対ダメージ",
+    "roleActionPredictionMoraleDamage": "{amount}士気ダメージ",
+    "roleActionPredictionShieldDamage": "共有盾に{amount}ダメージ（現在{shield}）",
+    "roleActionPredictionShieldGain": "共有盾+{amount}",
+    "roleActionPredictionShieldSpend": "共有盾{amount}消費",
+    "roleActionPredictionHeal": "{amount} HP回復",
+    "roleActionPredictionHpCost": "最大{amount} HPを失う",
+    "roleActionPredictionExtraAttack": "もう一度主動攻撃可能",
+    "roleActionPredictionStatus": "{status}付与",
     "rewardCannotAfford": "BP不足",
     "opponentChoosingReward": "相手が報酬を選択中",
     "rematch": "再戦する",
@@ -216,7 +230,8 @@
     "reward-skip": "報酬スキップ",
     "role-action-cleanse": "ロールアクションで浄化成功",
     "role-action-dark-pact": "闇の契約で瀕死",
-    "first-role-action": "初回ロールアクション"
+    "first-role-action": "初回ロールアクション",
+    "rank3-kill": "最終ロールアクション撃破"
   },
   "deputies": {
     "deputy-cleric": {
@@ -255,7 +270,7 @@
     },
     "hero-role-action-upgrade": {
       "name": "英雄職業訓練",
-      "description": "強化可能な英雄を選び、2つの初期ロールアクションから1つを解放し、最大HPの50%回復。初回無料。"
+      "description": "英雄を強化します。Rank0→1ではルートを選び最大HPの50%回復、Rank1→2では能力と特性を強化し最大HPの50%回復、Rank2→3では最終ロールアクションを解放しHP全回復。初回無料。"
     },
     "hero-recruit": {
       "name": "新英雄招募",
@@ -366,6 +381,86 @@
       "name": "星界集中",
       "description": "味方対象には詠唱（魔法ダメージ2倍）、敵対象には空虚（受ける魔法ダメージ増加）を付与。",
       "button": "集中"
+    },
+    "miracle-standard": {
+      "name": "奇跡の軍旗",
+      "description": "対象と隣接する味方を浄化し回復する。浄化に成功した場合、共有盾を増やす。",
+      "button": "軍旗"
+    },
+    "edict-of-victory": {
+      "name": "勝利の勅令",
+      "description": "味方1体を再攻撃可能にし、次の主動攻撃後に姫の現在攻撃力分の絶対ダメージを追加する。",
+      "button": "勅令"
+    },
+    "astral-alignment": {
+      "name": "星軌調整",
+      "description": "味方魔法ユニットに詠唱と再攻撃を付与。次の魔法ダメージに占い師の現在攻撃力を追加し、隣接敵にも波及する。",
+      "button": "星軌"
+    },
+    "thread-cut": {
+      "name": "糸断ち",
+      "description": "対象の印とデバフ数に応じて士気を削る。士気が0になれば魔法ダメージと戦慄を与える。",
+      "button": "糸断ち"
+    },
+    "field-rations": {
+      "name": "戦地配給",
+      "description": "味方全体を回復し、主対象を追加回復して堅守と護呪を付与。低HPならデバフを1つ浄化する。",
+      "button": "配給"
+    },
+    "militia-call": {
+      "name": "民兵号令",
+      "description": "味方農民または兵士に強攻/詠唱、再攻撃、次の攻撃への追加ダメージを付与。",
+      "button": "号令"
+    },
+    "starfall": {
+      "name": "星墜とし",
+      "description": "敵1体に2魔法ダメージと炎上。詠唱があれば1層消費し、現在攻撃力分の魔法ダメージに変える。",
+      "button": "星墜"
+    },
+    "archive-formula": {
+      "name": "記録術式",
+      "description": "敵1体に記録刻印を付与し、魔法ダメージと炎上を与える。炎上または空虚があれば威力が上がる。",
+      "button": "記録"
+    },
+    "grove-sanctuary": {
+      "name": "森の聖域",
+      "description": "対象と隣接する味方を浄化する。浄化に成功した場合は全員を回復し、失敗時は護呪を付与。",
+      "button": "聖域"
+    },
+    "call-the-hunt": {
+      "name": "狩群招集",
+      "description": "対象と隣接する敵に狩群の印を付与。このターン、味方兵士の攻撃に追加ダメージ。",
+      "button": "狩群"
+    },
+    "glory-roar": {
+      "name": "栄光の咆哮",
+      "description": "自身に強攻と複数回の追加攻撃を付与。このターン、主動攻撃後に1 HPを失う。",
+      "button": "咆哮"
+    },
+    "dragon-breaker": {
+      "name": "竜砕き",
+      "description": "敵共有盾を攻撃し、破壊時に対象と隣接敵へ戦慄と脆弱。盾がなければ物理ダメージと戦慄・脆弱。",
+      "button": "竜砕"
+    },
+    "nightmare-stare": {
+      "name": "悪夢の眼差し",
+      "description": "対象と隣接敵に強化獲物を付与。このターン最初の0 HPダメージ時、モンスターの現在攻撃力分の絶対ダメージ。",
+      "button": "悪夢"
+    },
+    "abyssal-bargain": {
+      "name": "深淵取引",
+      "description": "味方1体がHPを失い、再攻撃と絶対ダメージを得る。敵を倒せばBPを得てモンスターを回復する。",
+      "button": "取引"
+    },
+    "holy-bastion": {
+      "name": "聖なる堡塁",
+      "description": "味方1体に守護の誓約と護呪、騎士に堅守を付与し、騎士の現在防御に応じて共有盾を増やす。",
+      "button": "堡塁"
+    },
+    "iron-charge": {
+      "name": "鉄壁突撃",
+      "description": "味方共有盾をすべて消費し、盾値+騎士の現在攻撃力の物理ダメージ。HPダメージ時、共有盾を一部返す。",
+      "button": "突撃"
     }
   },
   "statuses": {
@@ -377,22 +472,22 @@
     "exhaustion": {
       "name": "力尽き",
       "timing": "ターン終了まで",
-      "description": "与える物理ダメージが半減。"
+      "description": "与える物理ダメージ×0.5、最低1。"
     },
     "erosion": {
       "name": "摩耗",
       "timing": "ターン終了まで",
-      "description": "与える魔法ダメージが半減。"
+      "description": "与える魔法ダメージ×0.5、最低1。"
     },
     "void": {
       "name": "空虚",
       "timing": "ターン終了まで",
-      "description": "受ける魔法ダメージが増加。"
+      "description": "受ける魔法ダメージ×1.25、切り上げ。"
     },
     "fortify": {
       "name": "堅守",
       "timing": "層数で継続",
-      "description": "受ける物理ダメージが半減。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+      "description": "受ける物理ダメージ×0.5、最低1。自分のターン終了時に1層消費。残り層数：{magnitude}。"
     },
     "guard-oath": {
       "name": "守護の誓約",
@@ -407,12 +502,12 @@
     "chant": {
       "name": "詠唱",
       "timing": "次の魔法ダメージ",
-      "description": "次の魔法ダメージが2倍。残り層数：{magnitude}。"
+      "description": "次の魔法ダメージ×2。残り層数：{magnitude}。"
     },
     "chant-pending": {
       "name": "集中準備",
       "timing": "次の自分のターン開始時",
-      "description": "次の自分のターンに詠唱（魔法ダメージ2倍）2層を得る。"
+      "description": "次の自分のターンに詠唱（魔法ダメージ×2）2層を得る。"
     },
     "harvest": {
       "name": "豊穣",
@@ -436,7 +531,7 @@
     },
     "deploying": {
       "name": "配置中",
-      "timing": "所有者の次々回の自分ターン開始まで",
+      "timing": "所有者の次の自分ターン開始まで",
       "description": "主動攻撃とロールアクション不可。攻撃、ロールアクション、特性、回復、Buffの対象に選べない。"
     },
     "magic-power": {
@@ -500,6 +595,11 @@
       "timing": "報酬",
       "description": "魔法防御+{magnitude}。この対戦中持続。解除不可。"
     },
+    "reward-physical-defense": {
+      "name": "鉄甲補給",
+      "timing": "報酬",
+      "description": "物理防御+{magnitude}。この対戦中持続。解除不可。"
+    },
     "rage": {
       "name": "激怒",
       "timing": "次の自分のターンまで",
@@ -513,7 +613,7 @@
     "marked": {
       "name": "運命の印",
       "timing": "次に味方を主動攻撃する時",
-      "description": "50%でダメージ半減、50%でダメージ+{magnitude}。発動後に解除。"
+      "description": "50%でダメージ×0.5、50%でダメージ+{magnitude}。発動後に解除。"
     },
     "prey": {
       "name": "獲物",
@@ -528,22 +628,62 @@
     "strong-attack": {
       "name": "強攻",
       "timing": "層数で継続",
-      "description": "主動物理ダメージが上昇。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+      "description": "主動物理ダメージ×1.5、切り上げ。自分のターン終了時に1層消費。残り層数：{magnitude}。"
     },
     "mighty-strike": {
       "name": "猛撃",
       "timing": "層数で継続",
-      "description": "次の主動物理ダメージが2倍。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+      "description": "次の主動物理ダメージ×2。自分のターン終了時に1層消費。残り層数：{magnitude}。"
     },
     "spell-ward": {
       "name": "護呪",
       "timing": "層数で継続",
-      "description": "受ける魔法ダメージが半減。自分のターン終了時に1層消費。残り層数：{magnitude}。"
+      "description": "受ける魔法ダメージ×0.5、最低1。自分のターン終了時に1層消費。残り層数：{magnitude}。"
     },
     "vulnerable": {
       "name": "脆弱",
       "timing": "ターン終了まで",
-      "description": "受ける物理ダメージが増加。"
+      "description": "受ける物理ダメージ×1.25、切り上げ。"
+    },
+    "edict-of-victory": {
+      "name": "勝利の勅令",
+      "timing": "次の主動攻撃後",
+      "description": "{magnitude}絶対ダメージを追加。敵を倒せばBPを得てAP代価を相殺。"
+    },
+    "astral-alignment": {
+      "name": "星軌調整",
+      "timing": "次の魔法ダメージ",
+      "description": "{magnitude}魔法ダメージを追加し、隣接敵にも波及。"
+    },
+    "militia-call": {
+      "name": "民兵号令",
+      "timing": "次の主動攻撃",
+      "description": "次の主動攻撃に{magnitude}通常ダメージを追加。"
+    },
+    "hunted": {
+      "name": "狩群の印",
+      "timing": "ターン終了まで",
+      "description": "味方兵士が攻撃する時、{magnitude}通常ダメージを追加。兵士ごとに1回。"
+    },
+    "nightmare-prey": {
+      "name": "強化獲物",
+      "timing": "このターン最初の0 HPダメージ",
+      "description": "0 HPダメージを受ける時、{magnitude}絶対ダメージを追加。"
+    },
+    "abyssal-bargain": {
+      "name": "深淵契約",
+      "timing": "次の主動攻撃",
+      "description": "次の主動攻撃後、{magnitude}絶対ダメージを追加。撃破時に返還効果。"
+    },
+    "archived": {
+      "name": "記録刻印",
+      "timing": "ターン終了まで",
+      "description": "記録術式で固定されている。浄化可能。"
+    },
+    "glory-roar": {
+      "name": "栄光の咆哮",
+      "timing": "ターン終了まで",
+      "description": "主動攻撃後に1 HPを失う。"
     }
   },
   "messages": {
@@ -664,6 +804,9 @@
     "error.roleActionRequiresShield": "味方に共有盾が必要です。",
     "log.roleActionUpgradePending": "{player}が英雄のロールアクション選択を開始した。",
     "log.roleActionUnlocked": "{character}が{roleAction}を解放した。",
+    "log.heroRankUp": "{character}がRank {rank}へ昇格し、{roleAction}を得た。",
+    "log.rank3RoleAction": "{actor}が{roleAction}を発動。",
+    "log.moraleDamage": "{effect}：{character}に{amount}士気ダメージ。",
     "log.deputyAssigned": "{soldier}が{hero}の副官になった：{deputy}。",
     "log.deputyTriggered": "副官「{deputy}」が発動：{target}に{status}を付与。",
     "log.roleActionCleanse": "{character}の{status}を浄化した。",
@@ -763,42 +906,170 @@
     "saints-prayer": {
       "name": "聖女の祈り",
       "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。",
-      "card": "味方全員を毎ターン1回復。最大HP+2まで。"
+      "card": "味方全員を毎ターン1回復。最大HP+2まで。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。祈りルート：ロールアクションの回復または浄化成功時、対象に護呪。王令ルート：ターン開始回復後、HP割合が最も低い味方を追加で1 HP回復。",
+          "card": "Rank2ルート強化：祈りで護呪、または王令で低HP回復。",
+          "paths": {
+            "saintly-prayer": {
+              "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。聖女の祈りで回復または浄化に成功した時、対象に護呪を付与。",
+              "card": "味方全員を毎ターン1回復。聖女の祈り成功時に護呪。"
+            },
+            "royal-command": {
+              "description": "場にいる間、味方全員に祝福を付与。自分のターン開始時にHPを1回復し、最大HPを2まで超えられる。その後、HP割合が最も低い味方を追加で1 HP回復。",
+              "card": "味方全員を毎ターン1回復し、低HPの味方を追加回復。"
+            }
+          }
+        }
+      }
     },
     "stargazers-aegis": {
       "name": "星読みの加護",
       "description": "味方がダメージを受ける時、30%でそのダメージを半減。味方の魔法と炎上（ターンダメージ）ダメージ+1。",
-      "card": "30%で味方の被ダメージ半減。魔法と炎上（ターンダメージ）+1。"
+      "card": "30%で味方の被ダメージ半減。魔法と炎上（ターンダメージ）+1。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。星読みルート：予見成功後、保護対象に護呪。魔法ユニットなら詠唱。運命ルート：印と0 HPダメージの反撃窓を強化。",
+          "card": "Rank2ルート強化：予見成功後に護呪/詠唱、または運命反撃を強化。",
+          "paths": {
+            "star-reading": {
+              "description": "味方がダメージを受ける時、30%でそのダメージを半減。味方の魔法と炎上（ターンダメージ）ダメージ+1。毎ターン最初の予見成功後、保護対象に護呪を付与。魔法ユニットなら詠唱を付与。",
+              "card": "30%で味方被ダメージ半減。魔法と炎上+1。予見成功後に護呪/詠唱。"
+            },
+            "fate-mark": {
+              "description": "味方がダメージを受ける時、30%でそのダメージを半減。味方の魔法と炎上（ターンダメージ）ダメージ+1。",
+              "card": "30%で味方の被ダメージ半減。魔法と炎上（ターンダメージ）+1。"
+            }
+          }
+        }
+      }
     },
     "spring-harvest": {
       "name": "春種秋収",
       "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。",
-      "card": "最初の攻撃で播種。次の自分のターン攻撃+2。"
+      "card": "最初の攻撃で播種。次の自分のターン攻撃+2。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。補給ルート：播種時、HP割合が最も低い味方に堅守。民兵ルート：豊穣攻撃で初めて敵HPへダメージを与えた時、1 BP。",
+          "card": "Rank2ルート強化：播種で低HPに堅守、または豊穣HPダメージでBP。",
+          "paths": {
+            "supply-basket": {
+              "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。播種時、HP割合が最も低い味方に堅守を付与。",
+              "card": "最初の攻撃で播種。次の自分のターン攻撃+2。播種時に低HP味方へ堅守。"
+            },
+            "field-work": {
+              "description": "豊穣中でなければ、ターン最初の攻撃で種を蒔く。次の自分のターンは攻撃+2。豊穣攻撃で毎ターン初めて敵HPへダメージを与えた時、1 BPを得る。",
+              "card": "最初の攻撃で播種。次の自分のターン攻撃+2。豊穣HPダメージで1 BP。"
+            }
+          }
+        }
+      }
     },
     "searing-mark": {
       "name": "灼熱の刻印",
       "description": "攻撃時50%で炎上（ターンダメージ）を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。",
-      "card": "攻撃時50%で炎上（ターンダメージ）。"
+      "card": "攻撃時50%で炎上（ターンダメージ）。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。集中ルート：刻印がより安定して発動。刻印ルート：灼熱の刻印発動時、追加で空虚を付与。",
+          "card": "Rank2ルート強化：炎上が安定、または空虚を追加。",
+          "paths": {
+            "arcane-channel": {
+              "description": "攻撃時に炎上（ターンダメージ）を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。",
+              "card": "攻撃時に必ず炎上（ターンダメージ）を付与。"
+            },
+            "searing-brand": {
+              "description": "攻撃時50%で炎上（ターンダメージ）を付与。対象の次のターン開始時に1魔法ダメージ。星読みの加護で+1。灼熱の刻印発動時、追加で空虚を付与。",
+              "card": "攻撃時50%で炎上。発動時に空虚を追加。"
+            }
+          }
+        }
+      }
     },
     "weakening-spores": {
       "name": "衰弱の胞子",
       "description": "HPダメージを与えたなら100%、与えなければ50%で発動。対象の解除可能なBuffをランダムに1つ即座に解除し、力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与する。",
-      "card": "発動時、Buffを1つ解除して力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。"
+      "card": "発動時、Buffを1つ解除して力尽き（物理ダメージ低下）と摩耗（魔法ダメージ低下）を付与。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。浄化ルート：薬草成功時に護呪、低HPなら追加回復。胞子ルート：バフを消せなかった時、脆弱または空虚を追加。",
+          "card": "Rank2ルート強化：浄化に防護、または胞子に追加破防。",
+          "paths": {
+            "cleansing-herbs": {
+              "description": "HPダメージを与えたなら100%、与えなければ50%で発動。対象の解除可能なBuffを1つ解除し、力尽きと摩耗を付与する。薬草の浄化に成功した時、対象に護呪を付与。HPが半分未満なら追加で1 HP回復。",
+              "card": "胞子で解除と力尽き/摩耗。薬草成功時に護呪と低HP回復。"
+            },
+            "weakening-spores-action": {
+              "description": "HPダメージを与えたなら100%、与えなければ50%で発動。対象の解除可能なBuffを1つ解除し、力尽きと摩耗を付与する。Buffを解除できなかった場合、脆弱または空虚を追加で付与。",
+              "card": "胞子で解除と力尽き/摩耗。解除できなければ破防を追加。"
+            }
+          }
+        }
+      }
     },
     "aftershock-axe": {
       "name": "戦斧の余波",
       "description": "主動攻撃で対象に3以上のHPダメージを与えた時、隣接する敵にそのダメージの1/3切り上げの物理ダメージ。",
-      "card": "主動HPダメージ3以上で、隣接敵に1/3余波。"
+      "card": "主動HPダメージ3以上で、隣接敵に1/3余波。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。戦吼ルート：激怒中の余波最低値が2。崩しルート：余波命中時、隣接敵に戦慄を追加。",
+          "card": "Rank2ルート強化：激怒余波強化、または余波に戦慄。",
+          "paths": {
+            "war-cry": {
+              "description": "主動攻撃で対象に3以上のHPダメージを与えた時、隣接する敵にそのダメージの1/3切り上げの物理ダメージ。激怒中は3以上のHPダメージでなくても発動し、余波の最低値は2。",
+              "card": "主動HPダメージ3以上で余波。激怒中は余波最低2。"
+            },
+            "challenge": {
+              "description": "主動攻撃で対象に3以上のHPダメージを与えた時、隣接する敵にそのダメージの1/3切り上げの物理ダメージを与え、戦慄を付与。",
+              "card": "主動HPダメージ3以上で、隣接敵に余波と戦慄。"
+            }
+          }
+        }
+      }
     },
     "predatory-instinct": {
       "name": "美女と野獣",
       "description": "姫以外に0 HPダメージだった時、現在攻撃力分の絶対ダメージで追撃。味方の姫が生存していれば+1。姫を攻撃する時は現在攻撃力分の絶対ダメージを与え、その2倍を自身に受けるが、この効果では倒れない。いずれかの姫が倒れると野獣の怒りを得る。",
-      "card": "非姫に0ダメージなら絶対追撃。姫への攻撃は自傷。"
+      "card": "非姫に0ダメージなら絶対追撃。姫への攻撃は自傷。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。獲物ルート：獲物への追撃絶対ダメージ+1。契約ルート：生贄後の継戦力を強化。",
+          "card": "Rank2ルート強化：獲物追撃強化、または契約ルートの継戦力。",
+          "paths": {
+            "predatory-gaze": {
+              "description": "姫以外に0 HPダメージだった時、現在攻撃力分の絶対ダメージで追撃。味方の姫が生存していれば+1。対象が獲物または強化獲物ならさらに+1。姫を攻撃する時は現在攻撃力分の絶対ダメージを与え、その2倍を自身に受けるが、この効果では倒れない。いずれかの姫が倒れると野獣の怒りを得る。",
+              "card": "非姫0ダメージなら絶対追撃。獲物追撃+1。姫への攻撃は自傷。"
+            },
+            "dark-pact": {
+              "description": "姫以外に0 HPダメージだった時、現在攻撃力分の絶対ダメージで追撃。味方の姫が生存していれば+1。姫を攻撃する時は現在攻撃力分の絶対ダメージを与え、その2倍を自身に受けるが、この効果では倒れない。いずれかの姫が倒れると野獣の怒りを得る。",
+              "card": "非姫に0ダメージなら絶対追撃。姫への攻撃は自傷。"
+            }
+          }
+        }
+      }
     },
     "interposing-shield": {
       "name": "身代わりの盾",
       "description": "騎士以外の味方が主動物理ダメージを受ける時、全隊共有で1回発動。騎士がそのダメージの1/3切り上げを肩代わりし、騎士自身の物防で軽減する。",
-      "card": "全隊共有1回。騎士が味方への主動物理ダメージの一部を肩代わり。"
+      "card": "全隊共有1回。騎士が味方への主動物理ダメージの一部を肩代わり。",
+      "ranks": {
+        "2": {
+          "description": "ルートに応じて強化。守護ルート：身代わりの盾発動後、保護対象に堅守。盾令ルート：共有盾破壊後、騎士が強攻の窓を得る。",
+          "card": "Rank2ルート強化：守護後に堅守、または盾破壊後に強攻。",
+          "paths": {
+            "guard-oath": {
+              "description": "騎士以外の味方が主動物理ダメージを受ける時、全隊共有で1回発動。騎士がそのダメージの1/3切り上げを肩代わりし、騎士自身の物防で軽減する。発動後、保護対象に堅守を付与。",
+              "card": "全隊共有1回。騎士が主動物理ダメージを一部肩代わりし、保護対象に堅守。"
+            },
+            "raise-bulwark": {
+              "description": "騎士以外の味方が主動物理ダメージを受ける時、全隊共有で1回発動。騎士がそのダメージの1/3切り上げを肩代わりし、騎士自身の物防で軽減する。味方の共有盾が破壊された後、騎士が強攻を得る。",
+              "card": "全隊共有1回。騎士が主動物理ダメージを一部肩代わり。共有盾破壊後に強攻。"
+            }
+          }
+        }
+      }
     },
     "field-medic": {
       "name": "戦場医療",

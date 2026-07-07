@@ -76,6 +76,14 @@ public abstract class CharacterTrait
     }
 }
 
+internal static class HeroRankRules
+{
+    public static bool HasRank2Path(CharacterState owner, string baseRoleActionId) =>
+        owner.Definition.CardType == CardType.Hero
+        && owner.HeroRank >= 2
+        && string.Equals(owner.HeroPathRoleActionId, baseRoleActionId, StringComparison.OrdinalIgnoreCase);
+}
+
 public sealed class SaintsPrayerTrait : CharacterTrait
 {
     public override TraitMetadata Metadata { get; } = new(
@@ -102,6 +110,24 @@ public sealed class SaintsPrayerTrait : CharacterTrait
                 ("character", L10n.Character(ally.Definition.Key)),
                 ("characterId", L10n.Raw(ally.Id)),
                 ("amount", L10n.Raw(1))), "heal");
+        }
+
+        if (HeroRankRules.HasRank2Path(owner, "royal-command"))
+        {
+            var target = context.State.FindOwner(owner).Characters
+                .Where(character => character.IsAlive && !GameEngine.IsDeploying(character))
+                .OrderBy(character => context.GetMaxHp(character) == 0 ? 1 : (double)character.CurrentHp / context.GetMaxHp(character))
+                .ThenBy(character => character.CurrentHp)
+                .FirstOrDefault();
+            if (target is not null && target.CurrentHp < context.GetMaxHp(target) + 2)
+            {
+                target.CurrentHp++;
+                context.Log(L10n.Text("log.healed",
+                    ("effect", L10n.Trait("saints-prayer")),
+                    ("character", L10n.Character(target.Definition.Key)),
+                    ("characterId", L10n.Raw(target.Id)),
+                    ("amount", L10n.Raw(1))), "heal");
+            }
         }
     }
 }
@@ -145,6 +171,15 @@ public sealed class StargazersAegisTrait : CharacterTrait
             ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
             ("damageType", L10n.Damage(packet.DamageType)),
             ("amount", L10n.Raw(before - packet.Amount))));
+
+        if (HeroRankRules.HasRank2Path(owner, "star-reading")
+            && owner.TraitsUsedThisTurn.Add("stargazers-aegis-rank2"))
+        {
+            if (GameEngine.GetAttackType(packet.TargetCharacter) == DamageType.Magical)
+                packet.TargetCharacter.Statuses.Add(new ChantStatus(owner.Id));
+            else
+                packet.TargetCharacter.Statuses.Add(new SpellWardStatus(owner.Id));
+        }
     }
 }
 
@@ -185,9 +220,31 @@ public sealed class SpringHarvestTrait : CharacterTrait
 
         owner.Statuses.RemoveAll(status => status.Id == "harvest-pending");
         owner.Statuses.Add(new PendingHarvestStatus(owner.Id, owner.PlayerId));
+        if (HeroRankRules.HasRank2Path(owner, "supply-basket"))
+        {
+            var lowHpAlly = context.State.FindOwner(owner).Characters
+                .Where(character => character.IsAlive && !GameEngine.IsDeploying(character))
+                .OrderBy(character => context.GetMaxHp(character) == 0 ? 1 : (double)character.CurrentHp / context.GetMaxHp(character))
+                .ThenBy(character => character.CurrentHp)
+                .FirstOrDefault();
+            if (lowHpAlly is not null)
+                lowHpAlly.Statuses.Add(new FortifyStatus(owner.Id));
+        }
         context.Log(L10n.Text("log.sowing",
             ("character", L10n.Character(owner.Definition.Key)),
             ("characterId", L10n.Raw(owner.Id))), "buff");
+    }
+
+    public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
+    {
+        if (!HeroRankRules.HasRank2Path(owner, "field-work")
+            || exchange.AttackDamageDealt <= 0
+            || owner.TraitsUsedThisTurn.Contains("spring-harvest-rank2-bp")
+            || owner.Statuses.All(status => status.Id != "harvest" || status.Expired))
+            return;
+
+        context.GainBattlePoint(context.State.FindOwner(owner), 1, "own-turn-enemy-hp-damage");
+        owner.TraitsUsedThisTurn.Add("spring-harvest-rank2-bp");
     }
 }
 
@@ -201,10 +258,19 @@ public sealed class SearingMarkTrait : CharacterTrait
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
-        if (!exchange.Defender.IsAlive || !context.Roll(0.50))
+        if (!exchange.Defender.IsAlive)
+            return;
+
+        var guaranteed = HeroRankRules.HasRank2Path(owner, "arcane-channel");
+        if (!guaranteed && !context.Roll(0.50))
             return;
 
         GameEngine.AddBurning(exchange.Defender, owner.Id);
+        if (HeroRankRules.HasRank2Path(owner, "searing-brand"))
+        {
+            exchange.Defender.Statuses.RemoveAll(status => status.Id == "void");
+            exchange.Defender.Statuses.Add(new VoidStatus(owner.Id, owner.PlayerId));
+        }
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
             ("characterId", L10n.Raw(exchange.Defender.Id)),
@@ -243,6 +309,7 @@ public sealed class WeakeningSporesTrait : CharacterTrait
         var attackBuff = attackBuffs.Count == 0
             ? null
             : attackBuffs[context.Next(attackBuffs.Count)];
+        var removedBuff = attackBuff is not null;
         if (attackBuff is not null)
         {
             exchange.Defender.Statuses.Remove(attackBuff);
@@ -255,6 +322,13 @@ public sealed class WeakeningSporesTrait : CharacterTrait
         exchange.Defender.Statuses.RemoveAll(status => status.Id is "exhaustion" or "erosion");
         exchange.Defender.Statuses.Add(new ExhaustionStatus(owner.Id, exchange.Defender.PlayerId));
         exchange.Defender.Statuses.Add(new ErosionStatus(owner.Id, exchange.Defender.PlayerId));
+        if (!removedBuff && HeroRankRules.HasRank2Path(owner, "weakening-spores-action"))
+        {
+            if (GameEngine.GetAttackType(exchange.Defender) == DamageType.Physical)
+                exchange.Defender.Statuses.Add(new VulnerableStatus(owner.Id, owner.PlayerId));
+            else
+                exchange.Defender.Statuses.Add(new VoidStatus(owner.Id, owner.PlayerId));
+        }
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
             ("characterId", L10n.Raw(exchange.Defender.Id)),
@@ -278,7 +352,9 @@ public sealed class AftershockAxeTrait : CharacterTrait
 
     public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
-        if (exchange.AttackDamageDealt < TriggerDamage)
+        var ragingRank2 = HeroRankRules.HasRank2Path(owner, "war-cry")
+            && owner.Statuses.Any(status => status.Id == "rage" && !status.Expired);
+        if (exchange.AttackDamageDealt < TriggerDamage && !ragingRank2)
             return;
 
         var defenderOwner = context.State.FindOwner(exchange.Defender);
@@ -291,9 +367,13 @@ public sealed class AftershockAxeTrait : CharacterTrait
         if (neighbours.Count == 0)
             return;
 
-        var damage = Math.Max(1, (int)Math.Ceiling(exchange.AttackDamageDealt / 3.0));
+        var damage = Math.Max(ragingRank2 ? 2 : 1, (int)Math.Ceiling(exchange.AttackDamageDealt / 3.0));
         foreach (var target in neighbours)
+        {
             context.DealTraitDamage(target, damage, DamageType.Physical, owner.Id, "aftershock-axe");
+            if (HeroRankRules.HasRank2Path(owner, "challenge"))
+                target.Statuses.Add(new TremblingStatus(owner.Id, owner.PlayerId));
+        }
     }
 }
 
@@ -333,7 +413,11 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
 
         var hasPrincess = context.State.FindOwner(owner).Characters.Any(character =>
             character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
-        var damage = context.GetActiveAttack(owner) + (hasPrincess ? PrincessBonusDamage : 0);
+        var preyBonus = HeroRankRules.HasRank2Path(owner, "predatory-gaze")
+            && exchange.Defender.Statuses.Any(status => status.Id is "prey" or "nightmare-prey" && !status.Expired)
+                ? 1
+                : 0;
+        var damage = context.GetActiveAttack(owner) + (hasPrincess ? PrincessBonusDamage : 0) + preyBonus;
         context.DealAbsoluteDamage(exchange.Defender, damage, owner.Id, "predatory-instinct");
     }
 
@@ -412,6 +496,8 @@ public sealed class InterposingShieldTrait : CharacterTrait
             ("target", L10n.Character(packet.TargetCharacter.Definition.Key)),
             ("targetId", L10n.Raw(packet.TargetCharacter.Id)),
             ("amount", L10n.Raw(guardDamage))));
+        if (HeroRankRules.HasRank2Path(owner, "guard-oath"))
+            packet.TargetCharacter.Statuses.Add(new FortifyStatus(owner.Id));
         owner.GuardConsumed = true;
     }
 }

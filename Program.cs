@@ -11,6 +11,7 @@ builder.Services.AddSingleton<GameSession>();
 builder.Services.AddSingleton<OnlineGameSession>();
 builder.Services.AddSingleton<GameViewFactory>();
 builder.Services.AddSingleton<AttackPreviewService>();
+builder.Services.AddSingleton<SimpleAiService>();
 
 var app = builder.Build();
 app.UseDefaultFiles();
@@ -206,6 +207,22 @@ app.MapPost("/api/game/new", (GameSession session, GameViewFactory views) =>
 
 app.MapPost("/api/game/test/new", (GameSession session, GameViewFactory views) =>
     Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewTestGame()), Message: L10n.Text("message.newGame"))));
+
+app.MapPost("/api/game/ai/new", (GameSession session, GameViewFactory views) =>
+    Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewAiGame()), Message: L10n.Text("message.newGame"))));
+
+app.MapPost("/api/game/ai/advance", (GameSession session, SimpleAiService ai, GameViewFactory views) =>
+{
+    try
+    {
+        return session.Write(state =>
+        {
+            ai.Advance(state);
+            return Results.Ok(new ApiEnvelope<GameView>(views.Create(state)));
+        });
+    }
+    catch (GameRuleException exception) { return Results.BadRequest(new { error = exception.Error }); }
+});
 
 app.MapGet("/api/game/preview", (Guid attackerId, Guid defenderId, GameSession session, AttackPreviewService previews) =>
     Results.Ok(new ApiEnvelope<AttackPreview>(session.Read(state => previews.Create(state, attackerId, defenderId)))));

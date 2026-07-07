@@ -40,10 +40,14 @@
   };
   const traitKind = value => lookup('abilityKinds', value) ?? value;
   const traitTrigger = value => lookup('traitTriggers', value) ?? value;
-  const trait = (id, rank = 0) => {
+  const trait = (id, rank = 0, pathId = null) => {
     const value = lookup('traits', id) || {};
     const rankKey = String(Math.max(0, Number(rank) || 0));
-    const ranked = value.ranks?.[rankKey]
+    const exactRanked = value.ranks?.[rankKey];
+    const fallbackRanked = Number(rank) >= 2 ? value.ranks?.["2"] : Number(rank) >= 1 ? value.ranks?.["1"] : undefined;
+    const ranked = exactRanked?.paths?.[pathId]
+      ?? fallbackRanked?.paths?.[pathId]
+      ?? exactRanked
       ?? (Number(rank) >= 2 ? value.ranks?.["2"] : undefined)
       ?? (Number(rank) >= 1 ? value.ranks?.["1"] : undefined)
       ?? {};

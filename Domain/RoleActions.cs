@@ -33,7 +33,7 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
             return false;
         if (Metadata.BaseApCost > state.ActionPoints)
             return false;
-        if (Metadata.Id == "raise-bulwark" && state.FindOwner(owner).SharedShield <= 0)
+        if (Metadata.Id is "raise-bulwark" or "iron-charge" && state.FindOwner(owner).SharedShield <= 0)
             return false;
 
         return true;
@@ -54,7 +54,7 @@ public sealed class CharacterRoleAction(RoleActionMetadata metadata)
         if (state.PendingRoleActionUpgrade is not null) return L10n.Text("error.pendingRoleActionUpgrade");
         if (state.PendingHeroDraft is not null) return L10n.Text("error.pendingHeroDraft");
         if (Metadata.BaseApCost > state.ActionPoints) return L10n.Text("reason.notEnoughAp");
-        if (Metadata.Id == "raise-bulwark" && state.FindOwner(owner).SharedShield <= 0)
+        if (Metadata.Id is "raise-bulwark" or "iron-charge" && state.FindOwner(owner).SharedShield <= 0)
             return L10n.Text("error.roleActionRequiresShield");
         return null;
     }
@@ -190,7 +190,24 @@ public sealed class RoleActionRegistry
                 RoleActionActivationMode.Targeted,
                 [RoleActionTargetKind.AllyCard, RoleActionTargetKind.EnemyCard],
                 1,
-                ["chant", "void", "magic"]))
+                ["chant", "void", "magic"])),
+
+            new(new RoleActionMetadata("miracle-standard", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["heal", "cleanse", "shield", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("edict-of-victory", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["command", "extra-attack", "absolute", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("astral-alignment", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["chant", "extra-attack", "magic", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("thread-cut", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["fate", "morale", "magic", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("field-rations", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["heal", "guard", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("militia-call", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["extra-attack", "soldier", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("starfall", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 2, ["magic", "burn", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("archive-formula", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["mark", "magic", "burn", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("grove-sanctuary", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["cleanse", "heal", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("call-the-hunt", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["mark", "soldier", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("glory-roar", RoleActionActivationMode.Immediate, [RoleActionTargetKind.SelfCard], 1, ["physical", "extra-attack", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("dragon-breaker", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["shield", "trembling", "physical", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("nightmare-stare", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["prey", "absolute", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("abyssal-bargain", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard, RoleActionTargetKind.SelfCard], 1, ["sacrifice", "absolute", "extra-attack", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("holy-bastion", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["guard", "shield", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("iron-charge", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["shield", "physical", "rank3"], CooldownTurns: 1))
         ];
 
         _actions = actions.ToDictionary(action => action.Metadata.Id);

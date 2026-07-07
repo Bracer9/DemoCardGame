@@ -49,7 +49,7 @@ public sealed class MagicPowerStatus(Guid sourceCharacterId)
     public override bool IsDispellable => false;
 }
 
-public sealed class DeployingStatus(Guid sourceCharacterId, Guid ownerPlayerId, int remainingOwnerTurnStarts = 2)
+public sealed class DeployingStatus(Guid sourceCharacterId, Guid ownerPlayerId, int remainingOwnerTurnStarts = 1)
     : StatusEffect("deploying", true, sourceCharacterId)
 {
     public Guid OwnerPlayerId { get; } = ownerPlayerId;
@@ -145,6 +145,12 @@ public sealed class ChantStatus(Guid sourceCharacterId, int stacks = 1)
     public override int Magnitude => Stacks;
 
     public void AddStacks(int stacks = 1) => Stacks += Math.Max(1, stacks);
+
+    public void ConsumeStack()
+    {
+        Stacks--;
+        Expired = Stacks <= 0;
+    }
 
     public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
     {
@@ -569,6 +575,138 @@ public sealed class PactStatus(Guid sourceCharacterId)
     public override bool IsAttackBuff => true;
 
     public void Consume() => Expired = true;
+}
+
+public sealed class VictoryEdictStatus(Guid sourceCharacterId, int absoluteDamage)
+    : StatusEffect("edict-of-victory", true, sourceCharacterId)
+{
+    public override int Magnitude => Math.Max(0, absoluteDamage);
+    public override bool IsAttackBuff => true;
+    public void Consume() => Expired = true;
+}
+
+public sealed class AstralAlignmentStatus(Guid sourceCharacterId, Guid ownerPlayerId, int bonusDamage)
+    : StatusEffect("astral-alignment", true, sourceCharacterId)
+{
+    private bool _used;
+    public Guid OwnerPlayerId { get; } = ownerPlayerId;
+    public override int Magnitude => Math.Max(0, bonusDamage);
+    public override bool IsAttackBuff => true;
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == OwnerPlayerId)
+            Expired = true;
+    }
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired || _used || packet.SourceCharacter.Id != owner.Id || packet.DamageType != DamageType.Magical || packet.Amount <= 0)
+            return;
+
+        packet.Amount += Magnitude;
+        var targetOwner = context.State.FindOwner(packet.TargetCharacter);
+        var splash = Math.Max(1, (int)Math.Ceiling(Magnitude / 2.0));
+        foreach (var adjacent in targetOwner.Characters.Where(character =>
+                     character.IsAlive
+                     && !GameEngine.IsDeploying(character)
+                     && Math.Abs(character.Slot - packet.TargetCharacter.Slot) == 1))
+            packet.Collateral.Add(new CollateralDamage(owner, adjacent, splash, DamageType.Magical, "astral-alignment"));
+        _used = true;
+        Expired = true;
+    }
+}
+
+public sealed class MilitiaCallStatus(Guid sourceCharacterId, Guid ownerPlayerId, int bonusDamage)
+    : StatusEffect("militia-call", true, sourceCharacterId)
+{
+    public Guid OwnerPlayerId { get; } = ownerPlayerId;
+    public override int Magnitude => Math.Max(0, bonusDamage);
+    public override bool IsAttackBuff => true;
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == OwnerPlayerId)
+            Expired = true;
+    }
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired || packet.SourceCharacter.Id != owner.Id || packet.Source != DamageSource.ActiveAttack || packet.Amount <= 0)
+            return;
+
+        packet.Amount += Magnitude;
+        Expired = true;
+    }
+}
+
+public sealed class HuntedStatus(Guid sourceCharacterId, Guid ownerPlayerId, int bonusDamage)
+    : StatusEffect("hunted", false, sourceCharacterId)
+{
+    private readonly HashSet<Guid> _usedSoldiers = [];
+    public Guid OwnerPlayerId { get; } = ownerPlayerId;
+    public override int Magnitude => Math.Max(0, bonusDamage);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == OwnerPlayerId)
+            Expired = true;
+    }
+
+    public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.TargetCharacter.Id != owner.Id
+            || packet.SourceCharacter.Definition.CardType != CardType.Soldier
+            || packet.Amount <= 0
+            || _usedSoldiers.Contains(packet.SourceCharacter.Id))
+            return;
+
+        packet.Amount += Magnitude;
+        _usedSoldiers.Add(packet.SourceCharacter.Id);
+    }
+}
+
+public sealed class NightmarePreyStatus(Guid sourceCharacterId, Guid expirePlayerId, int absoluteDamage)
+    : StatusEffect("nightmare-prey", false, sourceCharacterId)
+{
+    public Guid ExpirePlayerId { get; } = expirePlayerId;
+    public override int Magnitude => Math.Max(0, absoluteDamage);
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == ExpirePlayerId)
+            Expired = true;
+    }
+
+    public void Consume() => Expired = true;
+}
+
+public sealed class AbyssalBargainStatus(Guid sourceCharacterId, int absoluteDamage)
+    : StatusEffect("abyssal-bargain", true, sourceCharacterId)
+{
+    public int LifeCost { get; init; }
+    public override int Magnitude => Math.Max(0, absoluteDamage);
+    public override bool IsAttackBuff => true;
+    public void Consume() => Expired = true;
+}
+
+public sealed class ArchivedStatus(Guid sourceCharacterId, Guid expirePlayerId)
+    : TurnLimitedStatus("archived", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+{
+}
+
+public sealed class GloryRoarStatus(Guid sourceCharacterId, Guid ownerPlayerId)
+    : StatusEffect("glory-roar", true, sourceCharacterId)
+{
+    public Guid OwnerPlayerId { get; } = ownerPlayerId;
+    public override int Magnitude => 1;
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == OwnerPlayerId)
+            Expired = true;
+    }
 }
 
 public sealed class DuelSenseStrikeStatus(Guid sourceCharacterId)

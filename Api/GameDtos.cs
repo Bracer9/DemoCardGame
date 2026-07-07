@@ -25,7 +25,7 @@ public sealed record BattlePointView(
 
 public sealed record CharacterView(
     Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack,
-    string CardType, int SoldierRank,
+    string CardType, int SoldierRank, int HeroRank, string? HeroPathRoleActionId, bool CanHeroRankUpgrade,
     string AttackType, int PhysicalDefense, int BasePhysicalDefense, int MagicalDefense, int BaseMagicalDefense,
     int CurrentHp, int MaxHp, int Morale, int MaxMorale,
     bool IsAlive, bool IsInBattle, string Zone, bool HasActed, bool CanAct,
@@ -129,7 +129,7 @@ public sealed class GameViewFactory
 {
     private readonly GameEngine _engine;
     public GameViewFactory(GameEngine engine) => _engine = engine;
-    public GameView Create(GameState state) => Create(state, state.ActivePlayerId, true);
+    public GameView Create(GameState state) => Create(state, state.LocalViewerPlayerId ?? state.ActivePlayerId, true);
 
     public GameView Create(GameState state, Guid viewerPlayerId, bool isHost)
     {
@@ -240,7 +240,8 @@ public sealed class GameViewFactory
     {
         var trait = _engine.GetTrait(character);
         var currentAttack = _engine.GetActiveAttack(state, character);
-        if (character.Definition.AttackType == DamageType.Magical
+        var attackType = GameEngine.GetAttackType(character);
+        if (attackType == DamageType.Magical
             && character.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
             currentAttack++;
 
@@ -339,7 +340,12 @@ public sealed class GameViewFactory
             $"/assets/{GetColoredAssetFile(character)}",
             character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(state, character),
             character.Definition.CardType.ToString(), character.SoldierRank,
-            character.Definition.AttackType.ToString(),
+            character.HeroRank, character.HeroPathRoleActionId,
+            state.PendingRoleActionUpgrade is not null
+                && state.PendingRoleActionUpgrade.PlayerId == player.Id
+                && state.ActivePlayerId == player.Id
+                && _engine.CanUpgradeHeroRank(character),
+            attackType.ToString(),
             _engine.GetPhysicalDefense(state, character), character.Definition.PhysicalDefense,
             _engine.GetMagicalDefense(state, character), character.Definition.MagicalDefense,
             character.CurrentHp, _engine.GetMaxHp(character), character.Morale, character.MaxMorale,
@@ -371,9 +377,10 @@ public sealed class GameViewFactory
             statuses.Add(new StatusView("shield-drill-aura", true, 1, true, false));
         if (GameEngine.HasActiveRank1SoldierAura(player, "cleric"))
             statuses.Add(new StatusView("field-medic-aura", true, 1, true, false));
-        if (character.Definition.AttackType == DamageType.Physical && GameEngine.HasActiveRank1SoldierAura(player, "duelist"))
+        var attackType = GameEngine.GetAttackType(character);
+        if (attackType == DamageType.Physical && GameEngine.HasActiveRank1SoldierAura(player, "duelist"))
             statuses.Add(new StatusView("duel-sense-aura", true, 2, true, false));
-        if (character.Definition.AttackType == DamageType.Magical && GameEngine.HasActiveRank1SoldierAura(player, "arcanist"))
+        if (attackType == DamageType.Magical && GameEngine.HasActiveRank1SoldierAura(player, "arcanist"))
             statuses.Add(new StatusView("arcane-resonance-aura", true, 2, true, false));
     }
 
@@ -381,6 +388,10 @@ public sealed class GameViewFactory
         character.Definition.Key == "monster"
         && character.Statuses.Any(status => status.Id == "beast-rage" && !status.Expired)
             ? "New_Portraits/monster_rage.png"
+            : character.Definition.CardType == CardType.Hero
+        && character.HeroRank >= 3
+        && HeroGrowthCatalog.Find(character) is { } path
+            ? path.Rank3PortraitFile
             : character.Definition.CardType == CardType.Soldier
         && character.SoldierRank >= 2
         && character.Definition.Rank2ColoredAssetFile is not null

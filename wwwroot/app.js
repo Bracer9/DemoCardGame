@@ -140,6 +140,7 @@ const art = window.TinyPixelAssets;
 ui.startScreen = document.querySelector('#start-screen');
 ui.startTrigger = document.querySelector('#start-trigger');
 ui.startTest = document.querySelector('#start-test');
+ui.startAi = document.querySelector('#start-ai');
 ui.dealSequence = document.querySelector('#deal-sequence');
 ui.dealStatus = document.querySelector('#deal-status');
 ui.dealCaption = document.querySelector('.deal-caption strong');
@@ -174,7 +175,7 @@ ui.startMatch = document.querySelector('#start-match');
 
 const sound = new window.AudioDirector();
 const voice = new window.VoiceDirector(sound);
-const audioGateButtons = [ui.startTrigger, ui.startTest, document.querySelector('#create-room'), document.querySelector('#join-room')].filter(Boolean);
+const audioGateButtons = [ui.startTrigger, ui.startTest, ui.startAi, document.querySelector('#create-room'), document.querySelector('#join-room')].filter(Boolean);
 audioGateButtons.forEach(button => { button.disabled = true; });
 const audioLoadPromise = sound.load('/config/audio.json')
   .catch(error => console.warn(error.message))
@@ -222,6 +223,8 @@ let eventPlayback = false;
 let resultAudioGameId = null;
 let pendingVisualBaselines = null;
 let rewardVisualHold = false;
+let aiAdvancing = false;
+let aiAdvanceTimer = null;
 const recentSoundEvents = new Map();
 const VOICE_REACTION_DELAY_MS = 760;
 const ORDINARY_HIT_VOICE_REACTION_DELAY_MS = 980;
@@ -478,19 +481,22 @@ function render() {
   document.querySelector('#play-again').disabled = !game.isHost;
   art.hydrate(document);
   syncSelectedInspector();
+  scheduleAiAdvance();
 }
 
 function renderRewardWindow() {
   const reward = game?.rewardWindow;
   if (!ui.rewardWindow) return;
+  const deferred = isRewardPresentationDeferred();
   const rewardChildOpen = Boolean(reward)
     && (Boolean(game?.pendingRoleActionUpgrade) || Boolean(game?.heroDraft && game.heroDraft.kind !== 'Opening' && game.heroDraft.kind !== 'TestOpening'));
-  const open = Boolean(reward) && !rewardChildOpen && !rewardVisualHold;
+  const open = Boolean(reward?.canChoose) && !rewardChildOpen && !deferred;
   ui.rewardWindow.classList.toggle('open', open);
   ui.rewardWindow.classList.toggle('can-choose', Boolean(reward?.canChoose));
   ui.rewardWindow.setAttribute('aria-hidden', String(!open));
-  if (rewardChildOpen) return;
-  if (!reward) {
+  if (deferred) return;
+  if (rewardChildOpen && reward?.canChoose) return;
+  if (!reward || !reward.canChoose) {
     ui.rewardOptions.innerHTML = '';
     lastRewardRenderKey = '';
     return;
@@ -541,10 +547,12 @@ function renderHeroDraftWindow() {
   if (!ui.heroDraftWindow) return;
   const isOpening = draft?.kind === 'Opening' || draft?.kind === 'TestOpening';
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
-  const open = Boolean(draft) && !isOpening;
+  const deferred = isRewardPresentationDeferred();
+  const open = Boolean(draft?.canChoose) && !isOpening && !deferred;
   ui.heroDraftWindow.classList.toggle('open', open);
   ui.heroDraftWindow.setAttribute('aria-hidden', String(!open));
-  if (!draft || isOpening) {
+  if (deferred) return;
+  if (!draft || isOpening || !draft.canChoose) {
     selectedHeroDraftKey = null;
     selectedHeroDraftKeys = [];
     soldierUpgradeKey = null;
@@ -644,11 +652,15 @@ function renderHeroDraftWindow() {
 
 function renderRewardChildBack() {
   if (!ui.rewardChildBack) return;
-  const open = Boolean(game?.rewardWindow && game?.pendingRoleActionUpgrade?.canChoose);
+  const open = Boolean(game?.rewardWindow && game?.pendingRoleActionUpgrade?.canChoose) && !isRewardPresentationDeferred();
   ui.rewardChildBack.hidden = !open;
   ui.rewardChildBack.classList.toggle('open', open);
   ui.rewardChildBack.disabled = !open;
   ui.rewardChildBack.innerHTML = `<span>${escapeHtml(i18n.t('rewardBack'))}</span>`;
+}
+
+function isRewardPresentationDeferred() {
+  return rewardVisualHold || eventPlayback || aiAdvancing || endTurnQueued;
 }
 
 function syncHeroDraftSelectionUi() {
@@ -922,7 +934,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   if (isActiveSide && Array.isArray(card.roleActions) && card.roleActions.length && visuallyAlive)
     classes.push('role-action-owner');
   if (card.deputy) classes.push('has-deputy');
-  if (game?.pendingRoleActionUpgrade?.canChoose && isActiveSide && Array.isArray(card.roleActionChoices) && card.roleActionChoices.length)
+  if (game?.pendingRoleActionUpgrade?.canChoose && isActiveSide && card.canHeroRankUpgrade)
     classes.push('upgrade-selectable');
   if (pendingRoleAction && isActiveSide && visuallyAlive && !isDeploying)
     classes.push('role-action-target');
@@ -949,7 +961,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
   const statuses = visibleStatuses.map(status => `<span class="status-chip ${status.isBuff ? '' : 'debuff'}" title="${escapeHtml(status.description)}">${art.icon(art.forStatus(status.id), { size: 'xs', label: status.name })}<span>${escapeHtml(status.name)}</span></span>`).join('');
   const trait = primaryTrait(card);
-  const localizedTrait = i18n.trait(trait?.id, card.soldierRank);
+  const localizedTrait = i18n.trait(trait?.id, card.cardType === 'Hero' ? card.heroRank : card.soldierRank, card.heroPathRoleActionId);
   localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
   const traitClass = trait?.isReady !== false ? 'ready' : 'disabled';
   const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
@@ -976,7 +988,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
     && isActiveSide && visualIsDraftCandidate && inspectedCardId === card.id
     ? `<button class="hero-draft-confirm-card" type="button" data-hero-key="${escapeHtml(card.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>`
     : '';
-  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}--morale-ratio:${moraleRatio.toFixed(3)};" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-morale="${morale}" data-max-morale="${maxMorale}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
+  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}--morale-ratio:${moraleRatio.toFixed(3)};" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-hero-rank="${Number(card.heroRank || 0)}" data-hero-path-role-action-id="${escapeHtml(card.heroPathRoleActionId || '')}" data-morale="${morale}" data-max-morale="${maxMorale}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
     ${deputyStack}
     <div class="card-front">
       ${draftConfirm}
@@ -1214,7 +1226,7 @@ function showCharacterInspector(element) {
   const auraStatuses = sortAuraDisplayStatuses(translatedStatuses.filter(isAuraDisplayStatus));
   const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
   const trait = primaryTrait(card);
-  const localizedTrait = i18n.trait(trait?.id, card.soldierRank);
+  const localizedTrait = i18n.trait(trait?.id, card.cardType === 'Hero' ? card.heroRank : card.soldierRank, card.heroPathRoleActionId);
   localizedTrait.kind = i18n.traitTrigger(trait?.triggerKind);
   const visibleStatusMarkup = visibleStatuses.map(status => `<li class="${status.isBuff ? 'buff' : 'debuff'}">
         <div class="effect-title">${art.icon(art.forStatus(status.id), { size: 'md', label: status.name })}<div><b>${escapeHtml(status.name)}</b><em>${status.isBuff ? i18n.t('buff') : i18n.t('debuff')}${status.isAura ? ` / ${i18n.t('aura')}` : ''}${status.isDispellable === false ? ` / ${i18n.t('notDispellable')}` : ''}</em></div></div>
@@ -1249,7 +1261,9 @@ function showCharacterInspector(element) {
   const roleActionMarkup = Array.isArray(visibleRoleActions) && visibleRoleActions.length
     ? visibleRoleActions.map(action => {
         const localized = i18n.roleAction(action.id);
-        const summary = roleActionSummary(localized.description);
+        const prediction = roleActionPredictionText(card, action);
+        const description = prediction ? `${localized.description}\n${prediction}` : localized.description;
+        const summary = prediction ? truncateCardText(prediction, 54) : roleActionSummary(localized.description);
         const disabledText = action.disabledReason ? i18n.message(action.disabledReason) : '';
         const disabled = !isUpgradeChoiceMode && !action.enabled;
         const cooldownRemaining = Number(action.cooldownRemaining || 0);
@@ -1260,7 +1274,7 @@ function showCharacterInspector(element) {
         return `<button class="role-action-button ${isUpgradeChoiceMode ? 'choice' : ''} ${disabled ? 'disabled' : 'enabled'}" type="button"
           data-character-id="${escapeHtml(card.id)}" data-role-action-id="${escapeHtml(action.id)}" data-role-action-mode="${escapeHtml(action.activationMode)}"
           data-role-action-targets="${escapeHtml((action.validTargetKinds || []).join(','))}"
-          data-role-action-name="${escapeHtml(localized.name)}" data-role-action-description="${escapeHtml(localized.description)}"
+          data-role-action-name="${escapeHtml(localized.name)}" data-role-action-description="${escapeHtml(description)}"
           data-role-action-cost="${escapeHtml(action.cost)}" data-role-action-summary="${escapeHtml(summary)}"
           data-role-action-cooldown="${escapeHtml(cooldownTurns)}" data-role-action-cooldown-remaining="${escapeHtml(cooldownRemaining)}"
           ${draggable ? 'draggable="true"' : ''} ${disabled ? 'disabled' : ''}>
@@ -1359,6 +1373,115 @@ function roleActionSummary(description) {
   return truncateCardText(sentence, 48);
 }
 
+function roleActionPredictionText(card, action) {
+  if (!card || !action || !String(action.id || '').includes('-')) return '';
+  const id = action.id;
+  const attack = Math.max(0, Number(card.attack || 0));
+  const pdef = Math.max(0, Number(card.physicalDefense || 0));
+  const mdef = Math.max(0, Number(card.magicalDefense || 0));
+  const maxHp = Math.max(0, Number(card.maxHp || 0));
+  const owner = ownerForCard(card.id);
+  const opponent = opponentForCard(card.id);
+  const ownShield = Math.max(0, Number(owner?.sharedShield || 0));
+  const enemyShield = Math.max(0, Number(opponent?.sharedShield || 0));
+  const parts = [];
+  const damage = (amount, type) => i18n.t('roleActionPredictionDamage', { amount, damageType: i18n.damageType(type) });
+  const morale = amount => i18n.t('roleActionPredictionMoraleDamage', { amount });
+  const absolute = amount => i18n.t('roleActionPredictionAbsoluteDamage', { amount });
+  const status = statusId => i18n.t('roleActionPredictionStatus', { status: i18n.status({ id: statusId, magnitude: 0 }).name });
+  const extraAttack = () => i18n.t('roleActionPredictionExtraAttack');
+
+  switch (id) {
+    case 'miracle-standard':
+      parts.push(i18n.t('roleActionPredictionHeal', { amount: Math.max(1, Math.ceil(maxHp / 4)) }));
+      parts.push(i18n.t('roleActionPredictionShieldGain', { amount: `${mdef}+` }));
+      break;
+    case 'edict-of-victory':
+      parts.push(extraAttack());
+      parts.push(absolute(attack));
+      parts.push(status('edict-of-victory'));
+      break;
+    case 'astral-alignment':
+      parts.push(extraAttack());
+      parts.push(damage(attack, 'Magical'));
+      parts.push(status('astral-alignment'));
+      break;
+    case 'thread-cut':
+      parts.push(morale(`${attack}-${attack * 3}`));
+      break;
+    case 'field-rations':
+      parts.push(i18n.t('roleActionPredictionHeal', { amount: `${Math.max(1, Math.ceil(attack / 2))}/${attack}` }));
+      parts.push(status('fortify'));
+      break;
+    case 'militia-call':
+      parts.push(extraAttack());
+      parts.push(damage(attack, 'Physical'));
+      parts.push(status('militia-call'));
+      break;
+    case 'starfall':
+      parts.push(damage(hasStatus(card, 'chant') ? Math.max(1, attack) : 2, 'Magical'));
+      parts.push(status('burning'));
+      break;
+    case 'archive-formula':
+      parts.push(damage(attack, 'Magical'));
+      parts.push(status('burning'));
+      break;
+    case 'grove-sanctuary':
+      parts.push(i18n.t('roleActionPredictionHeal', { amount: attack }));
+      parts.push(status('fortify'));
+      break;
+    case 'call-the-hunt':
+      parts.push(extraAttack());
+      parts.push(damage(attack, 'Physical'));
+      break;
+    case 'glory-roar':
+      parts.push(extraAttack());
+      parts.push(status('strong-attack'));
+      break;
+    case 'dragon-breaker':
+      parts.push(enemyShield > 0
+        ? i18n.t('roleActionPredictionShieldDamage', { amount: attack, shield: enemyShield })
+        : damage(attack, 'Physical'));
+      break;
+    case 'nightmare-stare':
+      parts.push(absolute(attack));
+      parts.push(status('nightmare-prey'));
+      break;
+    case 'abyssal-bargain':
+      parts.push(i18n.t('roleActionPredictionHpCost', { amount: attack }));
+      parts.push(absolute(attack));
+      parts.push(extraAttack());
+      break;
+    case 'holy-bastion':
+      parts.push(i18n.t('roleActionPredictionShieldGain', { amount: pdef + mdef }));
+      parts.push(status('fortify'));
+      break;
+    case 'iron-charge':
+      parts.push(i18n.t('roleActionPredictionShieldSpend', { amount: ownShield }));
+      parts.push(damage(attack + ownShield, 'Physical'));
+      break;
+    default:
+      return '';
+  }
+
+  return parts.length
+    ? `${i18n.t('roleActionPredictionPrefix')}：${parts.join(i18n.t('roleActionPredictionSeparator'))}`
+    : '';
+}
+
+function hasStatus(card, statusId) {
+  return Array.isArray(card?.statuses) && card.statuses.some(status => status.id === statusId);
+}
+
+function ownerForCard(cardId) {
+  return game?.players?.find(player => (player.characters || []).some(character => character.id === cardId));
+}
+
+function opponentForCard(cardId) {
+  const owner = ownerForCard(cardId);
+  return game?.players?.find(player => player.id !== owner?.id);
+}
+
 function showRoleActionInspector(button) {
   if (!ui.roleActionInspector || !button) return;
   const name = button.dataset.roleActionName || '';
@@ -1369,8 +1492,9 @@ function showRoleActionInspector(button) {
   const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
   const targetText = targets.length ? targets.join(' / ') : button.dataset.roleActionMode || '';
   const cooldownText = cooldownRemaining > 0 ? `CD ${cooldownRemaining}` : cooldown > 0 ? `Cooldown ${cooldown}` : '';
+  const formattedDescription = escapeHtml(description).replace(/\n/g, '<br>');
   ui.roleActionInspector.innerHTML = `<header><span>ROLE ACTION</span><strong>${escapeHtml(name)}</strong><b>${escapeHtml(cost)} AP</b></header>
-    <p>${escapeHtml(description)}</p>
+    <p>${formattedDescription}</p>
     ${targetText || cooldownText ? `<footer>${escapeHtml([targetText, cooldownText].filter(Boolean).join(' / '))}</footer>` : ''}`;
   const buttonRect = stageRect(button);
   const inspectorRect = stageRect(ui.inspector);
@@ -1768,6 +1892,11 @@ function onCardClick(element) {
         showToast(i18n.t('roleActionUpgradeInvalid'));
         return;
       }
+      const cardData = findCard(id);
+      if (cardData && Number(cardData.heroRank || 0) > 0) {
+        selectRoleActionUpgrade(id, '');
+        return;
+      }
       selectedAttacker = null; selectedDefender = null; inspectedCardId = id; closePreview();
       sound.emit('ui.card-select');
       render();
@@ -1881,6 +2010,7 @@ async function endTurn() {
     endTurnQueued = false;
     ui.endTurn.classList.remove('queued');
     ui.endTurn.setAttribute('aria-busy', 'false');
+    if (game) render();
   }
 }
 
@@ -2159,6 +2289,40 @@ function animateSoldierRankUp(targetCharacterId, beforeCard = null) {
   });
 }
 
+function animateHeroRankUp(targetCharacterId, beforeCard = null) {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`.fighter-card[data-id="${CSS.escape(String(targetCharacterId))}"]`);
+      if (!card) { resolve(); return; }
+      const afterCard = findCard(targetCharacterId);
+      const rect = stageRect(card);
+      const overlay = document.createElement('div');
+      overlay.className = 'rank-up-transform';
+      overlay.style.left = `${rect.left}px`;
+      overlay.style.top = `${rect.top}px`;
+      overlay.style.width = `${rect.width}px`;
+      overlay.style.height = `${rect.height}px`;
+      const beforeRank = Number(beforeCard?.heroRank || 0);
+      const afterRank = Number(afterCard?.heroRank || beforeRank);
+      const rankLabel = afterRank >= 3 ? 'RANK III' : afterRank >= 2 ? 'RANK II' : afterRank === 1 ? 'RANK I' : 'RANK';
+      overlay.innerHTML = `
+        <div class="rank-up-card old"><img src="${escapeHtml(beforeCard?.coloredAssetUrl || beforeCard?.assetUrl || afterCard?.assetUrl || '')}" alt=""></div>
+        <div class="rank-up-card new"><img src="${escapeHtml(afterCard?.coloredAssetUrl || afterCard?.assetUrl || '')}" alt=""></div>
+        <span>${rankLabel}</span>`;
+      ui.fx.appendChild(overlay);
+      card.classList.remove('soldier-rank-up-flash');
+      void card.offsetWidth;
+      card.classList.add('soldier-rank-up-flash');
+      sound.emit('status.buff-applied');
+      setTimeout(() => {
+        card.classList.remove('soldier-rank-up-flash');
+        overlay.remove();
+        resolve();
+      }, 1280);
+    });
+  });
+}
+
 async function animateMonsterRage(card) {
   if (!card) return;
   card.classList.remove('monster-rage-transform');
@@ -2188,16 +2352,22 @@ async function selectRoleActionUpgrade(characterId, roleActionId) {
   if (busy || !game?.pendingRoleActionUpgrade?.canChoose) return;
   sound.emit('ui.confirm');
   busy = true;
+  const beforeCard = findCard(characterId);
+  const beforeHeroRank = Number(beforeCard?.heroRank || 0);
   try {
     const payload = await gameApi('/game/role-action/upgrade', {
       method: 'POST',
       body: JSON.stringify({ characterId, roleActionId })
     });
     game = payload.data; lastGameJson = JSON.stringify(game);
+    const afterCard = findCard(characterId);
+    const afterHeroRank = Number(afterCard?.heroRank || 0);
+    const shouldAnimateHeroRank3 = beforeCard?.cardType === 'Hero' && beforeHeroRank < 3 && afterHeroRank >= 3;
     pendingRoleAction = null;
     pendingDeputy = null;
     inspectedCardId = characterId;
     render();
+    if (shouldAnimateHeroRank3) await animateHeroRankUp(characterId, beforeCard);
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; if (game) render(); }
@@ -2237,13 +2407,67 @@ async function newGame() {
   busy = true;
   try {
     sound.emit('game.restart');
-    const payload = await gameApi(sessionMode === 'test' ? '/game/test/new' : '/game/new', { method: 'POST', body: '{}' });
+    const path = sessionMode === 'test' ? '/game/test/new' : sessionMode === 'ai' ? '/game/ai/new' : '/game/new';
+    const payload = await gameApi(path, { method: 'POST', body: '{}' });
     if (sessionMode === 'online' && room) room.dealStarted = false;
     game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     await playDealSequence();
   }
   catch (error) { showToast(error.message); } finally { busy = false; }
+}
+
+function shouldAdvanceAi() {
+  return sessionMode === 'ai'
+    && hasStarted
+    && game
+    && game.phase !== 'Finished'
+    && !game.canControl
+    && !game.rewardWindow?.canChoose
+    && !game.heroDraft?.canChoose
+    && !game.pendingRoleActionUpgrade?.canChoose
+    && !busy
+    && !dealing
+    && !eventPlayback
+    && !aiAdvancing;
+}
+
+function scheduleAiAdvance() {
+  if (aiAdvanceTimer || !shouldAdvanceAi()) return;
+  aiAdvanceTimer = window.setTimeout(() => {
+    aiAdvanceTimer = null;
+    advanceAiTurn();
+  }, 420);
+}
+
+async function advanceAiTurn() {
+  if (!shouldAdvanceAi()) return;
+  aiAdvancing = true;
+  const oldActivePlayerId = game?.activePlayerId;
+  try {
+    const payload = await gameApi('/game/ai/advance', { method: 'POST', body: '{}' });
+    const nextGame = payload.data;
+    const changed = JSON.stringify(nextGame) !== lastGameJson;
+    if (!changed) return;
+    pendingVisualBaselines = captureCharacterVisualBaselines(game);
+    game = nextGame;
+    lastGameJson = JSON.stringify(game);
+    pendingRoleAction = null;
+    pendingDeputy = null;
+    selectedAttacker = null;
+    selectedDefender = null;
+    inspectedCardId = null;
+    closePreview();
+    render();
+    await playNewLogEvents(game);
+    if (oldActivePlayerId && oldActivePlayerId !== game.activePlayerId)
+      await playTurnCurtain(game.activePlayerName, true);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    aiAdvancing = false;
+    if (game) render();
+  }
 }
 
 async function startLocalGame() {
@@ -2267,6 +2491,29 @@ async function startLocalGame() {
     closeDealLayer();
     showToast(error.message);
   } finally { busy = false; }
+}
+
+async function startAiGame() {
+  if (hasStarted || busy) return;
+  sessionMode = 'ai';
+  hasStarted = true;
+  busy = true;
+  sound.emit('game.start');
+  sound.unlock({ primeUnrequested: false });
+  try {
+    const payload = await gameApi('/game/ai/new', { method: 'POST', body: '{}' });
+    game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
+    dealing = true; render();
+    openDealLayer();
+    ui.startScreen.classList.add('leaving');
+    await wait(470);
+    await playDealSequence(true);
+  } catch (error) {
+    hasStarted = false; dealing = false;
+    ui.startScreen.classList.remove('leaving');
+    closeDealLayer();
+    showToast(error.message);
+  } finally { busy = false; if (game) render(); }
 }
 
 async function startTestGame() {
@@ -2907,6 +3154,16 @@ function animateBpRecoveryToHp(amount) {
     clearBpTurnGainDisplay();
     return Promise.resolve();
   }
+  const hasMoraleRecoveryTarget = targets.some(target => {
+    const card = target.closest('.fighter-card');
+    const morale = Math.max(0, Number(card?.dataset.morale || 0));
+    const maxMorale = Math.max(0, Number(card?.dataset.maxMorale || 0));
+    return maxMorale > 0 && morale < maxMorale;
+  });
+  if (!hasMoraleRecoveryTarget) {
+    clearBpTurnGainDisplay();
+    return Promise.resolve();
+  }
   clearBpTurnGainDisplay();
   emitSoundThrottled('status.blessing-heal', 360);
   const centerIndex = (targets.length - 1) / 2;
@@ -3279,6 +3536,7 @@ async function enterOnlineGame(initialGame = null) {
 async function pollOnlineState() {
   if (sessionMode !== 'online' || !playerToken || busy || eventPlayback) return;
   eventPlayback = true;
+  let changedState = false;
   try {
     await refreshRoom();
     // An open forecast must never pause server synchronization. If the remote
@@ -3287,6 +3545,7 @@ async function pollOnlineState() {
     const payload = await gameApi('/game/state');
     const json = JSON.stringify(payload.data);
     if (json === lastGameJson) return;
+    changedState = true;
     const previousGameId = game?.gameId;
     const oldActive = game?.activePlayerId;
     const isNewGame = Boolean(previousGameId && previousGameId !== payload.data.gameId);
@@ -3315,7 +3574,10 @@ async function pollOnlineState() {
       clearInterval(pollTimer); pollTimer = null;
     }
     showToast(error.message);
-  } finally { eventPlayback = false; }
+  } finally {
+    eventPlayback = false;
+    if (changedState && game) render();
+  }
 }
 
 function startPolling() {
@@ -3536,6 +3798,7 @@ document.querySelector('#new-game').addEventListener('click', newGame);
 document.querySelector('#play-again').addEventListener('click', newGame);
 ui.startTrigger.addEventListener('click', startLocalGame);
 ui.startTest?.addEventListener('click', startTestGame);
+ui.startAi?.addEventListener('click', startAiGame);
 document.querySelector('#open-online').addEventListener('click', showOnlineLobby);
 ui.lobbyBack.addEventListener('click', showModeSelect);
 document.querySelector('#create-room').addEventListener('click', createRoom);

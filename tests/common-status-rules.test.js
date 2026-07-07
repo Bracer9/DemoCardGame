@@ -17,6 +17,7 @@ function classBody(source, className) {
 test('common statuses and aura dispel rules are wired correctly', () => {
   const beastRageStatus = classBody(statusSource, 'BeastRageStatus');
   const magicPowerStatus = classBody(statusSource, 'MagicPowerStatus');
+  const deployingStatus = classBody(statusSource, 'DeployingStatus');
   const harvestStatus = classBody(statusSource, 'HarvestStatus');
   const pendingHarvestStatus = classBody(statusSource, 'PendingHarvestStatus');
   const guardOathStatus = classBody(statusSource, 'GuardOathStatus');
@@ -34,6 +35,8 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(magicPowerStatus, /StatusEffect\("magic-power", false, sourceCharacterId\)/);
   assert.doesNotMatch(magicPowerStatus, /IsAttackBuff => true/);
   assert.match(magicPowerStatus, /IsDispellable => false/);
+  assert.match(deployingStatus, /remainingOwnerTurnStarts = 1/);
+  assert.match(deployingStatus, /RemainingOwnerTurnStarts--/);
   assert.match(harvestStatus, /IsAttackBuff => true/);
   assert.doesNotMatch(harvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsDispellable => false/);

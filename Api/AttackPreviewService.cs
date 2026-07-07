@@ -18,10 +18,12 @@ public sealed class AttackPreviewService
         if (error is not null) return Invalid(attackerId, defenderId, error);
 
         var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
+        var attackerAttackType = GameEngine.GetAttackType(attacker);
+        var defenderAttackType = GameEngine.GetAttackType(defender);
         var attackBase = monsterPrincessAttack
             ? _engine.GetActiveAttack(state, attacker)
             : ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(state, attacker),
-                attacker.Definition.AttackType,
+                attackerAttackType,
                 DamageSource.ActiveAttack,
                 receivesMagicPowerBonus: true,
                 includePendingDuelSenseStrongAttack: (ShouldForecastDuelSense(state, attacker, defender)
@@ -45,8 +47,8 @@ public sealed class AttackPreviewService
         if (duelSenseBonus > 0)
             attack = AddDirectHpDamage(attack, duelSenseBonus);
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
-            defender.Definition.AttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
-        var counter = ForecastDamage(state, attacker, counterBase, defender.Definition.AttackType, DamageSource.CounterAttack);
+            defenderAttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
+        var counter = ForecastDamage(state, attacker, counterBase, defenderAttackType, DamageSource.CounterAttack);
         counter = ForecastDamageLanding(attacker, counter);
         var counterHp = counter;
         counter = ApplyPreyForecast(attacker, counter);
@@ -104,16 +106,16 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.trait.beautyPrincessBacklash",
                 ("min", L10n.Raw(attack.Min * PredatoryInstinctTrait.PrincessBacklashMultiplier)),
                 ("max", L10n.Raw(attack.Max * PredatoryInstinctTrait.PrincessBacklashMultiplier))));
-        if (attacker.Definition.AttackType == DamageType.Magical
+        if (attackerAttackType == DamageType.Magical
             && attacker.Statuses.Any(status => status.Id == "chant" && !status.Expired))
             notes.Add(L10n.Text("preview.roleAction.arcaneChannel",
                 ("value", L10n.Raw(2))));
         if (defender.Statuses.Any(status => status.Id == "void" && !status.Expired)
-            && attacker.Definition.AttackType == DamageType.Magical)
+            && attackerAttackType == DamageType.Magical)
             notes.Add(L10n.Text("preview.roleAction.searingBrand",
                 ("value", L10n.Raw("×1.25"))));
         if (attacker.Statuses.Any(status => status.Id == "void" && !status.Expired)
-            && defender.Definition.AttackType == DamageType.Magical)
+            && defenderAttackType == DamageType.Magical)
             notes.Add(L10n.Text("preview.roleAction.searingBrandCounter",
                 ("value", L10n.Raw("×1.25"))));
         if (rageShieldBreakBonus > 0)
@@ -200,15 +202,16 @@ public sealed class AttackPreviewService
         bool ignoreShield)
     {
         var marked = attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired);
+        var attackerAttackType = GameEngine.GetAttackType(attacker);
         if (!marked)
-            return ForecastDamage(state, defender, attackBase, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+            return ForecastDamage(state, defender, attackBase, attackerAttackType, DamageSource.ActiveAttack,
                 ignoreShield: ignoreShield,
                 ignoreDefense: false);
 
-        var reduced = ForecastDamage(state, defender, attackBase / 2, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+        var reduced = ForecastDamage(state, defender, attackBase / 2, attackerAttackType, DamageSource.ActiveAttack,
             ignoreShield: ignoreShield,
             ignoreDefense: false);
-        var amplified = ForecastDamage(state, defender, attackBase + FateMarkedStatus.DamageBonus, attacker.Definition.AttackType, DamageSource.ActiveAttack,
+        var amplified = ForecastDamage(state, defender, attackBase + FateMarkedStatus.DamageBonus, attackerAttackType, DamageSource.ActiveAttack,
             ignoreShield: ignoreShield,
             ignoreDefense: false);
         return CombineForecasts(reduced, amplified);

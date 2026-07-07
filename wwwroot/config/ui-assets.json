@@ -307,6 +307,14 @@
       "chant-pending": "status.chant-pending",
       "spell-ward": "status.spell-ward",
       "strong-attack": "status.strong-attack",
+      "edict-of-victory": "trait.saints-prayer",
+      "astral-alignment": "trait.stargazers-aegis",
+      "militia-call": "trait.spring-harvest",
+      "hunted": "trait.weakening-spores",
+      "nightmare-prey": "trait.predatory-instinct",
+      "abyssal-bargain": "trait.predatory-instinct",
+      "archived": "trait.searing-mark",
+      "glory-roar": "trait.aftershock-axe",
       "marked": "status.marked",
       "prey": "status.prey",
       "pact": "status.pact"
@@ -345,7 +353,23 @@
       "mend": "trait.field-medic",
       "aegis-formation": "trait.shield-drill",
       "crimson-lunge": "trait.duel-sense",
-      "astral-focus": "trait.arcane-resonance"
+      "astral-focus": "trait.arcane-resonance",
+      "miracle-standard": "trait.saints-prayer",
+      "edict-of-victory": "trait.saints-prayer",
+      "astral-alignment": "trait.stargazers-aegis",
+      "thread-cut": "trait.stargazers-aegis",
+      "field-rations": "trait.spring-harvest",
+      "militia-call": "trait.spring-harvest",
+      "starfall": "trait.searing-mark",
+      "archive-formula": "trait.searing-mark",
+      "grove-sanctuary": "trait.weakening-spores",
+      "call-the-hunt": "trait.weakening-spores",
+      "glory-roar": "trait.aftershock-axe",
+      "dragon-breaker": "trait.aftershock-axe",
+      "nightmare-stare": "trait.predatory-instinct",
+      "abyssal-bargain": "trait.predatory-instinct",
+      "holy-bastion": "trait.interposing-shield",
+      "iron-charge": "trait.interposing-shield"
     }
   }
 }

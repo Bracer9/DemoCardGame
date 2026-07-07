@@ -21,6 +21,8 @@ public sealed class CharacterState
     public bool GuardConsumed { get; set; }
     public bool DefeatLogged { get; set; }
     public int SoldierRank { get; set; }
+    public int HeroRank { get; set; }
+    public string? HeroPathRoleActionId { get; set; }
     public List<StatusEffect> Statuses { get; } = [];
     public List<string> RoleActionIds { get; } = [];
     public HashSet<string> RoleActionsUsedThisTurn { get; } = [];
@@ -132,6 +134,8 @@ public sealed class GameState
     public PendingRoleActionUpgradeState? PendingRoleActionUpgrade { get; set; }
     public PendingHeroDraftState? PendingHeroDraft { get; set; }
     public Guid? OpeningFirstPlayerId { get; set; }
+    public Guid? LocalViewerPlayerId { get; set; }
+    public Guid? AiPlayerId { get; set; }
     public bool IsTestMode { get; set; }
     public HashSet<string> ResolvedRewardWindows { get; } = [];
 

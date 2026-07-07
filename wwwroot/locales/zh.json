@@ -6,6 +6,8 @@
     "localPlayHint": "在一台电脑上交替游玩",
     "testPlay": "测试模式",
     "testPlayHint": "自由选4名英雄，职业行动全解锁",
+    "aiPlay": "单人对战",
+    "aiPlayHint": "和简单AI打一局",
     "onlinePlay": "在线对战",
     "onlinePlayHint": "通过邀请链接与朋友游玩",
     "backToModes": "← 返回模式选择",
@@ -50,6 +52,18 @@
     "roleActionTitle": "职业行动",
     "roleActionLocked": "尚未解锁职业行动。",
     "roleActionComingSoon": "尚未实装发动。",
+    "roleActionPredictionPrefix": "当前预测",
+    "roleActionPredictionSeparator": "；",
+    "roleActionPredictionDamage": "{amount}点{damageType}伤害",
+    "roleActionPredictionAbsoluteDamage": "{amount}点绝对伤害",
+    "roleActionPredictionMoraleDamage": "{amount}点士气伤害",
+    "roleActionPredictionShieldDamage": "对共有盾造成{amount}点伤害（当前{shield}）",
+    "roleActionPredictionShieldGain": "共有盾+{amount}",
+    "roleActionPredictionShieldSpend": "消耗共有盾{amount}",
+    "roleActionPredictionHeal": "治疗{amount} HP",
+    "roleActionPredictionHpCost": "失去最多{amount} HP",
+    "roleActionPredictionExtraAttack": "可再主动攻击一次",
+    "roleActionPredictionStatus": "赋予{status}",
     "rewardCannotAfford": "BP不足",
     "heroDraftTitleOpening": "选择初始英雄",
     "heroDraftSubtitleOpening": "从4名候选英雄中选择1名，带领她开始战斗。",
@@ -216,7 +230,8 @@
     "reward-skip": "跳过奖励",
     "role-action-cleanse": "职业行动净化成功",
     "role-action-dark-pact": "黑暗契约濒危",
-    "first-role-action": "首次职业行动"
+    "first-role-action": "首次职业行动",
+    "rank3-kill": "最终职业行动击败"
   },
   "deputies": {
     "deputy-cleric": {
@@ -255,7 +270,7 @@
     },
     "hero-role-action-upgrade": {
       "name": "英雄职业训练",
-      "description": "选择一名可升级英雄，在两个初始职业行动中选择一个解锁，并回复50%最大HP。第一次免费。"
+      "description": "强化一名英雄。Rank0→1时选择并固定路线，回复50%最大HP；Rank1→2时属性与特性强化，回复50%最大HP；Rank2→3时解锁最终职业行动并HP全回复。第一次免费。"
     },
     "hero-recruit": {
       "name": "新英雄招募",
@@ -366,6 +381,86 @@
       "name": "星界聚焦",
       "description": "我方目标获得咏唱（魔法伤害翻倍）；敌方目标获得空虚（受到魔法伤害增加）。",
       "button": "聚焦"
+    },
+    "miracle-standard": {
+      "name": "奇迹军旗",
+      "description": "净化并治疗目标及相邻我方；若成功净化，增加共有盾。",
+      "button": "军旗"
+    },
+    "edict-of-victory": {
+      "name": "胜利敕令",
+      "description": "我方1体可再次主动攻击，并在下一次主动攻击后追加公主当前攻击力的绝对伤害。若击败敌人，获得BP并抵消本次代价；否则下回合AP-1。",
+      "button": "敕令"
+    },
+    "astral-alignment": {
+      "name": "星轨校准",
+      "description": "我方魔法单位获得咏唱和再次主动攻击；下一次魔法伤害追加占卜师当前攻击力，并波及相邻敌人。",
+      "button": "星轨"
+    },
+    "thread-cut": {
+      "name": "断线",
+      "description": "按目标身上的印记和debuff数量击溃士气；若士气归零，追加魔法伤害和战栗。",
+      "button": "断线"
+    },
+    "field-rations": {
+      "name": "战地配给",
+      "description": "治疗我方全体，主目标额外治疗并获得坚守和护咒；低血主目标额外净化1个debuff。",
+      "button": "配给"
+    },
+    "militia-call": {
+      "name": "民兵号令",
+      "description": "我方农民或士兵获得强攻/咏唱、额外主动攻击，并在下一次主动攻击追加伤害。",
+      "button": "号令"
+    },
+    "starfall": {
+      "name": "星陨",
+      "description": "敌方1体受到2点魔法伤害并获得燃烧；若自身有咏唱，消耗1层，改为造成当前攻击力点魔法伤害。",
+      "button": "星陨"
+    },
+    "archive-formula": {
+      "name": "归档术式",
+      "description": "敌方1体获得归档刻印，受到魔法伤害并追加燃烧。已有燃烧或空虚时伤害更高。",
+      "button": "归档"
+    },
+    "grove-sanctuary": {
+      "name": "林地圣域",
+      "description": "净化目标及相邻我方；成功净化时按净化数量治疗全体，否则赋予多层护咒。",
+      "button": "圣域"
+    },
+    "call-the-hunt": {
+      "name": "猎群召唤",
+      "description": "目标及相邻敌人获得猎群标记。本回合我方士兵攻击标记目标时追加德鲁伊当前攻击力的普通伤害。",
+      "button": "猎群"
+    },
+    "glory-roar": {
+      "name": "荣耀咆哮",
+      "description": "自身获得强攻和多次额外主动攻击；本回合每次主动攻击后失去1 HP。",
+      "button": "咆哮"
+    },
+    "dragon-breaker": {
+      "name": "破龙击",
+      "description": "若敌方有共有盾，打击共有盾且不穿透；击破时目标及相邻敌人获得战栗和脆弱。无盾时造成物理伤害并施加战栗和脆弱。",
+      "button": "破龙"
+    },
+    "nightmare-stare": {
+      "name": "噩梦凝视",
+      "description": "目标及相邻敌人获得强化猎物：本回合第一次受到0点HP伤害时，追加怪物当前攻击力点绝对伤害。",
+      "button": "噩梦"
+    },
+    "abyssal-bargain": {
+      "name": "深渊交易",
+      "description": "我方1体失去最多怪物当前攻击力点HP，获得额外主动攻击，并在下一次主动攻击追加同等绝对伤害。击败敌人时获得BP并治疗怪物。",
+      "button": "交易"
+    },
+    "holy-bastion": {
+      "name": "圣垒",
+      "description": "我方1体获得多层守护誓约和护咒，骑士获得坚守，并按骑士当前双防增加共有盾。",
+      "button": "圣垒"
+    },
+    "iron-charge": {
+      "name": "铁壁冲锋",
+      "description": "消耗我方全部共有盾，对敌方1体造成盾值+骑士当前攻击力的物理伤害，并施加战栗；若造成HP伤害，返还部分共有盾。",
+      "button": "冲锋"
     }
   },
   "statuses": {
@@ -377,22 +472,22 @@
     "exhaustion": {
       "name": "力竭",
       "timing": "持续到回合结束",
-      "description": "造成的物理伤害减半。"
+      "description": "造成的物理伤害×0.5，最低为1。"
     },
     "erosion": {
       "name": "磨损",
       "timing": "持续到回合结束",
-      "description": "造成的魔法伤害减半。"
+      "description": "造成的魔法伤害×0.5，最低为1。"
     },
     "void": {
       "name": "空虚",
       "timing": "持续到回合结束",
-      "description": "受到的魔法伤害提高。"
+      "description": "受到的魔法伤害×1.25，向上取整。"
     },
     "fortify": {
       "name": "坚守",
       "timing": "按层数持续",
-      "description": "受到的物理伤害减半。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "description": "受到的物理伤害×0.5，最低为1。己方回合结束时消耗1层，剩余层数：{magnitude}。"
     },
     "guard-oath": {
       "name": "守护誓约",
@@ -407,12 +502,12 @@
     "chant": {
       "name": "咏唱",
       "timing": "下一次魔法伤害",
-      "description": "下一次魔法伤害翻倍。剩余层数：{magnitude}。"
+      "description": "下一次魔法伤害×2。剩余层数：{magnitude}。"
     },
     "chant-pending": {
       "name": "蓄能准备",
       "timing": "下个己方回合开始时",
-      "description": "下个己方回合获得2层咏唱（魔法伤害翻倍）。"
+      "description": "下个己方回合获得2层咏唱（魔法伤害×2）。"
     },
     "harvest": {
       "name": "丰收",
@@ -436,7 +531,7 @@
     },
     "deploying": {
       "name": "部署中",
-      "timing": "到拥有者下下个己方回合开始",
+      "timing": "到拥有者下个己方回合开始",
       "description": "不能主动攻击或使用职业行动；不能被攻击、职业行动、Trait、治疗或Buff指定。"
     },
     "magic-power": {
@@ -500,6 +595,11 @@
       "timing": "奖励",
       "description": "魔法防御+{magnitude}。持续到本局结束。不可驱散。"
     },
+    "reward-physical-defense": {
+      "name": "铁甲补给",
+      "timing": "奖励",
+      "description": "物理防御+{magnitude}。持续到本局结束。不可驱散。"
+    },
     "rage": {
       "name": "狂怒",
       "timing": "直到下个己方回合",
@@ -513,7 +613,7 @@
     "marked": {
       "name": "命运标记",
       "timing": "下一次主动攻击我方时",
-      "description": "50%概率使伤害减半，50%概率使伤害+{magnitude}。发动后解除。"
+      "description": "50%概率使伤害×0.5，50%概率使伤害+{magnitude}。发动后解除。"
     },
     "prey": {
       "name": "猎物",
@@ -528,22 +628,62 @@
     "strong-attack": {
       "name": "强攻",
       "timing": "按层数持续",
-      "description": "主动物理伤害提高。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "description": "主动物理伤害×1.5，向上取整。己方回合结束时消耗1层，剩余层数：{magnitude}。"
     },
     "mighty-strike": {
       "name": "猛击",
       "timing": "按层数持续",
-      "description": "下一次主动物理伤害翻倍。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "description": "下一次主动物理伤害×2。己方回合结束时消耗1层，剩余层数：{magnitude}。"
     },
     "spell-ward": {
       "name": "护咒",
       "timing": "按层数持续",
-      "description": "受到的魔法伤害减半。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "description": "受到的魔法伤害×0.5，最低为1。己方回合结束时消耗1层，剩余层数：{magnitude}。"
     },
     "vulnerable": {
       "name": "脆弱",
       "timing": "持续到回合结束",
-      "description": "受到的物理伤害提高。"
+      "description": "受到的物理伤害×1.25，向上取整。"
+    },
+    "edict-of-victory": {
+      "name": "胜利敕令",
+      "timing": "下一次主动攻击后",
+      "description": "追加{magnitude}点绝对伤害；若击败敌人，获得BP并抵消AP代价。"
+    },
+    "astral-alignment": {
+      "name": "星轨校准",
+      "timing": "下一次魔法伤害",
+      "description": "追加{magnitude}点魔法伤害，并波及相邻敌人。"
+    },
+    "militia-call": {
+      "name": "民兵号令",
+      "timing": "下一次主动攻击",
+      "description": "下一次主动攻击追加{magnitude}点普通伤害。"
+    },
+    "hunted": {
+      "name": "猎群标记",
+      "timing": "持续到回合结束",
+      "description": "我方士兵攻击时追加{magnitude}点普通伤害；每名士兵限1次。"
+    },
+    "nightmare-prey": {
+      "name": "强化猎物",
+      "timing": "本回合第一次0点HP伤害",
+      "description": "受到0点HP伤害时，追加{magnitude}点绝对伤害。"
+    },
+    "abyssal-bargain": {
+      "name": "深渊契约",
+      "timing": "下一次主动攻击",
+      "description": "下一次主动攻击后追加{magnitude}点绝对伤害；击败敌人时触发返还。"
+    },
+    "archived": {
+      "name": "归档刻印",
+      "timing": "持续到回合结束",
+      "description": "已被归档术式锁定，可被净化。"
+    },
+    "glory-roar": {
+      "name": "荣耀咆哮",
+      "timing": "持续到回合结束",
+      "description": "每次主动攻击后失去1 HP。"
     }
   },
   "messages": {
@@ -664,6 +804,9 @@
     "error.roleActionRequiresShield": "需要我方已经拥有共享盾。",
     "log.roleActionUpgradePending": "{player}开始选择英雄职业行动。",
     "log.roleActionUnlocked": "{character}解锁了{roleAction}。",
+    "log.heroRankUp": "{character}升至Rank {rank}，获得{roleAction}。",
+    "log.rank3RoleAction": "{actor}发动{roleAction}。",
+    "log.moraleDamage": "{effect}：{character}受到{amount}点士气伤害。",
     "log.deputyAssigned": "{soldier}成为{hero}的副官：{deputy}。",
     "log.deputyTriggered": "副官「{deputy}」触发：{target}获得{status}。",
     "log.roleActionCleanse": "{character}的{status}被净化。",
@@ -763,42 +906,170 @@
     "saints-prayer": {
       "name": "圣女的祈祷",
       "description": "在场时赋予我方全体祝福。己方回合开始时HP+1，最多超过最大HP 2点。",
-      "card": "每回合为我方全体恢复1 HP，最多超过上限2点。"
+      "card": "每回合为我方全体恢复1 HP，最多超过上限2点。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。祈祷路线：职业行动治疗或净化成功时，目标获得护咒。王令路线：回合开始治疗后，当前HP比例最低的我方角色额外恢复1 HP。",
+          "card": "Rank2路线强化：祈祷给护咒，或王令路线追加低血治疗。",
+          "paths": {
+            "saintly-prayer": {
+              "description": "在场时赋予我方全体祝福。己方回合开始时HP+1，最多超过最大HP 2点。使用圣女祈祷治疗或净化成功时，目标获得护咒。",
+              "card": "每回合为我方全体恢复1 HP；圣女祈祷成功时赋予护咒。"
+            },
+            "royal-command": {
+              "description": "在场时赋予我方全体祝福。己方回合开始时HP+1，最多超过最大HP 2点；随后当前HP比例最低的我方角色额外恢复1 HP。",
+              "card": "每回合为我方全体恢复1 HP，并额外治疗低血友军。"
+            }
+          }
+        }
+      }
     },
     "stargazers-aegis": {
       "name": "星读加护",
       "description": "我方受到伤害时，30%使该伤害减半；我方魔法和燃烧（回合伤害）伤害+1。",
-      "card": "30%减半我方受到的伤害；魔法与燃烧（回合伤害）+1。"
+      "card": "30%减半我方受到的伤害；魔法与燃烧（回合伤害）+1。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。星读路线：每回合第一次预见成功后，受保护角色获得护咒；若其为魔法单位，改为获得咏唱。命运路线：标记与0点HP伤害形成反打窗口。",
+          "card": "Rank2路线强化：预见成功后追加护咒/咏唱，或强化命运反打。",
+          "paths": {
+            "star-reading": {
+              "description": "我方受到伤害时，30%使该伤害减半；我方魔法和燃烧（回合伤害）伤害+1。每回合第一次预见成功后，受保护角色获得护咒；若其为魔法单位，改为获得咏唱。",
+              "card": "30%减半我方受伤；魔法与燃烧+1。预见成功后追加护咒/咏唱。"
+            },
+            "fate-mark": {
+              "description": "我方受到伤害时，30%使该伤害减半；我方魔法和燃烧（回合伤害）伤害+1。",
+              "card": "30%减半我方受到的伤害；魔法与燃烧（回合伤害）+1。"
+            }
+          }
+        }
+      }
     },
     "spring-harvest": {
       "name": "春播秋收",
       "description": "没有丰收时，若本回合第一个进攻便播种。下个己方回合攻击+2。",
-      "card": "首先进攻进行播种，下个己方回合攻击+2。"
+      "card": "首先进攻进行播种，下个己方回合攻击+2。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。补给路线：播种时当前HP比例最低的我方角色获得坚守。民兵路线：丰收攻击首次造成敌方HP伤害时获得1 BP。",
+          "card": "Rank2路线强化：播种给低血坚守，或丰收HP伤害得BP。",
+          "paths": {
+            "supply-basket": {
+              "description": "没有丰收时，若本回合第一个进攻便播种。下个己方回合攻击+2。播种时，当前HP比例最低的我方角色获得坚守。",
+              "card": "首先进攻进行播种，下回合攻击+2；播种时低血友军获得坚守。"
+            },
+            "field-work": {
+              "description": "没有丰收时，若本回合第一个进攻便播种。下个己方回合攻击+2。丰收攻击每回合第一次造成敌方HP伤害时，获得1 BP。",
+              "card": "首先进攻进行播种，下回合攻击+2；丰收HP伤害获得1 BP。"
+            }
+          }
+        }
+      }
     },
     "searing-mark": {
       "name": "灼热刻印",
       "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
-      "card": "进攻时50%赋予燃烧（回合伤害）。"
+      "card": "进攻时50%赋予燃烧（回合伤害）。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。蓄能路线：刻印触发更稳定。刻印路线：灼热刻印触发时额外赋予空虚。",
+          "card": "Rank2路线强化：燃烧更稳定，或追加空虚。",
+          "paths": {
+            "arcane-channel": {
+              "description": "进攻时赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
+              "card": "进攻时必定赋予燃烧（回合伤害）。"
+            },
+            "searing-brand": {
+              "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。灼热刻印触发时，额外赋予空虚。",
+              "card": "进攻时50%赋予燃烧；触发时额外赋予空虚。"
+            }
+          }
+        }
+      }
     },
     "weakening-spores": {
       "name": "衰弱孢子",
       "description": "进攻造成HP伤害时100%、未造成HP伤害时50%发动：立即随机移除目标一个可驱散Buff，并施加力竭（物理伤害降低）和磨损（魔法伤害降低）。",
-      "card": "发动时消除1个Buff，并施加力竭（物理伤害降低）与磨损（魔法伤害降低）。"
+      "card": "发动时消除1个Buff，并施加力竭（物理伤害降低）与磨损（魔法伤害降低）。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。净化路线：净化草药成功时追加护咒，低血目标额外恢复。孢子路线：若没有移除Buff，额外施加脆弱或空虚。",
+          "card": "Rank2路线强化：净化追加防护，或孢子失败驱散时追加破防。",
+          "paths": {
+            "cleansing-herbs": {
+              "description": "HP伤害时100%、未造成HP伤害时50%发动：移除目标1个可驱散Buff，并施加力竭和磨损。使用净化草药成功时，目标获得护咒；若目标HP低于一半，额外恢复1 HP。",
+              "card": "孢子驱散并施加力竭/磨损；净化草药成功时追加护咒和低血治疗。"
+            },
+            "weakening-spores-action": {
+              "description": "HP伤害时100%、未造成HP伤害时50%发动：移除目标1个可驱散Buff，并施加力竭和磨损。若没有移除Buff，额外施加脆弱或空虚。",
+              "card": "孢子驱散并施加力竭/磨损；未驱散Buff时追加破防。"
+            }
+          }
+        }
+      }
     },
     "aftershock-axe": {
       "name": "战斧余波",
       "description": "主动进攻对目标造成至少3点HP伤害时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
-      "card": "主动HP伤害≥3时，相邻敌人受到1/3余波。"
+      "card": "主动HP伤害≥3时，相邻敌人受到1/3余波。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。战吼路线：狂怒时余波最低为2。破势路线：余波命中的相邻敌人额外获得战栗。",
+          "card": "Rank2路线强化：狂怒余波更强，或余波附加战栗。",
+          "paths": {
+            "war-cry": {
+              "description": "主动进攻对目标造成至少3点HP伤害时，相邻敌人受到该伤害1/3向上取整的物理伤害。狂怒中即使未达3点HP伤害也可触发，且余波最低为2。",
+              "card": "主动HP伤害≥3触发余波；狂怒中余波最低2。"
+            },
+            "challenge": {
+              "description": "主动进攻对目标造成至少3点HP伤害时，相邻敌人受到该伤害1/3向上取整的物理伤害，并获得战栗。",
+              "card": "主动HP伤害≥3时，相邻敌人受到余波并获得战栗。"
+            }
+          }
+        }
+      }
     },
     "predatory-instinct": {
       "name": "美女与野兽",
       "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
-      "card": "非公主0伤害时绝对追击；攻击公主会自伤。"
+      "card": "非公主0伤害时绝对追击；攻击公主会自伤。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。猎物路线：对拥有猎物的目标触发追击时，绝对伤害+1。契约路线：献祭后怪物获得更强续航窗口。",
+          "card": "Rank2路线强化：猎物追击更痛，或契约路线更能续航。",
+          "paths": {
+            "predatory-gaze": {
+              "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1；若目标拥有猎物或强化猎物，再+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤但不会因此死亡。任意公主死亡后获得野兽之怒。",
+              "card": "非公主0伤害绝对追击；猎物目标追击+1；攻击公主会自伤。"
+            },
+            "dark-pact": {
+              "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
+              "card": "非公主0伤害时绝对追击；攻击公主会自伤。"
+            }
+          }
+        }
+      }
     },
     "interposing-shield": {
       "name": "替身之盾",
       "description": "骑士以外的我方角色受到主动物理伤害时，全队共享一次：骑士承担该伤害的1/3，向上取整，并受骑士自身物防影响。",
-      "card": "全队共享一次，骑士承担队友受到的部分主动物理伤害。"
+      "card": "全队共享一次，骑士承担队友受到的部分主动物理伤害。",
+      "ranks": {
+        "2": {
+          "description": "根据路线强化。守护路线：替身之盾触发后，被保护目标获得坚守。举盾路线：共有盾破碎后，骑士获得强攻窗口。",
+          "card": "Rank2路线强化：守护后给坚守，或破盾后获得强攻窗口。",
+          "paths": {
+            "guard-oath": {
+              "description": "骑士以外的我方角色受到主动物理伤害时，全队共享一次：骑士承担该伤害的1/3，向上取整，并受骑士自身物防影响。触发后，被保护目标获得坚守。",
+              "card": "全队共享1次，骑士承担部分主动物理伤害；保护目标获得坚守。"
+            },
+            "raise-bulwark": {
+              "description": "骑士以外的我方角色受到主动物理伤害时，全队共享一次：骑士承担该伤害的1/3，向上取整，并受骑士自身物防影响。己方共有盾破碎后，骑士获得强攻。",
+              "card": "全队共享1次，骑士承担部分主动物理伤害；共有盾破碎后获得强攻。"
+            }
+          }
+        }
+      }
     },
     "field-medic": {
       "name": "战地医护",
