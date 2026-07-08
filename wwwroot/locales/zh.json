@@ -53,6 +53,8 @@
     "roleActionTitle": "职业行动",
     "roleActionLocked": "尚未解锁职业行动。",
     "roleActionComingSoon": "尚未实装发动。",
+    "roleActionTargetButton": "选择目标",
+    "roleActionUseButton": "执行",
     "rewardCannotAfford": "BP不足",
     "heroDraftTitleOpening": "选择初始英雄",
     "heroDraftSubtitleOpening": "从4名候选英雄中选择1名，带领她开始战斗。",

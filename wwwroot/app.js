@@ -66,6 +66,176 @@ function stageRect(element) {
   };
 }
 
+const touchModeQuery = window.matchMedia?.('(pointer: coarse)');
+
+function isTouchMode() {
+  return Boolean(touchModeQuery?.matches);
+}
+
+function syncTouchMode() {
+  document.body.classList.toggle('touch-mode', isTouchMode());
+}
+
+syncTouchMode();
+touchModeQuery?.addEventListener?.('change', syncTouchMode);
+
+function isTouchPointer(event) {
+  return isTouchMode() && (event.pointerType === 'touch' || event.pointerType === 'pen');
+}
+
+function suppressNextTouchClick() {
+  suppressTouchClickUntil = performance.now() + 650;
+}
+
+function shouldSuppressTouchClick() {
+  return performance.now() < suppressTouchClickUntil;
+}
+
+function clearTouchDropReady() {
+  document.querySelectorAll('.drop-ready').forEach(element => element.classList.remove('drop-ready'));
+}
+
+function touchPoint(event) {
+  return { clientX: event.clientX, clientY: event.clientY, ...clientToStage(event.clientX, event.clientY) };
+}
+
+function targetUnderPointer(event, selector, validator = null) {
+  const element = document.elementFromPoint(event.clientX, event.clientY);
+  const target = element instanceof Element && selector ? element.closest(selector) : null;
+  return target && (!validator || validator(target)) ? target : null;
+}
+
+function beginTouchAttack(card, event) {
+  if (!isTouchPointer(event) || busy || dealing || ui.preview.classList.contains('open')) return false;
+  if (event.target instanceof Element && event.target.closest('.status-chip,.deputy-badge')) {
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextTouchClick();
+    inspectedCardId = card.dataset.id;
+    showCharacterInspector(card);
+    return true;
+  }
+  if (!card.classList.contains('can-act') || card.dataset.side !== 'active') return false;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressNextTouchClick();
+  const wasAlreadySelected = selectedAttacker === card.dataset.id;
+  selectedAttacker = card.dataset.id;
+  selectedDefender = null;
+  inspectedCardId = card.dataset.id;
+  closePreview();
+  if (!wasAlreadySelected) {
+    sound.emit('ui.card-select');
+    emitSelectVoice(card);
+  }
+  document.querySelectorAll('.fighter-card.selected').forEach(element => element.classList.remove('selected'));
+  card.classList.add('selected');
+  ui.app.classList.add('attacker-selected');
+  showCharacterInspector(card);
+  updateInstruction();
+  touchDrag = {
+    mode: 'attack',
+    pointerId: event.pointerId,
+    sourceElement: card,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    active: false,
+    currentTarget: null
+  };
+  card.setPointerCapture?.(event.pointerId);
+  return true;
+}
+
+function beginTouchRoleAction(button, event) {
+  if (!isTouchPointer(event) || busy || dealing || ui.preview.classList.contains('open')) return false;
+  if (!button || button.disabled || button.classList.contains('choice')) return false;
+  const characterId = button.dataset.characterId;
+  const roleActionId = button.dataset.roleActionId;
+  if (!characterId || !roleActionId || button.dataset.roleActionMode !== 'Targeted') return false;
+  const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
+  if (!targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind))) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressNextTouchClick();
+  showRoleActionInspector(button);
+  touchDrag = {
+    mode: 'role-action',
+    pointerId: event.pointerId,
+    sourceElement: characterElementById(characterId) || button,
+    characterId,
+    roleActionId,
+    targets,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    active: false,
+    currentTarget: null
+  };
+  button.setPointerCapture?.(event.pointerId);
+  return true;
+}
+
+function activateTouchDrag(state) {
+  if (!state || state.active) return;
+  state.active = true;
+  if (state.mode === 'role-action') {
+    beginRoleActionTargeting(state.characterId, state.roleActionId, state.targets, { renderFirst: false, startArrow: false });
+    roleActionDragActive = true;
+  }
+  if (state.mode === 'attack') hideCharacterInspector();
+  startAttackArrow(state.sourceElement, state.mode === 'role-action' ? 'role-action' : 'attack');
+  ui.app.classList.add('dragging-attack');
+  document.body.classList.add('dragging-attack');
+  updateInstruction();
+}
+
+function updateTouchDrag(event) {
+  const state = touchDrag;
+  if (!state || event.pointerId !== state.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const distance = Math.hypot(event.clientX - state.startClientX, event.clientY - state.startClientY);
+  if (!state.active && distance < 8) return;
+  activateTouchDrag(state);
+  const selector = state.mode === 'role-action'
+    ? roleActionCardTargetSelector(pendingRoleAction)
+    : '.fighter-card[data-side="opponent"]:not(.defeated):not(.deploying)';
+  const target = targetUnderPointer(event, selector, candidate =>
+    state.mode !== 'role-action' || canRoleActionTargetCard(pendingRoleAction, candidate));
+  clearTouchDropReady();
+  if (target) target.classList.add('drop-ready');
+  state.currentTarget = target;
+  const point = touchPoint(event);
+  updateAttackArrow(point.x, point.y, target);
+}
+
+function endTouchDrag(event, cancelled = false) {
+  const state = touchDrag;
+  if (!state || event.pointerId !== state.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressNextTouchClick();
+  const target = !cancelled && state.active ? state.currentTarget : null;
+  clearTouchDropReady();
+  ui.app.classList.remove('dragging-attack');
+  document.body.classList.remove('dragging-attack');
+  touchDrag = null;
+  if (target && state.mode === 'attack') {
+    finishAttackArrow(target);
+    chooseDefender(target.dataset.id);
+    return;
+  }
+  if (target && state.mode === 'role-action' && pendingRoleAction) {
+    const action = pendingRoleAction;
+    finishAttackArrow(target);
+    useRoleAction(action.characterId, action.roleActionId, target.dataset.id);
+    return;
+  }
+  if (state.active) {
+    if (state.mode === 'role-action') cancelAiming();
+    else finishAttackArrow();
+  }
+}
+
 function parseCssTimeVariable(name, fallbackMs) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   if (!value) return fallbackMs;
@@ -210,6 +380,8 @@ let initialLoadPromise = null;
 let dragArrowOrigin = null;
 let dragArrowSourceElement = null;
 let roleActionDragActive = false;
+let touchDrag = null;
+let suppressTouchClickUntil = 0;
 let sessionMode = null;
 let playerToken = localStorage.getItem('tpf-online-player-token') || '';
 let room = null;
@@ -719,6 +891,8 @@ function syncHeroDraftSelectionUi() {
     const selectedCard = [...ui.heroDraftOptions.querySelectorAll('.hero-draft-card[data-hero-key]')]
       .find(card => card.dataset.heroKey === selectedHeroDraftKey);
     if (selectedCard) showHeroDraftCandidateInspector(selectedHeroDraftKey, selectedCard);
+  } else if (isTouchMode() && isSoldierDraft && ui.inspector.classList.contains('draft-inspector-only') && ui.inspector.dataset.draftKey) {
+    return;
   } else {
     hideCharacterInspector();
   }
@@ -768,6 +942,7 @@ function showHeroDraftCandidateInspector(characterKey, element) {
     </section>`;
   ui.inspector.classList.add('open', 'draft-inspector-only');
   ui.inspector.setAttribute('aria-hidden', 'false');
+  ui.inspector.dataset.draftKey = characterKey;
   art.hydrate(ui.inspector);
   const rect = stageRect(element);
   positionInspector(ui.inspector, Math.max(16, rect.left - ui.inspector.offsetWidth - 14), rect);
@@ -1027,7 +1202,18 @@ function bindCards() {
       event.stopPropagation();
       selectHeroDraft(card.dataset.key, { animateOpening: true });
     });
-    card.addEventListener('click', () => onCardClick(card));
+    card.addEventListener('click', event => {
+      if (shouldSuppressTouchClick()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      onCardClick(card);
+    });
+    card.addEventListener('pointerdown', event => beginTouchAttack(card, event));
+    card.addEventListener('pointermove', updateTouchDrag);
+    card.addEventListener('pointerup', event => endTouchDrag(event));
+    card.addEventListener('pointercancel', event => endTouchDrag(event, true));
     card.addEventListener('dragstart', event => {
       if (!card.classList.contains('can-act')) { event.preventDefault(); return; }
       const wasAlreadySelected = selectedAttacker === card.dataset.id;
@@ -1326,6 +1512,7 @@ function hideCharacterInspector() {
   ui.inspector.classList.remove('draft-inspector-only');
   ui.inspector.classList.remove('open');
   ui.inspector.setAttribute('aria-hidden', 'true');
+  delete ui.inspector.dataset.draftKey;
   ui.statusInspector.classList.remove('open');
   ui.statusInspector.setAttribute('aria-hidden', 'true');
   hideRoleActionInspector();
@@ -1383,9 +1570,17 @@ function showRoleActionInspector(button) {
   const targetText = targets.length ? targets.join(' / ') : button.dataset.roleActionMode || '';
   const cooldownText = cooldownRemaining > 0 ? `CD ${cooldownRemaining}` : cooldown > 0 ? `Cooldown ${cooldown}` : '';
   const formattedDescription = escapeHtml(description).replace(/\n/g, '<br>');
+  const canUse = !button.disabled && !button.classList.contains('choice');
+  const isTargeted = button.dataset.roleActionMode === 'Targeted'
+    && targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind));
   ui.roleActionInspector.innerHTML = `<header><span>ROLE ACTION</span><strong>${escapeHtml(name)}</strong><b>${escapeHtml(cost)} AP</b></header>
     <p>${formattedDescription}</p>
-    ${targetText || cooldownText ? `<footer>${escapeHtml([targetText, cooldownText].filter(Boolean).join(' / '))}</footer>` : ''}`;
+    ${targetText || cooldownText ? `<footer>${escapeHtml([targetText, cooldownText].filter(Boolean).join(' / '))}</footer>` : ''}
+    ${canUse ? `<button class="role-action-detail-use" type="button"
+      data-character-id="${escapeHtml(button.dataset.characterId || '')}"
+      data-role-action-id="${escapeHtml(button.dataset.roleActionId || '')}"
+      data-role-action-mode="${escapeHtml(button.dataset.roleActionMode || '')}"
+      data-role-action-targets="${escapeHtml(targets.join(','))}">${escapeHtml(i18n.t(isTargeted ? 'roleActionTargetButton' : 'roleActionUseButton'))}</button>` : ''}`;
   const buttonRect = stageRect(button);
   const inspectorRect = stageRect(ui.inspector);
   ui.roleActionInspector.classList.add('open');
@@ -3526,6 +3721,10 @@ ui.heroDraftOptions?.addEventListener('click', event => {
   const draft = game?.heroDraft;
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
   if (isSoldierDraft) {
+    const shouldHideTouchInspector = isTouchMode()
+      && ui.inspector.classList.contains('open')
+      && ui.inspector.classList.contains('draft-inspector-only')
+      && ui.inspector.dataset.draftKey === key;
     soldierUpgradeKey = null;
     if (selectedHeroDraftKeys.includes(key)) {
       selectedHeroDraftKeys = selectedHeroDraftKeys.filter(item => item !== key);
@@ -3536,7 +3735,12 @@ ui.heroDraftOptions?.addEventListener('click', event => {
       card.classList.remove('hover-suppressed');
     }
     selectedHeroDraftKey = null;
-    hideCharacterInspector();
+    if (isTouchMode()) {
+      if (shouldHideTouchInspector) hideCharacterInspector();
+      else showHeroDraftCandidateInspector(key, card);
+    } else {
+      hideCharacterInspector();
+    }
   } else {
     selectedHeroDraftKey = key;
     card.classList.remove('hover-suppressed');
@@ -3557,12 +3761,14 @@ ui.heroDraftOptions?.addEventListener('mouseout', event => {
   if (!draftCard || draftCard.contains(event.relatedTarget)) return;
   const draft = game?.heroDraft;
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
+  if (isTouchMode() && isSoldierDraft) return;
   if (isSoldierDraft) hideCharacterInspector();
 });
 ui.heroDraftOptions?.addEventListener('mouseover', event => {
   const card = event.target instanceof Element ? event.target.closest('.hero-draft-card[data-hero-key]') : null;
   const draft = game?.heroDraft;
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
+  if (isTouchMode() && isSoldierDraft) return;
   if (card && (isSoldierDraft || selectedHeroDraftKey === card.dataset.heroKey))
     showHeroDraftCandidateInspector(card.dataset.heroKey, card);
 });
@@ -3570,6 +3776,7 @@ ui.heroDraftOptions?.addEventListener('focusin', event => {
   const card = event.target instanceof Element ? event.target.closest('.hero-draft-card[data-hero-key]') : null;
   const draft = game?.heroDraft;
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
+  if (isTouchMode() && isSoldierDraft) return;
   if (card && (isSoldierDraft || selectedHeroDraftKey === card.dataset.heroKey))
     showHeroDraftCandidateInspector(card.dataset.heroKey, card);
 });
@@ -3578,9 +3785,11 @@ ui.heroDraftOptions?.addEventListener('focusout', event => {
   const next = event.relatedTarget instanceof Element ? event.relatedTarget.closest('.hero-draft-card[data-hero-key]') : null;
   const draft = game?.heroDraft;
   const isSoldierDraft = draft?.kind === 'SoldierOpening' || draft?.kind === 'SoldierRecruit';
+  if (isTouchMode() && isSoldierDraft) return;
   if (card && isSoldierDraft && next !== card) hideCharacterInspector();
 });
 ui.heroDraftOptions?.addEventListener('mouseleave', () => {
+  if (isTouchMode()) return;
   if (!selectedHeroDraftKey) hideCharacterInspector();
 });
 ui.heroDraftReset?.addEventListener('click', resetHeroDraft);
@@ -3620,6 +3829,11 @@ ui.inspector.addEventListener('click', event => {
     return;
   }
 
+  if (isTouchMode()) {
+    showRoleActionInspector(button);
+    return;
+  }
+
   const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
   const isTargetedRoleAction = button.dataset.roleActionMode === 'Targeted';
   if (isTargetedRoleAction && targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind))) {
@@ -3630,6 +3844,10 @@ ui.inspector.addEventListener('click', event => {
   }
 
   useRoleAction(characterId, roleActionId);
+});
+ui.inspector.addEventListener('pointerdown', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id][draggable="true"]') : null;
+  if (button) beginTouchRoleAction(button, event);
 });
 ui.inspector.addEventListener('mouseover', event => {
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
@@ -3644,6 +3862,24 @@ ui.inspector.addEventListener('mouseout', event => {
   hideRoleActionInspector();
 });
 ui.roleActionInspector?.addEventListener('mouseleave', hideRoleActionInspector);
+ui.roleActionInspector?.addEventListener('click', event => {
+  const button = event.target instanceof Element ? event.target.closest('.role-action-detail-use[data-role-action-id]') : null;
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const characterId = button.dataset.characterId;
+  const roleActionId = button.dataset.roleActionId;
+  if (!characterId || !roleActionId) return;
+  const targets = String(button.dataset.roleActionTargets || '').split(',').filter(Boolean);
+  const isTargetedRoleAction = button.dataset.roleActionMode === 'Targeted';
+  if (isTargetedRoleAction && targets.some(kind => ['SelfCard', 'AllyCard', 'EnemyCard'].includes(kind))) {
+    beginRoleActionTargeting(characterId, roleActionId, targets);
+    sound.emit('ui.card-select');
+    showToast(i18n.t(roleActionTargetInstructionKey(targets)));
+    return;
+  }
+  useRoleAction(characterId, roleActionId);
+});
 ui.inspector.addEventListener('focusin', event => {
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
   if (button) showRoleActionInspector(button);
@@ -3753,6 +3989,9 @@ document.addEventListener('mousemove', event => {
   const point = clientToStage(event.clientX, event.clientY);
   updateAttackArrow(point.x, point.y, target);
 });
+document.addEventListener('pointermove', updateTouchDrag, { passive: false });
+document.addEventListener('pointerup', event => endTouchDrag(event), { passive: false });
+document.addEventListener('pointercancel', event => endTouchDrag(event, true), { passive: false });
 document.addEventListener('dragover', event => {
   if (!dragArrowOrigin) return;
   const selector = roleActionDragActive

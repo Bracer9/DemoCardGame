@@ -53,6 +53,8 @@
     "roleActionTitle": "ロールアクション",
     "roleActionLocked": "ロールアクションはまだ解放されていません。",
     "roleActionComingSoon": "発動処理はまだ実装されていません。",
+    "roleActionTargetButton": "対象選択",
+    "roleActionUseButton": "実行",
     "rewardCannotAfford": "BP不足",
     "opponentChoosingReward": "相手が報酬を選択中",
     "rematch": "再戦する",

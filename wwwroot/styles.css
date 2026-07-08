@@ -5968,3 +5968,94 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
   from { opacity:0; transform:translateY(12px) scale(.985); }
   to { opacity:1; transform:translateY(0) scale(1); }
 }
+
+.role-action-detail-use {
+  display:none;
+  position:relative;
+  z-index:2;
+  width:100%;
+  margin-top:14px;
+  padding:12px 16px;
+  color:#24150b;
+  background:
+    linear-gradient(90deg, rgba(86,53,23,.18), rgba(244,214,149,.20), rgba(86,53,23,.12));
+  border:1px solid rgba(83,50,23,.40);
+  border-radius:7px;
+  box-shadow:inset 0 1px 0 rgba(255,239,190,.36),0 1px 0 rgba(75,42,18,.20),0 8px 18px rgba(0,0,0,.16);
+  font-family:var(--font-display);
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.12em;
+  cursor:pointer;
+}
+
+.role-action-detail-use:active {
+  filter:brightness(.98);
+  transform:translateY(1px);
+  box-shadow:inset 0 2px 6px rgba(64,34,12,.24),0 1px 0 rgba(75,42,18,.16);
+}
+
+body.touch-mode .fighter-card,
+body.touch-mode .role-action-button,
+body.touch-mode .role-action-detail-use {
+  touch-action:none;
+  -webkit-user-drag:none;
+}
+
+body.touch-mode .fighter-card.can-act:not(.selected):hover {
+  transform:translateY(var(--pose-y)) rotate(var(--pose-rot));
+  border-color:#5b4c50;
+  box-shadow:0 14px 28px #000a;
+  animation:none;
+}
+
+body.touch-mode .character-inspector,
+body.touch-mode .status-inspector {
+  --inspector-title-size:31px;
+  --inspector-body-size:17px;
+  --inspector-kicker-size:12px;
+  --inspector-stat-label-size:12px;
+  --inspector-stat-value-size:34px;
+  --inspector-trait-name-size:24px;
+  --inspector-trait-body-size:18px;
+  --inspector-role-action-title-size:13px;
+  --inspector-role-action-button-size:18px;
+  --inspector-role-action-detail-title-size:23px;
+  --inspector-role-action-detail-body-size:18px;
+  --inspector-effect-name-size:20px;
+  --inspector-effect-body-size:17px;
+  --character-inspector-width:470px;
+  --status-inspector-width:430px;
+  pointer-events:auto;
+}
+
+body.touch-mode .role-action-detail-inspector {
+  width:520px;
+  max-height:520px;
+  padding:30px 34px 28px;
+  pointer-events:auto;
+}
+
+body.touch-mode .role-action-detail-inspector p {
+  font-size:19px;
+  line-height:1.58;
+}
+
+body.touch-mode .role-action-detail-use {
+  display:block;
+  min-height:58px;
+  font-size:18px;
+}
+
+body.touch-mode .role-action-button {
+  min-height:88px;
+  padding:13px 14px 14px;
+}
+
+body.touch-mode .role-action-button>span {
+  font-size:21px;
+}
+
+body.touch-mode .role-action-button em {
+  font-size:17px;
+}
