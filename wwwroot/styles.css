@@ -1527,6 +1527,12 @@ body.ios-low-motion .battlefield-atmosphere-top::after {
     url("/assets/ui/NormalCardBackground.png") center/cover,
     #b68b5a;
 }
+.rank-up-card.rank-bg-advanced-hero {
+  background:
+    linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
+    url("/assets/ui/AdvancedHeroCardBackground.png") center/cover,
+    #c9aa72;
+}
 .rank-up-card.new {
   background:
     linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
@@ -1539,6 +1545,12 @@ body.ios-low-motion .battlefield-atmosphere-top::after {
     linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
     url("/assets/ui/NormalCardBackground.png") center/cover,
     #b68b5a;
+}
+.rank-up-card.new.rank-bg-advanced-hero {
+  background:
+    linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
+    url("/assets/ui/AdvancedHeroCardBackground.png") center/cover,
+    #c9aa72;
 }
 .rank-up-card.old {
   animation:rankUpOldCard 1.05s ease-in both;
@@ -2127,6 +2139,14 @@ body.dragging-attack .active-zone,
     #c79b62;
   box-shadow:0 13px 25px #0009,inset 0 0 0 1px #fff1c144;
 }
+.fighter-card.has-deputy[data-card-type="Hero"][data-hero-rank="2"] .card-front,
+.fighter-card.has-deputy[data-card-type="Hero"][data-hero-rank="3"] .card-front {
+  background:
+    linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
+    linear-gradient(90deg,#6c171d66 0 4px,#0000 4px calc(100% - 4px),#6c171d66 calc(100% - 4px)),
+    url("/assets/ui/AdvancedHeroCardBackground.png") center/cover,
+    #c9aa72;
+}
 .fighter-card.has-deputy.selected .card-front {
   border-color:var(--select-hot);
 }
@@ -2561,6 +2581,15 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
     linear-gradient(90deg,#4b332066 0 4px,#0000 4px calc(100% - 4px),#4b332066 calc(100% - 4px)),
     url("/assets/ui/NormalCardBackground.png") center/cover,
     #b68b5a;
+}
+
+.fighter-card.full-art-card[data-card-type="Hero"][data-hero-rank="2"],
+.fighter-card.full-art-card[data-card-type="Hero"][data-hero-rank="3"] {
+  background:
+    linear-gradient(145deg,#2b140e99 0%,#0000 22%,#0000 70%,#32140eaa 100%),
+    linear-gradient(90deg,#6c171d66 0 4px,#0000 4px calc(100% - 4px),#6c171d66 calc(100% - 4px)),
+    url("/assets/ui/AdvancedHeroCardBackground.png") center/cover,
+    #c9aa72;
 }
 
 .fighter-card.has-deputy.full-art-card {

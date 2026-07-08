@@ -2613,10 +2613,12 @@ function animateHeroRankUp(targetCharacterId, beforeCard = null) {
       overlay.style.height = `${rect.height}px`;
       const beforeRank = Number(beforeCard?.heroRank || 0);
       const afterRank = Number(afterCard?.heroRank || beforeRank);
+      const oldBgClass = beforeRank >= 2 ? ' rank-bg-advanced-hero' : '';
+      const newBgClass = afterRank >= 2 ? ' rank-bg-advanced-hero' : '';
       const rankLabel = afterRank >= 3 ? 'RANK III' : afterRank >= 2 ? 'RANK II' : afterRank === 1 ? 'RANK I' : 'RANK';
       overlay.innerHTML = `
-        <div class="rank-up-card old"><img src="${escapeHtml(beforeCard?.coloredAssetUrl || beforeCard?.assetUrl || afterCard?.assetUrl || '')}" alt=""></div>
-        <div class="rank-up-card new"><img src="${escapeHtml(afterCard?.coloredAssetUrl || afterCard?.assetUrl || '')}" alt=""></div>
+        <div class="rank-up-card old${oldBgClass}"><img src="${escapeHtml(beforeCard?.coloredAssetUrl || beforeCard?.assetUrl || afterCard?.assetUrl || '')}" alt=""></div>
+        <div class="rank-up-card new${newBgClass}"><img src="${escapeHtml(afterCard?.coloredAssetUrl || afterCard?.assetUrl || '')}" alt=""></div>
         <span>${rankLabel}</span>`;
       ui.fx.appendChild(overlay);
       card.classList.remove('soldier-rank-up-flash');
@@ -2671,12 +2673,14 @@ async function selectRoleActionUpgrade(characterId, roleActionId) {
     game = payload.data; lastGameJson = JSON.stringify(game);
     const afterCard = findCard(characterId);
     const afterHeroRank = Number(afterCard?.heroRank || 0);
-    const shouldAnimateHeroRank3 = beforeCard?.cardType === 'Hero' && beforeHeroRank < 3 && afterHeroRank >= 3;
+    const shouldAnimateHeroRankChange = beforeCard?.cardType === 'Hero'
+      && afterHeroRank > beforeHeroRank
+      && afterHeroRank >= 2;
     pendingRoleAction = null;
     pendingDeputy = null;
     inspectedCardId = characterId;
     render();
-    if (shouldAnimateHeroRank3) await animateHeroRankUp(characterId, beforeCard);
+    if (shouldAnimateHeroRankChange) await animateHeroRankUp(characterId, beforeCard);
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; if (game) render(); }
