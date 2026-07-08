@@ -149,7 +149,7 @@ public sealed class GameViewFactory
 
         return new GameView(
             state.Id, state.TurnNumber, roundNumber, state.ActionPoints,
-            GameEngine.MaxActionPoints,
+            GameEngine.GetMaxActionPoints(state.ActivePlayer),
             GameEngine.IsRewardRound(roundNumber + 1),
             state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
                 && state.PendingHeroDraft is null
@@ -269,6 +269,7 @@ public sealed class GameViewFactory
             && state.PendingHeroDraft is null
             && player.Id == state.ActivePlayerId
             && player.Id == viewerPlayerId && character.IsAlive && !character.HasActed
+            && !GameEngine.IsDeploying(character)
             && !GameEngine.IsActiveAttackBlocked(character)
             && character.Definition.Cost <= state.ActionPoints;
 

@@ -189,6 +189,7 @@ art.load('/config/ui-assets.json').then(() => { if (game) render(); }).catch(err
 document.addEventListener('pointerdown', () => sound.unlock({ primeUnrequested: false }), { capture: true });
 document.addEventListener('keydown', () => sound.unlock({ primeUnrequested: false }), { capture: true });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) sound.ensureBgmPlaying(); });
+window.addEventListener('focus', () => sound.ensureBgmPlaying());
 
 let game = null;
 let selectedAttacker = null;
@@ -1261,9 +1262,7 @@ function showCharacterInspector(element) {
   const roleActionMarkup = Array.isArray(visibleRoleActions) && visibleRoleActions.length
     ? visibleRoleActions.map(action => {
         const localized = i18n.roleAction(action.id);
-        const prediction = roleActionPredictionText(card, action);
-        const description = prediction ? `${localized.description}\n${prediction}` : localized.description;
-        const summary = prediction ? truncateCardText(prediction, 54) : roleActionSummary(localized.description);
+        const summary = roleActionSummary(localized.description);
         const disabledText = action.disabledReason ? i18n.message(action.disabledReason) : '';
         const disabled = !isUpgradeChoiceMode && !action.enabled;
         const cooldownRemaining = Number(action.cooldownRemaining || 0);
@@ -1274,7 +1273,7 @@ function showCharacterInspector(element) {
         return `<button class="role-action-button ${isUpgradeChoiceMode ? 'choice' : ''} ${disabled ? 'disabled' : 'enabled'}" type="button"
           data-character-id="${escapeHtml(card.id)}" data-role-action-id="${escapeHtml(action.id)}" data-role-action-mode="${escapeHtml(action.activationMode)}"
           data-role-action-targets="${escapeHtml((action.validTargetKinds || []).join(','))}"
-          data-role-action-name="${escapeHtml(localized.name)}" data-role-action-description="${escapeHtml(description)}"
+          data-role-action-name="${escapeHtml(localized.name)}" data-role-action-description="${escapeHtml(localized.description)}"
           data-role-action-cost="${escapeHtml(action.cost)}" data-role-action-summary="${escapeHtml(summary)}"
           data-role-action-cooldown="${escapeHtml(cooldownTurns)}" data-role-action-cooldown-remaining="${escapeHtml(cooldownRemaining)}"
           ${draggable ? 'draggable="true"' : ''} ${disabled ? 'disabled' : ''}>
@@ -1371,115 +1370,6 @@ function roleActionSummary(description) {
   if (!text) return '';
   const sentence = text.split(/(?<=[。！？!?])/u)[0] || text;
   return truncateCardText(sentence, 48);
-}
-
-function roleActionPredictionText(card, action) {
-  if (!card || !action || !String(action.id || '').includes('-')) return '';
-  const id = action.id;
-  const attack = Math.max(0, Number(card.attack || 0));
-  const pdef = Math.max(0, Number(card.physicalDefense || 0));
-  const mdef = Math.max(0, Number(card.magicalDefense || 0));
-  const maxHp = Math.max(0, Number(card.maxHp || 0));
-  const owner = ownerForCard(card.id);
-  const opponent = opponentForCard(card.id);
-  const ownShield = Math.max(0, Number(owner?.sharedShield || 0));
-  const enemyShield = Math.max(0, Number(opponent?.sharedShield || 0));
-  const parts = [];
-  const damage = (amount, type) => i18n.t('roleActionPredictionDamage', { amount, damageType: i18n.damageType(type) });
-  const morale = amount => i18n.t('roleActionPredictionMoraleDamage', { amount });
-  const absolute = amount => i18n.t('roleActionPredictionAbsoluteDamage', { amount });
-  const status = statusId => i18n.t('roleActionPredictionStatus', { status: i18n.status({ id: statusId, magnitude: 0 }).name });
-  const extraAttack = () => i18n.t('roleActionPredictionExtraAttack');
-
-  switch (id) {
-    case 'miracle-standard':
-      parts.push(i18n.t('roleActionPredictionHeal', { amount: Math.max(1, Math.ceil(maxHp / 4)) }));
-      parts.push(i18n.t('roleActionPredictionShieldGain', { amount: `${mdef}+` }));
-      break;
-    case 'edict-of-victory':
-      parts.push(extraAttack());
-      parts.push(absolute(attack));
-      parts.push(status('edict-of-victory'));
-      break;
-    case 'astral-alignment':
-      parts.push(extraAttack());
-      parts.push(damage(attack, 'Magical'));
-      parts.push(status('astral-alignment'));
-      break;
-    case 'thread-cut':
-      parts.push(morale(`${attack}-${attack * 3}`));
-      break;
-    case 'field-rations':
-      parts.push(i18n.t('roleActionPredictionHeal', { amount: `${Math.max(1, Math.ceil(attack / 2))}/${attack}` }));
-      parts.push(status('fortify'));
-      break;
-    case 'militia-call':
-      parts.push(extraAttack());
-      parts.push(damage(attack, 'Physical'));
-      parts.push(status('militia-call'));
-      break;
-    case 'starfall':
-      parts.push(damage(hasStatus(card, 'chant') ? Math.max(1, attack) : 2, 'Magical'));
-      parts.push(status('burning'));
-      break;
-    case 'archive-formula':
-      parts.push(damage(attack, 'Magical'));
-      parts.push(status('burning'));
-      break;
-    case 'grove-sanctuary':
-      parts.push(i18n.t('roleActionPredictionHeal', { amount: attack }));
-      parts.push(status('fortify'));
-      break;
-    case 'call-the-hunt':
-      parts.push(extraAttack());
-      parts.push(damage(attack, 'Physical'));
-      break;
-    case 'glory-roar':
-      parts.push(extraAttack());
-      parts.push(status('strong-attack'));
-      break;
-    case 'dragon-breaker':
-      parts.push(enemyShield > 0
-        ? i18n.t('roleActionPredictionShieldDamage', { amount: attack, shield: enemyShield })
-        : damage(attack, 'Physical'));
-      break;
-    case 'nightmare-stare':
-      parts.push(absolute(attack));
-      parts.push(status('nightmare-prey'));
-      break;
-    case 'abyssal-bargain':
-      parts.push(i18n.t('roleActionPredictionHpCost', { amount: attack }));
-      parts.push(absolute(attack));
-      parts.push(extraAttack());
-      break;
-    case 'holy-bastion':
-      parts.push(i18n.t('roleActionPredictionShieldGain', { amount: pdef + mdef }));
-      parts.push(status('fortify'));
-      break;
-    case 'iron-charge':
-      parts.push(i18n.t('roleActionPredictionShieldSpend', { amount: ownShield }));
-      parts.push(damage(attack + ownShield, 'Physical'));
-      break;
-    default:
-      return '';
-  }
-
-  return parts.length
-    ? `${i18n.t('roleActionPredictionPrefix')}：${parts.join(i18n.t('roleActionPredictionSeparator'))}`
-    : '';
-}
-
-function hasStatus(card, statusId) {
-  return Array.isArray(card?.statuses) && card.statuses.some(status => status.id === statusId);
-}
-
-function ownerForCard(cardId) {
-  return game?.players?.find(player => (player.characters || []).some(character => character.id === cardId));
-}
-
-function opponentForCard(cardId) {
-  const owner = ownerForCard(cardId);
-  return game?.players?.find(player => player.id !== owner?.id);
 }
 
 function showRoleActionInspector(button) {
@@ -2927,8 +2817,12 @@ async function playLogEntry(entry, state) {
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'guard-oath', magnitude: amount }).name, secondaryIconId: art.forStatus('guard-oath'), tone: 'status' }); break;
     case 'note.guardRedirect':
       await playGuardRedirectEvent(entry, state, { emitVoice: true }); break;
-    case 'log.effectDamage': {
+    case 'log.effectDamage':
+    case 'log.effectDamageWithMorale': {
       const type = logArg(entry, 'damageType') || 'Physical';
+      const hpAmount = key === 'log.effectDamageWithMorale' ? Number(logArg(entry, 'hpAmount') || 0) : amount;
+      const moraleAmount = key === 'log.effectDamageWithMorale' ? Number(logArg(entry, 'moraleAmount') || 0) : 0;
+      const totalAmount = key === 'log.effectDamageWithMorale' ? Math.max(amount, hpAmount + moraleAmount) : amount;
       if (effect?.kind === 'status' && effect.value === 'burning') sound.emit('status.burning-tick');
       else if (effect?.kind === 'trait' && effect.value === 'aftershock-axe') sound.emit('trait.aftershock-axe');
       else if (effect?.kind === 'trait' && effect.value === 'predatory-instinct') {
@@ -2937,15 +2831,15 @@ async function playLogEntry(entry, state) {
       }
       else if (effect?.kind === 'trait') sound.emit('combat.trait-damage');
       else if (effect?.kind === 'roleAction') sound.emit('combat.trait-damage');
-      else if (type === 'Absolute' && amount > 0) sound.emit('combat.absolute-damage');
-      else if (type === 'Physical' && amount > 0) sound.emit('combat.physical-hit');
+      else if (type === 'Absolute' && totalAmount > 0) sound.emit('combat.absolute-damage');
+      else if (type === 'Physical' && totalAmount > 0) sound.emit('combat.physical-hit');
       if (effect?.kind === 'status')
         await eventBurst(target, eventIcon.status, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'status' });
       else
         await eventBurst(characterElementFromLog(state, entry, 'source'), eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'trait' });
-      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: `-${amount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'trait' });
-      if (target && amount > 0) damageFloat(target, amount, type);
-      emitDamageTakenVoice(characterData || characterKey, amount, state, { source: effect?.kind === 'status' ? 'status' : effect?.kind === 'roleAction' ? 'role-action' : 'trait', damageType: type, traitId: effect?.kind === 'trait' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
+      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: `-${totalAmount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'trait' });
+      if (target && hpAmount > 0) damageFloat(target, hpAmount, type);
+      emitDamageTakenVoice(characterData || characterKey, hpAmount, state, { source: effect?.kind === 'status' ? 'status' : effect?.kind === 'roleAction' ? 'role-action' : 'trait', damageType: type, traitId: effect?.kind === 'trait' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
       await wait(340); break;
     }
     case 'log.collateralDamage':

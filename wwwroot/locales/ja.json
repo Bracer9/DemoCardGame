@@ -40,6 +40,7 @@
     "eventDeath": "戦闘不能",
     "executeAttack": "攻撃実行",
     "apUsage": "攻撃命令に使用",
+    "rank3TraitApBonus": " AP上限+1。",
     "battleLog": "戦況ログ",
     "rewardTitle": "戦利品を選択",
     "rewardSubtitle": "BPを消費して報酬を得るか、スキップして戦功を温存します。",
@@ -52,18 +53,6 @@
     "roleActionTitle": "ロールアクション",
     "roleActionLocked": "ロールアクションはまだ解放されていません。",
     "roleActionComingSoon": "発動処理はまだ実装されていません。",
-    "roleActionPredictionPrefix": "現在予測",
-    "roleActionPredictionSeparator": " / ",
-    "roleActionPredictionDamage": "{amount}{damageType}ダメージ",
-    "roleActionPredictionAbsoluteDamage": "{amount}絶対ダメージ",
-    "roleActionPredictionMoraleDamage": "{amount}士気ダメージ",
-    "roleActionPredictionShieldDamage": "共有盾に{amount}ダメージ（現在{shield}）",
-    "roleActionPredictionShieldGain": "共有盾+{amount}",
-    "roleActionPredictionShieldSpend": "共有盾{amount}消費",
-    "roleActionPredictionHeal": "{amount} HP回復",
-    "roleActionPredictionHpCost": "最大{amount} HPを失う",
-    "roleActionPredictionExtraAttack": "もう一度主動攻撃可能",
-    "roleActionPredictionStatus": "{status}付与",
     "rewardCannotAfford": "BP不足",
     "opponentChoosingReward": "相手が報酬を選択中",
     "rematch": "再戦する",
@@ -384,82 +373,82 @@
     },
     "miracle-standard": {
       "name": "奇跡の軍旗",
-      "description": "対象と隣接する味方を浄化し回復する。浄化に成功した場合、共有盾を増やす。",
+      "description": "対象は全デバフを浄化し、聖職者の最大HPの1/4（切り上げ）を回復。隣接味方はそれぞれデバフを1つ浄化し、主回復量の半分（最低1、切り上げ）を回復。浄化数が1以上なら、共有盾を聖職者の現在魔防+対象人数だけ増やす。",
       "button": "軍旗"
     },
     "edict-of-victory": {
       "name": "勝利の勅令",
-      "description": "味方1体を再攻撃可能にし、次の主動攻撃後に姫の現在攻撃力分の絶対ダメージを追加する。",
+      "description": "味方1体に追加の主動攻撃を1回与える。次の主動攻撃後、対象が生存していれば姫の現在攻撃力分の絶対ダメージを追加する。これで敵を倒した場合は1 BPを得て、この勅令による次ターンAP-1を打ち消す。倒せなければ次ターンAP-1。",
       "button": "勅令"
     },
     "astral-alignment": {
       "name": "星軌調整",
-      "description": "味方魔法ユニットに詠唱と再攻撃を付与。次の魔法ダメージに占い師の現在攻撃力を追加し、隣接敵にも波及する。",
+      "description": "味方魔法ユニットに詠唱と追加の主動攻撃を1回与える。次の魔法ダメージに占い師の現在攻撃力を加え、対象に隣接する敵へ追加値の半分（最低1、切り上げ）の魔法スプラッシュを与える。",
       "button": "星軌"
     },
     "thread-cut": {
       "name": "糸断ち",
-      "description": "対象の印とデバフ数に応じて士気を削る。士気が0になれば魔法ダメージと戦慄を与える。",
+      "description": "対象の印、獲物、狩群の印、炎上、空虚、力尽き、摩耗、戦慄、脆弱を数える。1つにつき2士気ダメージ、数の上限なし。士気ダメージの余剰はHPへ貫通しない。士気が0になれば占い師の現在攻撃力分の魔法ダメージと戦慄を与える。0個なら運命の印を付与。",
       "button": "糸断ち"
     },
     "field-rations": {
       "name": "戦地配給",
-      "description": "味方全体を回復し、主対象を追加回復して堅守と護呪を付与。低HPならデバフを1つ浄化する。",
+      "description": "味方全体を農民の現在攻撃力の半分（最低1、切り上げ）回復。主対象はさらに農民の現在攻撃力分を回復し、堅守と護呪を得る。回復前HPが最大HPの半分未満なら、追加でデバフを1つ浄化する。",
       "button": "配給"
     },
     "militia-call": {
       "name": "民兵号令",
-      "description": "味方農民または兵士に強攻/詠唱、再攻撃、次の攻撃への追加ダメージを付与。",
+      "description": "味方農民または兵士に追加の主動攻撃を1回与える。物理ユニットなら強攻、魔法ユニットなら詠唱を得る。次の主動攻撃は農民の現在攻撃力分だけ増加し、対象が兵士ならさらにその兵士の現在ランク分だけ増加する。",
       "button": "号令"
     },
     "starfall": {
       "name": "星墜とし",
-      "description": "敵1体に2魔法ダメージと炎上。詠唱があれば1層消費し、現在攻撃力分の魔法ダメージに変える。",
+      "description": "敵1体に現在攻撃力分の魔法ダメージと炎上。詠唱があれば通常どおり1層消費し、この魔法ダメージを2倍にする。",
       "button": "星墜"
     },
     "archive-formula": {
       "name": "記録術式",
-      "description": "敵1体に記録刻印を付与し、魔法ダメージと炎上を与える。炎上または空虚があれば威力が上がる。",
+      "description": "敵1体に記録刻印を付与し、魔術師の現在攻撃力分の魔法ダメージを与える。対象に炎上がある場合、ダメージは炎上層数分だけ増える。その後、対象の現在の共通デバフ数（最低1）と同じ層数の炎上を付与する。",
       "button": "記録"
     },
     "grove-sanctuary": {
       "name": "森の聖域",
-      "description": "対象と隣接する味方を浄化する。浄化に成功した場合は全員を回復し、失敗時は護呪を付与。",
+      "description": "対象は全デバフを浄化し、隣接味方はそれぞれデバフを1つ浄化する。浄化数が1以上なら、範囲内の味方全員をドルイドの現在攻撃力×浄化総数だけ回復。浄化がなければ、全員にドルイドの現在魔防層の護呪（最低1）を付与する。",
       "button": "聖域"
     },
     "call-the-hunt": {
       "name": "狩群招集",
-      "description": "対象と隣接する敵に狩群の印を付与。このターン、味方兵士の攻撃に追加ダメージ。",
+      "description": "対象と隣接する敵に狩群の印を付与し、このターン終了まで持続する。このターン、味方兵士それぞれが各印対象を初めて主動攻撃するとき、ドルイドの現在攻撃力分の通常ダメージを追加する。印対象を倒した場合、1 BPを得る。",
       "button": "狩群"
     },
     "glory-roar": {
       "name": "栄光の咆哮",
-      "description": "自身に強攻と複数回の追加攻撃を付与。このターン、主動攻撃後に1 HPを失う。",
+      "description": "自身に強攻を付与し、蛮族の現在攻撃力/3（最低1、切り上げ）回の追加主動攻撃を得る。このターン、主動攻撃後に1 HPを失うが、これで1 HP未満にはならない。",
       "button": "咆哮"
     },
     "dragon-breaker": {
       "name": "竜砕き",
-      "description": "敵共有盾を攻撃し、破壊時に対象と隣接敵へ戦慄と脆弱。盾がなければ物理ダメージと戦慄・脆弱。",
+      "description": "敵に共有盾がある場合、共有盾を蛮族の現在攻撃力分だけ減らし、HPダメージは与えない。これで共有盾を破壊した場合、対象と隣接敵に戦慄と脆弱を付与。共有盾がなければ、対象に蛮族の現在攻撃力分の物理ダメージを与え、戦慄と脆弱を付与する。",
       "button": "竜砕"
     },
     "nightmare-stare": {
       "name": "悪夢の眼差し",
-      "description": "対象と隣接敵に強化獲物を付与。このターン最初の0 HPダメージ時、モンスターの現在攻撃力分の絶対ダメージ。",
+      "description": "対象と隣接敵に悪夢の獲物を付与し、このターン終了まで持続する。各対象が初めて0 HPダメージを受けたとき、モンスターの現在攻撃力分の絶対ダメージを追加し、その印を消費する。主対象には摩耗も付与する。",
       "button": "悪夢"
     },
     "abyssal-bargain": {
       "name": "深淵取引",
-      "description": "味方1体がHPを失い、再攻撃と絶対ダメージを得る。敵を倒せばBPを得てモンスターを回復する。",
+      "description": "味方1体は最大でモンスターの現在攻撃力分のHPを失うが、最低1 HPは残る。そのユニットは追加の主動攻撃を1回得る。次の主動攻撃後、対象が生存していればモンスターの現在攻撃力分の絶対ダメージを追加する。これで敵を倒した場合、1 BPを得て、支払ったHP分だけモンスターを回復する。",
       "button": "取引"
     },
     "holy-bastion": {
       "name": "聖なる堡塁",
-      "description": "味方1体に守護の誓約と護呪、騎士に堅守を付与し、騎士の現在防御に応じて共有盾を増やす。",
+      "description": "味方1体に騎士の現在物防（最低2）層の守護の誓約と護呪を付与し、騎士自身に堅守を付与する。共有盾を騎士の現在物防+現在魔防だけ増やす。",
       "button": "堡塁"
     },
     "iron-charge": {
       "name": "鉄壁突撃",
-      "description": "味方共有盾をすべて消費し、盾値+騎士の現在攻撃力の物理ダメージ。HPダメージ時、共有盾を一部返す。",
+      "description": "味方共有盾をすべて消費し、敵1体に通常物理ダメージを与える。ダメージ量は消費盾値+騎士の現在攻撃力。対象に戦慄を付与する。実HPダメージを与えた場合、そのHPダメージの半分（最低1、切り上げ）だけ共有盾を返す。",
       "button": "突撃"
     }
   },
@@ -767,6 +756,7 @@
     "log.rewardReset": "{player}が報酬をリセット（消費 {cost} BP、{count}回目）。",
     "log.rewardSkipped": "{player}が報酬をスキップし、{amount} BPを得ようとした。",
     "log.effectDamage": "{effect}：{character}に{amount}{damageType}ダメージ。",
+    "log.effectDamageWithMorale": "{effect}：{character}に{amount}{damageType}ダメージ（HP {hpAmount} / 士気 {moraleAmount}）。",
     "log.defeated": "{character}は戦闘不能。",
     "log.harvestActivated": "{character}に豊穣が訪れた。",
     "log.healed": "{effect}：{character}のHPを{amount}回復。",

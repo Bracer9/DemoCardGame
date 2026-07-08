@@ -9,6 +9,8 @@ class AudioDirector {
     this.pendingEvents = new Set();
     this.lastError = null;
     this.oneShotTemplates = new Map();
+    this.bgmRetryTimer = null;
+    this.bgmRetryAttempts = 0;
   }
 
   defaultSettings() {
@@ -143,6 +145,7 @@ class AudioDirector {
     if (!hasRequestedAudio && !primeUnrequested) return false;
 
     this.unlocked = true;
+    this.bgmRetryAttempts = 0;
     // Flush requested music first so audio.play() is invoked with sound during
     // this exact trusted gesture. Priming first can defer the unmute until
     // after a slow first download, which Safari/Chrome may block.
@@ -269,8 +272,12 @@ class AudioDirector {
     if (!audio.paused) beginFade();
     else audio.play().then(() => {
       this.lastError = null;
+      this.bgmRetryAttempts = 0;
       beginFade();
-    }).catch(error => { this.lastError = error; });
+    }).catch(error => {
+      this.lastError = error;
+      if (entry.requested) this.scheduleBgmRetry();
+    });
   }
 
   ensureBgmPlaying() {
@@ -283,6 +290,16 @@ class AudioDirector {
         this.startBgm(entry);
     }
     return requested;
+  }
+
+  scheduleBgmRetry() {
+    if (this.bgmRetryTimer || this.bgmRetryAttempts >= 3) return;
+    const delay = 500 * 2 ** this.bgmRetryAttempts;
+    this.bgmRetryAttempts++;
+    this.bgmRetryTimer = setTimeout(() => {
+      this.bgmRetryTimer = null;
+      this.ensureBgmPlaying();
+    }, delay);
   }
 
   setMuted(value) {

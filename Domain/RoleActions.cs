@@ -198,7 +198,7 @@ public sealed class RoleActionRegistry
             new(new RoleActionMetadata("thread-cut", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["fate", "morale", "magic", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("field-rations", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["heal", "guard", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("militia-call", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["extra-attack", "soldier", "rank3"], CooldownTurns: 1)),
-            new(new RoleActionMetadata("starfall", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 2, ["magic", "burn", "rank3"], CooldownTurns: 1)),
+            new(new RoleActionMetadata("starfall", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["magic", "burn", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("archive-formula", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["mark", "magic", "burn", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("grove-sanctuary", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["cleanse", "heal", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("call-the-hunt", RoleActionActivationMode.Targeted, [RoleActionTargetKind.EnemyCard], 1, ["mark", "soldier", "rank3"], CooldownTurns: 1)),

@@ -40,6 +40,7 @@
     "eventDeath": "无法战斗",
     "executeAttack": "执行进攻",
     "apUsage": "用于下达进攻命令",
+    "rank3TraitApBonus": " AP上限+1。",
     "battleLog": "战况记录",
     "rewardTitle": "选择战利品",
     "rewardSubtitle": "消耗BP获取奖励，或跳过以保存战功。",
@@ -52,18 +53,6 @@
     "roleActionTitle": "职业行动",
     "roleActionLocked": "尚未解锁职业行动。",
     "roleActionComingSoon": "尚未实装发动。",
-    "roleActionPredictionPrefix": "当前预测",
-    "roleActionPredictionSeparator": "；",
-    "roleActionPredictionDamage": "{amount}点{damageType}伤害",
-    "roleActionPredictionAbsoluteDamage": "{amount}点绝对伤害",
-    "roleActionPredictionMoraleDamage": "{amount}点士气伤害",
-    "roleActionPredictionShieldDamage": "对共有盾造成{amount}点伤害（当前{shield}）",
-    "roleActionPredictionShieldGain": "共有盾+{amount}",
-    "roleActionPredictionShieldSpend": "消耗共有盾{amount}",
-    "roleActionPredictionHeal": "治疗{amount} HP",
-    "roleActionPredictionHpCost": "失去最多{amount} HP",
-    "roleActionPredictionExtraAttack": "可再主动攻击一次",
-    "roleActionPredictionStatus": "赋予{status}",
     "rewardCannotAfford": "BP不足",
     "heroDraftTitleOpening": "选择初始英雄",
     "heroDraftSubtitleOpening": "从4名候选英雄中选择1名，带领她开始战斗。",
@@ -384,82 +373,82 @@
     },
     "miracle-standard": {
       "name": "奇迹军旗",
-      "description": "净化并治疗目标及相邻我方；若成功净化，增加共有盾。",
+      "description": "目标净化全部debuff并回复圣职者最大HP的1/4（向上取整）；相邻我方各净化1个debuff并回复主治疗量的一半（至少1，向上取整）。本次每净化1个debuff，若总数大于0，额外增加共有盾：圣职者当前魔防+影响人数。",
       "button": "军旗"
     },
     "edict-of-victory": {
       "name": "胜利敕令",
-      "description": "我方1体可再次主动攻击，并在下一次主动攻击后追加公主当前攻击力的绝对伤害。若击败敌人，获得BP并抵消本次代价；否则下回合AP-1。",
+      "description": "我方1体获得1次额外主动攻击。该单位下一次主动攻击后，若目标仍存活，追加公主当前攻击力的绝对伤害；若因此击败敌人，获得1 BP并抵消本次敕令的下回合AP-1，否则下回合AP-1。",
       "button": "敕令"
     },
     "astral-alignment": {
       "name": "星轨校准",
-      "description": "我方魔法单位获得咏唱和再次主动攻击；下一次魔法伤害追加占卜师当前攻击力，并波及相邻敌人。",
+      "description": "我方魔法单位获得咏唱和1次额外主动攻击。该单位下一次魔法伤害额外+占卜师当前攻击力，并对目标相邻敌人造成该追加值一半（至少1，向上取整）的魔法溅射。",
       "button": "星轨"
     },
     "thread-cut": {
       "name": "断线",
-      "description": "按目标身上的印记和debuff数量击溃士气；若士气归零，追加魔法伤害和战栗。",
+      "description": "统计目标身上的印记、猎物、猎群标记、燃烧、空虚、力竭、磨损、战栗和脆弱；每个状态造成2点士气伤害，没有数量上限。士气伤害溢出不穿透HP；若目标士气归零，再造成占卜师当前攻击力的魔法伤害并施加战栗。若计数为0，改为施加命运标记。",
       "button": "断线"
     },
     "field-rations": {
       "name": "战地配给",
-      "description": "治疗我方全体，主目标额外治疗并获得坚守和护咒；低血主目标额外净化1个debuff。",
+      "description": "我方全体各回复农民当前攻击力的一半（至少1，向上取整）。主目标额外回复农民当前攻击力，并获得坚守和护咒；若治疗前HP低于最大HP一半，额外净化1个debuff。",
       "button": "配给"
     },
     "militia-call": {
       "name": "民兵号令",
-      "description": "我方农民或士兵获得强攻/咏唱、额外主动攻击，并在下一次主动攻击追加伤害。",
+      "description": "我方农民或士兵获得1次额外主动攻击；物理单位获得强攻，魔法单位获得咏唱。下一次主动攻击额外+农民当前攻击力；若目标是士兵，再额外+该士兵当前阶级。",
       "button": "号令"
     },
     "starfall": {
       "name": "星陨",
-      "description": "敌方1体受到2点魔法伤害并获得燃烧；若自身有咏唱，消耗1层，改为造成当前攻击力点魔法伤害。",
+      "description": "敌方1体受到当前攻击力点魔法伤害并获得燃烧；若自身有咏唱，按咏唱规则消耗1层并使本次魔法伤害翻倍。",
       "button": "星陨"
     },
     "archive-formula": {
       "name": "归档术式",
-      "description": "敌方1体获得归档刻印，受到魔法伤害并追加燃烧。已有燃烧或空虚时伤害更高。",
+      "description": "敌方1体获得归档刻印，并受到法师当前攻击力的魔法伤害；若目标已有燃烧，伤害额外+燃烧层数。随后施加燃烧，层数为目标当前通用debuff数量（至少1）。",
       "button": "归档"
     },
     "grove-sanctuary": {
       "name": "林地圣域",
-      "description": "净化目标及相邻我方；成功净化时按净化数量治疗全体，否则赋予多层护咒。",
+      "description": "目标净化全部debuff，相邻我方各净化1个debuff。若本次至少净化1个debuff，影响范围内每名我方回复德鲁伊当前攻击力×净化总数；若没有净化任何debuff，改为每人获得德鲁伊当前魔防层护咒（至少1）。",
       "button": "圣域"
     },
     "call-the-hunt": {
       "name": "猎群召唤",
-      "description": "目标及相邻敌人获得猎群标记。本回合我方士兵攻击标记目标时追加德鲁伊当前攻击力的普通伤害。",
+      "description": "目标及相邻敌人获得猎群标记，持续到本回合结束。本回合每名我方士兵首次主动攻击每个标记目标时，额外+德鲁伊当前攻击力的普通伤害；若标记目标被击败，获得1 BP。",
       "button": "猎群"
     },
     "glory-roar": {
       "name": "荣耀咆哮",
-      "description": "自身获得强攻和多次额外主动攻击；本回合每次主动攻击后失去1 HP。",
+      "description": "自身获得强攻，并获得额外主动攻击次数：野蛮人当前攻击力/3（至少1，向上取整）。本回合每次主动攻击后失去1 HP，但不会因此低于1 HP。",
       "button": "咆哮"
     },
     "dragon-breaker": {
       "name": "破龙击",
-      "description": "若敌方有共有盾，打击共有盾且不穿透；击破时目标及相邻敌人获得战栗和脆弱。无盾时造成物理伤害并施加战栗和脆弱。",
+      "description": "若敌方有共有盾，减少其共有盾：野蛮人当前攻击力，且不造成HP伤害；若因此击破共有盾，目标及相邻敌人获得战栗和脆弱。若敌方没有共有盾，对目标造成野蛮人当前攻击力的物理伤害，并施加战栗和脆弱。",
       "button": "破龙"
     },
     "nightmare-stare": {
       "name": "噩梦凝视",
-      "description": "目标及相邻敌人获得强化猎物：本回合第一次受到0点HP伤害时，追加怪物当前攻击力点绝对伤害。",
+      "description": "目标及相邻敌人获得噩梦猎物，持续到本回合结束：每个目标第一次受到0点HP伤害时，追加怪物当前攻击力的绝对伤害并消耗该标记。主目标额外获得磨损。",
       "button": "噩梦"
     },
     "abyssal-bargain": {
       "name": "深渊交易",
-      "description": "我方1体失去最多怪物当前攻击力点HP，获得额外主动攻击，并在下一次主动攻击追加同等绝对伤害。击败敌人时获得BP并治疗怪物。",
+      "description": "我方1体失去最多怪物当前攻击力的HP，但至少保留1 HP；该单位获得1次额外主动攻击。下一次主动攻击后，若目标仍存活，追加怪物当前攻击力的绝对伤害；若因此击败敌人，获得1 BP，并按本次支付的HP治疗怪物。",
       "button": "交易"
     },
     "holy-bastion": {
       "name": "圣垒",
-      "description": "我方1体获得多层守护誓约和护咒，骑士获得坚守，并按骑士当前双防增加共有盾。",
+      "description": "我方1体获得守护誓约层数：骑士当前物防（至少2），并获得护咒；骑士自身获得坚守。共有盾增加：骑士当前物防+当前魔防。",
       "button": "圣垒"
     },
     "iron-charge": {
       "name": "铁壁冲锋",
-      "description": "消耗我方全部共有盾，对敌方1体造成盾值+骑士当前攻击力的物理伤害，并施加战栗；若造成HP伤害，返还部分共有盾。",
+      "description": "消耗我方全部共有盾，对敌方1体造成普通物理伤害：消耗盾值+骑士当前攻击力，并施加战栗。若造成真实HP伤害，返还共有盾：该HP伤害的一半（至少1，向上取整）。",
       "button": "冲锋"
     }
   },
@@ -767,6 +756,7 @@
     "log.rewardReset": "{player}刷新奖励（消耗{cost} BP，第{count}次）。",
     "log.rewardSkipped": "{player}跳过奖励，并尝试获得{amount} BP。",
     "log.effectDamage": "{effect}：{character}受到{amount}点{damageType}伤害。",
+    "log.effectDamageWithMorale": "{effect}：{character}受到{amount}点{damageType}伤害（HP {hpAmount} / 士气 {moraleAmount}）。",
     "log.defeated": "{character}已无法战斗。",
     "log.harvestActivated": "{character}迎来丰收。",
     "log.healed": "{effect}：{character}恢复{amount} HP。",

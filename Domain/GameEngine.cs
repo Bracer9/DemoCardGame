@@ -73,6 +73,7 @@ public sealed class GameEngine
     public const int FirstRewardRound = 4;
     public const int RewardRoundInterval = 4;
     public const int RewardSkipBattlePoints = 2;
+    public const int ThreadCutMoraleDamagePerMark = 2;
     private const string BpReasonTurnStart = "turn-start";
     private const string BpReasonBreakEnemyShield = "break-enemy-shield";
     private const string BpReasonOwnTurnEnemyHpDamage = "own-turn-enemy-hp-damage";
@@ -96,6 +97,16 @@ public sealed class GameEngine
 
     internal bool Roll(double chance) => _random.NextDouble() < chance;
     internal int Next(int maxValue) => _random.Next(maxValue);
+
+    public static int GetMaxActionPoints(PlayerState player) =>
+        MaxActionPoints + player.Characters.Count(character =>
+            character.Definition.CardType == CardType.Hero
+            && character.HeroRank >= 3
+            && character.IsAlive
+            && character.IsInBattle);
+
+    private static void ClampActionPointsToActiveMax(GameState state) =>
+        state.ActionPoints = Math.Min(state.ActionPoints, GetMaxActionPoints(state.ActivePlayer));
 
     public GameState CreateGame()
     {
@@ -723,7 +734,7 @@ public sealed class GameEngine
 
         state.ActivePlayerId = state.Opponent.Id;
         state.TurnNumber++;
-        state.ActionPoints = MaxActionPoints;
+        state.ActionPoints = GetMaxActionPoints(state.ActivePlayer);
         ApplyPendingActionPointDebt(state, state.ActivePlayer);
         state.ActionsTakenThisTurn = 0;
         state.ActiveAttacksTakenThisTurn = 0;
@@ -2340,7 +2351,7 @@ public sealed class GameEngine
 
     private void UseThreadCut(GameState state, CharacterState actor, CharacterState target)
     {
-        var count = Math.Clamp(CountThreadCutMarks(target), 0, 3);
+        var count = CountThreadCutMarks(target);
         if (count == 0)
         {
             target.Statuses.RemoveAll(status => status.Id == "marked");
@@ -2353,7 +2364,7 @@ public sealed class GameEngine
             return;
         }
 
-        DealMoraleDamage(state, target, GetActiveAttack(state, actor) * count, actor.Id, "thread-cut");
+        DealMoraleDamage(state, target, ThreadCutMoraleDamagePerMark * count, actor.Id, "thread-cut");
         if (target.Morale <= 0 && target.IsAlive)
         {
             DealRoleActionDamage(state, target, GetActiveAttack(state, actor), DamageType.Magical, actor.Id, "thread-cut");
@@ -2399,13 +2410,7 @@ public sealed class GameEngine
 
     private void UseStarfall(GameState state, CharacterState actor, CharacterState target)
     {
-        var chant = actor.Statuses.OfType<ChantStatus>().FirstOrDefault(status => !status.Expired);
-        var damage = 2;
-        if (chant is not null)
-        {
-            chant.ConsumeStack();
-            damage = GetActiveAttack(state, actor);
-        }
+        var damage = Math.Max(1, GetActiveAttack(state, actor));
         DealRoleActionDamage(state, target, damage, DamageType.Magical, actor.Id, "starfall");
         AddBurning(target, actor.Id);
         TriggerArcaneResonance(state, actor, fromRoleAction: true);
@@ -2867,14 +2872,7 @@ public sealed class GameEngine
         var effectArg = effectId is "burning" or "guard"
             ? L10n.Status(effectId)
             : L10n.Trait(effectId);
-        Log(state, L10n.Text("log.effectDamage",
-            ("effect", effectArg),
-            ("source", L10n.Character(source.Definition.Key)),
-            ("sourceId", L10n.Raw(source.Id)),
-            ("character", L10n.Character(target.Definition.Key)),
-            ("characterId", L10n.Raw(target.Id)),
-            ("amount", L10n.Raw(packet.Amount)),
-            ("damageType", L10n.Damage(damageType))), damageType == DamageType.Physical ? "physical" : "magic");
+        LogEffectDamage(state, packet, effectArg, damageType == DamageType.Physical ? "physical" : "magic");
         TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
         return packet.Amount;
@@ -3001,6 +2999,7 @@ public sealed class GameEngine
                          .Where(character => character.IsAlive && !IsDeploying(character)))
                 _traits.Get(character.Definition.TraitId).OnCharacterDefeated(context, character, defeatedCharacter);
         }
+        ClampActionPointsToActiveMax(state);
         return defeated;
     }
 
@@ -3142,7 +3141,7 @@ public sealed class GameEngine
             SourceCharacter = source,
             TargetCharacter = target,
             DamageType = damageType,
-            Source = DamageSource.Trait,
+            Source = DamageSource.RoleAction,
             Amount = amount,
             ReceivesMagicPowerBonus = damageType == DamageType.Magical
         };
@@ -3151,17 +3150,25 @@ public sealed class GameEngine
         ResolvePreyZeroDamage(state, packet);
         foreach (var note in packet.Notes)
             Log(state, note, "status");
-        Log(state, L10n.Text("log.effectDamage",
-            ("effect", L10n.RoleAction(roleActionId)),
-            ("source", L10n.Character(source.Definition.Key)),
-            ("sourceId", L10n.Raw(source.Id)),
-            ("character", L10n.Character(target.Definition.Key)),
-            ("characterId", L10n.Raw(target.Id)),
-            ("amount", L10n.Raw(packet.Amount)),
-            ("damageType", L10n.Damage(damageType))), damageType == DamageType.Physical ? "physical" : "magic");
+        LogEffectDamage(state, packet, L10n.RoleAction(roleActionId), damageType == DamageType.Physical ? "physical" : "magic");
         TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
         return packet.Amount;
+    }
+
+    private void LogEffectDamage(GameState state, DamagePacket packet, LocalizedArg effectArg, string tone)
+    {
+        var logKey = packet.MoraleDamage > 0 ? "log.effectDamageWithMorale" : "log.effectDamage";
+        Log(state, L10n.Text(logKey,
+            ("effect", effectArg),
+            ("source", L10n.Character(packet.SourceCharacter.Definition.Key)),
+            ("sourceId", L10n.Raw(packet.SourceCharacter.Id)),
+            ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+            ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
+            ("amount", L10n.Raw(packet.FinalCharacterDamage)),
+            ("hpAmount", L10n.Raw(packet.Amount)),
+            ("moraleAmount", L10n.Raw(packet.MoraleDamage)),
+            ("damageType", L10n.Damage(packet.DamageType))), tone);
     }
 
     private void DealMoraleDamage(GameState state, CharacterState target, int amount, Guid sourceCharacterId, string roleActionId)

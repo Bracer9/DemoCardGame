@@ -15,10 +15,16 @@ class FakeAudio {
     this.volume = 1;
     this.currentTime = 0;
     this.playCalls = 0;
+    this.failNextPlay = false;
   }
 
   play() {
     this.playCalls++;
+    if (this.failNextPlay) {
+      this.failNextPlay = false;
+      this.paused = true;
+      return Promise.reject(new Error('blocked'));
+    }
     this.paused = false;
     return Promise.resolve();
   }
@@ -35,15 +41,20 @@ const manifest = {
 };
 
 function createDirector() {
+  const timers = [];
   const context = {
     window: {}, FakeAudio, Audio: FakeAudio,
     fetch: async () => ({ ok: true, json: async () => manifest }),
     performance: { now: () => 0 },
     requestAnimationFrame: () => {},
+    setTimeout: callback => { timers.push(callback); return timers.length; },
+    clearTimeout: () => {},
     console
   };
   vm.runInNewContext(fs.readFileSync('wwwroot/audio.js', 'utf8'), context);
-  return new context.window.AudioDirector();
+  const director = new context.window.AudioDirector();
+  director.__timers = timers;
+  return director;
 }
 
 test('a gesture before the manifest does not create a false unlock', async () => {
@@ -87,6 +98,26 @@ test('a later user gesture retries requested BGM that was paused', async () => {
 
   assert.ok(entry.audio.playCalls > previousCalls);
   assert.equal(entry.audio.paused, false);
+});
+
+test('a failed requested BGM play is retried shortly after', async () => {
+  const director = createDirector();
+  await director.load('/config/audio.json');
+  const entry = director.tracks.get('battle');
+  director.unlocked = true;
+  entry.audio.failNextPlay = true;
+
+  director.playBgmTrack('battle');
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(entry.audio.paused, true);
+  assert.equal(director.__timers.length, 1);
+  director.__timers.shift()();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(entry.requested, true);
+  assert.equal(entry.audio.paused, false);
+  assert.ok(entry.audio.playCalls >= 2);
 });
 
 test('project audio manifest references existing tracks and valid event cues', () => {

@@ -11,6 +11,7 @@ public enum DamageSource
 {
     ActiveAttack,
     CounterAttack,
+    RoleAction,
     Trait,
     Status
 }

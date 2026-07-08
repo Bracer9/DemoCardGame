@@ -51,8 +51,10 @@
       ?? (Number(rank) >= 2 ? value.ranks?.["2"] : undefined)
       ?? (Number(rank) >= 1 ? value.ranks?.["1"] : undefined)
       ?? {};
+    const rank3ApBonus = Number(rank) >= 3 ? t('rank3TraitApBonus') : '';
+    const appendRank3Bonus = text => rank3ApBonus && text ? `${text}${rank3ApBonus}` : text;
     const description = ranked.description ?? value.description ?? '';
-    return { id, name: value.name ?? id, description, card: ranked.card ?? value.card ?? description };
+    return { id, name: value.name ?? id, description: appendRank3Bonus(description), card: appendRank3Bonus(ranked.card ?? value.card ?? description) };
   };
   const status = value => {
     const localized = lookup('statuses', value.id) || {};

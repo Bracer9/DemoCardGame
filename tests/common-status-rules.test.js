@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const statusSource = fs.readFileSync('Domain/StatusEffects.cs', 'utf8');
 const traitSource = fs.readFileSync('Domain/Traits.cs', 'utf8');
+const engineSource = fs.readFileSync('Domain/GameEngine.cs', 'utf8');
 const previewSource = fs.readFileSync('Api/AttackPreviewService.cs', 'utf8');
 const assetManifest = JSON.parse(fs.readFileSync('wwwroot/config/ui-assets.json', 'utf8'));
 
@@ -37,6 +38,10 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(magicPowerStatus, /IsDispellable => false/);
   assert.match(deployingStatus, /remainingOwnerTurnStarts = 1/);
   assert.match(deployingStatus, /RemainingOwnerTurnStarts--/);
+  assert.match(engineSource, /ThreadCutMoraleDamagePerMark = 2/);
+  assert.match(engineSource, /var count = CountThreadCutMarks\(target\)/);
+  assert.match(engineSource, /DealMoraleDamage\(state, target, ThreadCutMoraleDamagePerMark \* count/);
+  assert.doesNotMatch(engineSource, /Math\.Clamp\(CountThreadCutMarks/);
   assert.match(harvestStatus, /IsAttackBuff => true/);
   assert.doesNotMatch(harvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsDispellable => false/);
