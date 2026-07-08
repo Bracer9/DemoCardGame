@@ -813,11 +813,13 @@ public sealed class GameEngine
 
     public int GetBaseAttack(GameState state, CharacterState character)
     {
+        var owner = state.FindOwner(character);
         var growth = HeroGrowthCatalog.GetTotalStats(character);
         var attack = character.Definition.Attack
             + growth.Attack
             + GetDeputyAttackBonus(character)
             + GetSoldierAttackAuraBonus(state, character);
+        attack = RelicEffects.ModifyBaseAttack(owner, character, attack);
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             attack = status.ModifyBaseAttack(attack);
         return Math.Max(0, attack);
@@ -859,11 +861,13 @@ public sealed class GameEngine
 
     public int GetPhysicalDefense(GameState state, CharacterState character)
     {
+        var owner = state.FindOwner(character);
         var growth = HeroGrowthCatalog.GetTotalStats(character);
         var defense = character.Definition.PhysicalDefense
             + growth.PhysicalDefense
             + GetDeputyStatBonus(character, DeputyStatKind.PhysicalDefense)
             + GetSoldierDefenseAuraBonus(state, character, DamageType.Physical);
+        defense = RelicEffects.ModifyPhysicalDefense(owner, defense);
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             defense = status.ModifyPhysicalDefense(defense);
         return defense;
@@ -880,11 +884,13 @@ public sealed class GameEngine
 
     public int GetMagicalDefense(GameState state, CharacterState character)
     {
+        var owner = state.FindOwner(character);
         var growth = HeroGrowthCatalog.GetTotalStats(character);
         var defense = character.Definition.MagicalDefense
             + growth.MagicalDefense
             + GetDeputyStatBonus(character, DeputyStatKind.MagicalDefense)
             + GetSoldierDefenseAuraBonus(state, character, DamageType.Magical);
+        defense = RelicEffects.ModifyMagicalDefense(owner, defense);
         foreach (var status in character.Statuses.Where(status => !status.Expired))
             defense = status.ModifyMagicalDefense(defense);
         return defense;
@@ -1426,6 +1432,10 @@ public sealed class GameEngine
         var window = RequireActiveRewardWindow(state);
         EnsureNoPendingRoleActionUpgrade(state);
         EnsureNoPendingHeroDraft(state);
+        if (state.PendingRelicReward is { PlayerId: var pendingRelicPlayerId } pendingRelic
+            && pendingRelicPlayerId == state.ActivePlayerId)
+            return SelectPendingRelicReward(state, window, pendingRelic, instanceId);
+
         var option = window.Options.SingleOrDefault(item => item.InstanceId == instanceId);
         if (option is null)
             throw new GameRuleException(L10n.Text("error.rewardNotFound"));
@@ -1461,6 +1471,17 @@ public sealed class GameEngine
                 throw new GameRuleException(L10n.Text("error.noSoldierRecruitTarget"));
             OpenPendingHeroDraft(state, player, HeroDraftKind.SoldierRecruit, option.InstanceId);
         }
+        else if (definition.Kind == RewardKind.RelicChoice)
+        {
+            state.PendingRelicReward = new PendingRelicRewardState
+            {
+                PlayerId = player.Id,
+                RewardId = option.RewardId,
+                RewardInstanceId = option.InstanceId,
+                ResetCount = window.RelicResetCount
+            };
+            state.PendingRelicReward.Options.AddRange(window.RelicOptions);
+        }
         else
         {
             ConfirmRewardPurchase(state, window, player, option);
@@ -1474,20 +1495,19 @@ public sealed class GameEngine
     public void ResetRewardWindow(GameState state)
     {
         EnsurePlaying(state);
-        EnsureNoPendingRoleActionUpgrade(state);
-        EnsureNoPendingHeroDraft(state);
         var window = RequireActiveRewardWindow(state);
         var player = state.ActivePlayer;
-        var cost = GetRewardResetCost(window.ResetCount);
-        if (!TrySpendBp(state, player, cost, BpSpendReasonRewardReroll))
-            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
+        if (state.PendingRelicReward is { PlayerId: var pendingRelicPlayerId } pendingRelic
+            && pendingRelicPlayerId == player.Id)
+        {
+            ResetPendingRelicReward(state, window, pendingRelic, player);
+            return;
+        }
 
-        window.ResetCount++;
-        RefreshRewardOptions(window, player);
-        Log(state, L10n.Text("log.rewardReset",
-            ("player", L10n.Player(player.Name)),
-            ("cost", L10n.Raw(cost)),
-            ("count", L10n.Raw(window.ResetCount))), "system");
+        EnsureNoPendingRoleActionUpgrade(state);
+        EnsureNoPendingHeroDraft(state);
+        EnsureNoPendingRelicReward(state);
+        throw new GameRuleException(L10n.Text("error.rewardResetUnavailable"));
     }
 
     public void SkipRewardWindow(GameState state)
@@ -1495,6 +1515,7 @@ public sealed class GameEngine
         EnsurePlaying(state);
         EnsureNoPendingRoleActionUpgrade(state);
         EnsureNoPendingHeroDraft(state);
+        EnsureNoPendingRelicReward(state);
         var window = RequireActiveRewardWindow(state);
         var player = state.ActivePlayer;
         if (window.PurchaseCount == 0)
@@ -1528,23 +1549,75 @@ public sealed class GameEngine
         if (CanRecruitHero(player))
             options.Add(RewardCatalog.HeroRecruit);
         options.Add(RewardCatalog.SoldierRecruit);
-
-        options.AddRange(RewardCatalog.DummyRewards
-            .Where(reward => options.All(option => option.Id != reward.Id))
-            .OrderBy(_ => _random.Next())
-            .Take(Math.Max(0, 3 - options.Count)));
+        options.Add(RewardCatalog.RelicChoice);
 
         foreach (var reward in options)
             window.Options.Add(new RewardOptionState(
                 $"{reward.Id}-{Guid.NewGuid():N}",
                 reward.Id,
                 GetRewardOptionCost(player, reward)));
+        window.RelicResetCount = 0;
+        RefreshRelicRewardOptions(window.RelicOptions, player);
     }
 
     private static int GetRewardOptionCost(PlayerState player, RewardDefinition reward) =>
         reward.Kind == RewardKind.HeroRoleActionUpgrade && !player.HasClaimedFreeHeroRoleActionUpgrade
             ? 0
             : reward.Cost;
+
+    private void RefreshRelicRewardOptions(List<RewardOptionState> options, PlayerState player)
+    {
+        options.Clear();
+        foreach (var reward in RewardCatalog.DummyRewards
+            .OrderBy(_ => _random.Next())
+            .Take(3))
+        {
+            options.Add(new RewardOptionState(
+                $"{reward.Id}-{Guid.NewGuid():N}",
+                reward.Id,
+                GetRewardOptionCost(player, reward)));
+        }
+    }
+
+    private RewardKind SelectPendingRelicReward(GameState state, RewardWindowState window,
+        PendingRelicRewardState pending, string instanceId)
+    {
+        var player = state.ActivePlayer;
+        var option = pending.Options.SingleOrDefault(item => item.InstanceId == instanceId);
+        if (option is null)
+            throw new GameRuleException(L10n.Text("error.rewardNotFound"));
+
+        var definition = RewardCatalog.All.SingleOrDefault(item => item.Id == option.RewardId)
+            ?? throw new GameRuleException(L10n.Text("error.rewardNotFound"));
+        if (definition.Kind != RewardKind.DummyStatus)
+            throw new GameRuleException(L10n.Text("error.rewardNotFound"));
+
+        ConfirmRewardPurchase(state, window, player, option);
+        ApplyDummyReward(player, option.RewardId);
+        pending.Options.Remove(option);
+        var windowOption = window.RelicOptions.SingleOrDefault(item => item.InstanceId == option.InstanceId);
+        if (windowOption is not null)
+            window.RelicOptions.Remove(windowOption);
+        return definition.Kind;
+    }
+
+    private void ResetPendingRelicReward(GameState state, RewardWindowState window,
+        PendingRelicRewardState pending, PlayerState player)
+    {
+        var cost = GetRewardResetCost(pending.ResetCount);
+        if (!TrySpendBp(state, player, cost, BpSpendReasonRewardReroll))
+            throw new GameRuleException(L10n.Text("error.notEnoughBp"));
+
+        pending.ResetCount++;
+        window.RelicResetCount = pending.ResetCount;
+        RefreshRelicRewardOptions(window.RelicOptions, player);
+        pending.Options.Clear();
+        pending.Options.AddRange(window.RelicOptions);
+        Log(state, L10n.Text("log.rewardReset",
+            ("player", L10n.Player(player.Name)),
+            ("cost", L10n.Raw(cost)),
+            ("count", L10n.Raw(pending.ResetCount))), "system");
+    }
 
     private bool HasEligibleRoleActionUpgradeTarget(PlayerState player) =>
         player.Characters.Any(CanUpgradeHeroRank);
@@ -1620,6 +1693,13 @@ public sealed class GameEngine
             return;
         }
 
+        if (state.PendingRelicReward is { PlayerId: var pendingRelicPlayerId }
+            && pendingRelicPlayerId == playerId)
+        {
+            state.PendingRelicReward = null;
+            return;
+        }
+
         throw new GameRuleException(L10n.Text("error.noRewardChildMenu"));
     }
 
@@ -1640,6 +1720,7 @@ public sealed class GameEngine
     {
         state.ResolvedRewardWindows.Add(RewardWindowKey(window.PlayerId, window.RoundNumber));
         state.RewardWindow = null;
+        state.PendingRelicReward = null;
     }
 
     private void EndRewardTurnIfResolved(GameState state)
@@ -1662,24 +1743,8 @@ public sealed class GameEngine
 
     private static string RewardWindowKey(Guid playerId, int roundNumber) => $"{playerId:N}:{roundNumber}";
 
-    private static void ApplyDummyReward(PlayerState player, string rewardId)
-    {
-        foreach (var character in player.Characters.Where(character => character.IsInBattle))
-        {
-            switch (rewardId)
-            {
-                case "dummy-reward-a":
-                    character.Statuses.Add(new RewardMagicalDefenseStatus(Guid.Empty));
-                    break;
-                case "dummy-reward-b" when GetAttackType(character) == DamageType.Magical:
-                    character.Statuses.Add(new RewardMagicalAttackStatus(Guid.Empty));
-                    break;
-                case "dummy-reward-c":
-                    character.Statuses.Add(new RewardAttackStatus(Guid.Empty));
-                    break;
-            }
-        }
-    }
+    private static void ApplyDummyReward(PlayerState player, string rewardId) =>
+        RelicEffects.AddRelic(player, rewardId);
 
     public void SelectRoleActionUpgrade(GameState state, Guid characterId, string roleActionId)
     {
@@ -2963,6 +3028,12 @@ public sealed class GameEngine
     {
         if (state.PendingHeroDraft is not null)
             throw new GameRuleException(L10n.Text("error.pendingHeroDraft"));
+    }
+
+    private static void EnsureNoPendingRelicReward(GameState state)
+    {
+        if (state.PendingRelicReward is not null)
+            throw new GameRuleException(L10n.Text("error.pendingRelicReward"));
     }
 
     private IReadOnlyList<Guid> ResolveDefeats(GameState state)

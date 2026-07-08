@@ -63,11 +63,21 @@ public sealed class PendingHeroDraftState
     public List<string> SelectedKeys { get; } = [];
 }
 
+public sealed class PendingRelicRewardState
+{
+    public required Guid PlayerId { get; init; }
+    public required string RewardId { get; init; }
+    public string? RewardInstanceId { get; init; }
+    public int ResetCount { get; set; }
+    public List<RewardOptionState> Options { get; } = [];
+}
+
 public sealed class PlayerState
 {
     public required Guid Id { get; init; }
     public required string Name { get; set; }
     public List<CharacterState> Characters { get; } = [];
+    public List<PlayerRelicState> Relics { get; } = [];
     public BattlePointState BattlePoints { get; } = new();
     public int SharedShield { get; set; }
     public int SharedShieldPhysicalDefense { get; set; }
@@ -82,6 +92,8 @@ public sealed class PlayerState
     public bool IsDefeated => Characters.All(character => !character.IsAlive);
 }
 
+public sealed record PlayerRelicState(string Id);
+
 public sealed class RewardWindowState
 {
     public required Guid PlayerId { get; set; }
@@ -89,6 +101,8 @@ public sealed class RewardWindowState
     public int ResetCount { get; set; }
     public int PurchaseCount { get; set; }
     public List<RewardOptionState> Options { get; } = [];
+    public int RelicResetCount { get; set; }
+    public List<RewardOptionState> RelicOptions { get; } = [];
 }
 
 public sealed record RewardOptionState(
@@ -133,6 +147,7 @@ public sealed class GameState
     public RewardWindowState? RewardWindow { get; set; }
     public PendingRoleActionUpgradeState? PendingRoleActionUpgrade { get; set; }
     public PendingHeroDraftState? PendingHeroDraft { get; set; }
+    public PendingRelicRewardState? PendingRelicReward { get; set; }
     public Guid? OpeningFirstPlayerId { get; set; }
     public Guid? LocalViewerPlayerId { get; set; }
     public Guid? AiPlayerId { get; set; }

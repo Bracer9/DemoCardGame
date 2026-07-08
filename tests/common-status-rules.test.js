@@ -46,7 +46,8 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(engineSource, /\("attackMoraleDamage", L10n\.Raw\(attackPacket\.MoraleDamage\)\)/);
   assert.match(engineSource, /\("counterMoraleDamage", L10n\.Raw\(counterPacket\.MoraleDamage\)\)/);
   assert.match(appSource, /playLayeredDamageFloats\(defender, \{ moraleAmount: attackMoraleDamage, hpAmount: attackDamage/);
-  assert.match(appSource, /window\.setTimeout\(\(\) => damageFloat\(target, hp, type, \{ force: true, label: 'HP' \}\), 210\)/);
+  assert.match(appSource, /if \(hp > 0\)\s+window\.setTimeout\(\(\) => damageFloat\(target, hp, type, \{ label: 'HP' \}\), 210\)/);
+  assert.doesNotMatch(appSource, /force: true, label: 'HP'/);
   assert.equal(appSource.includes("attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`"), true);
   assert.equal(appSource.includes("moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`"), true);
   assert.match(harvestStatus, /IsAttackBuff => true/);

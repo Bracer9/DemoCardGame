@@ -1,0 +1,37 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const rewardDefinitions = fs.readFileSync('Domain/RewardDefinitions.cs', 'utf8');
+const gameState = fs.readFileSync('Domain/GameState.cs', 'utf8');
+const gameEngine = fs.readFileSync('Domain/GameEngine.cs', 'utf8');
+const gameDtos = fs.readFileSync('Api/GameDtos.cs', 'utf8');
+const appSource = fs.readFileSync('wwwroot/app.js', 'utf8');
+
+test('relic rewards use a top-level category and a pending child menu', () => {
+  assert.match(rewardDefinitions, /RelicChoice/);
+  assert.match(rewardDefinitions, /new\("relic-choice", 0, "category", RewardKind\.RelicChoice\)/);
+  assert.match(gameState, /public sealed class PendingRelicRewardState/);
+  assert.match(gameState, /public PendingRelicRewardState\? PendingRelicReward/);
+  assert.match(gameEngine, /definition\.Kind == RewardKind\.RelicChoice/);
+  assert.match(gameEngine, /state\.PendingRelicReward = new PendingRelicRewardState/);
+  const relicChoiceBranch = gameEngine.match(/else if \(definition\.Kind == RewardKind\.RelicChoice\)[\s\S]*?\n        \}/)?.[0] || '';
+  assert.doesNotMatch(relicChoiceBranch, /RefreshRelicRewardOptions/);
+  assert.match(relicChoiceBranch, /state\.PendingRelicReward\.Options\.AddRange\(window\.RelicOptions\)/);
+  assert.match(gameEngine, /SelectPendingRelicReward/);
+  assert.match(gameEngine, /ConfirmRewardPurchase\(state, window, player, option\);[\s\S]*?ApplyDummyReward\(player, option\.RewardId\);[\s\S]*?pending\.Options\.Remove\(option\);/);
+  assert.match(gameEngine, /public void ResetRewardWindow\(GameState state\)[\s\S]*?ResetPendingRelicReward\(state, window, pendingRelic, player\);[\s\S]*?throw new GameRuleException\(L10n\.Text\("error\.rewardResetUnavailable"\)\);/);
+  assert.match(gameEngine, /RelicEffects\.AddRelic\(player, rewardId\)/);
+  assert.match(gameState, /public List<PlayerRelicState> Relics/);
+  assert.match(gameDtos, /public sealed record RelicView\(string Id\)/);
+  assert.match(gameDtos, /IReadOnlyList<RelicView> Relics/);
+  assert.match(gameDtos, /player\.Relics\.Select\(relic => new RelicView\(relic\.Id\)\)\.ToArray\(\)/);
+  assert.match(gameDtos, /public sealed record PendingRelicRewardView/);
+  assert.match(appSource, /const isRelicChild = Boolean\(reward && relicReward\?\.canChoose\)/);
+  assert.match(appSource, /ui\.rewardSkip\.hidden = isRelicChild/);
+  assert.match(appSource, /ui\.rewardReset\.hidden = !isRelicChild/);
+  assert.match(appSource, /rewardInlineBack/);
+  assert.match(appSource, /function renderRelicOverview\(player\)/);
+  assert.match(appSource, /ui\.relicOverviewButton\.innerHTML/);
+  assert.doesNotMatch(appSource, /inspector-relics/);
+});

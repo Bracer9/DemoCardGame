@@ -44,6 +44,11 @@
     "battleLog": "戦況ログ",
     "rewardTitle": "戦利品を選択",
     "rewardSubtitle": "BPを消費して報酬を得るか、スキップして戦功を温存します。",
+    "rewardRelicTitle": "遺物を選択",
+    "rewardRelicSubtitle": "提示された3つの遺物を購入できます。獲得後も選択を続ける、リセットする、戻ることができます。",
+    "rewardOpenRelics": "遺物を見る",
+    "rewardRelicInstruction": "遺物を1つ選択",
+    "rewardRelicHint": "具体的な遺物を確定した時だけBPを消費します。リセットや戻るも可能です。",
     "rewardReset": "リセット",
     "rewardResetFree": "初回無料",
     "rewardResetCost": "{cost} BP",
@@ -81,6 +86,8 @@
     "unitDossier": "キャラクター詳細",
     "liveEffects": "現在の効果",
     "effects": "バフ / デバフ",
+    "relics": "レリック",
+    "relicOverview": "レリック一覧",
     "always": "常時",
     "shieldLead": "防御陣形は味方全体に共有シールドを展開します。",
     "shieldFirst": "一層シールド",
@@ -258,6 +265,10 @@
     "dummy-reward-c": {
       "name": "王家の勲章",
       "description": "味方全体に攻撃+1を付与。仮の遺物効果。"
+    },
+    "relic-choice": {
+      "name": "遺物獲得",
+      "description": "遺物選択へ入り、3つの異なる遺物から1つを購入する。入るだけではBPを消費しない。"
     },
     "hero-role-action-upgrade": {
       "name": "英雄職業訓練",
@@ -862,6 +873,8 @@
     "error.pendingHeroDraft": "先に英雄選択を完了してください。",
     "error.noHeroDraft": "現在、英雄選択はありません。",
     "error.noRewardChildMenu": "戻れる報酬サブメニューがありません。",
+    "error.pendingRelicReward": "先に遺物選択を処理してください。",
+    "error.rewardResetUnavailable": "現在の報酬メニューはリセットできません。",
     "error.heroDraftInvalidChoice": "この候補英雄は選択できません。",
     "error.heroAlreadyOwned": "その英雄はすでに隊伍にいます。",
     "error.teamFull": "隊伍は満員です。",

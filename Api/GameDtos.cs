@@ -9,12 +9,16 @@ public sealed record GameView(
     string ActivePlayerName, string Phase, Guid? WinnerPlayerId, bool IsDraw,
     Guid ViewerPlayerId, bool CanControl, bool IsHost, IReadOnlyList<PlayerView> Players,
     RewardWindowView? RewardWindow, PendingRoleActionUpgradeView? PendingRoleActionUpgrade,
+    PendingRelicRewardView? PendingRelicReward,
     HeroDraftView? HeroDraft,
     IReadOnlyList<GameLogEntry> Log);
 
 public sealed record PlayerView(Guid Id, string Name, bool IsActive, int SharedShield,
     int SharedShieldPhysicalDefense, int SharedShieldMagicalDefense,
-    int ActiveCharacterCount, BattlePointView BattlePoints, IReadOnlyList<CharacterView> Characters);
+    int ActiveCharacterCount, BattlePointView BattlePoints, IReadOnlyList<RelicView> Relics,
+    IReadOnlyList<CharacterView> Characters);
+
+public sealed record RelicView(string Id);
 
 public sealed record BattlePointView(
     int Current,
@@ -75,6 +79,14 @@ public sealed record ApiEnvelope<T>(T Data, CombatOutcome? Combat = null, Locali
 
 public sealed record PendingRoleActionUpgradeView(Guid PlayerId, string RewardId, bool CanChoose);
 
+public sealed record PendingRelicRewardView(
+    Guid PlayerId,
+    string RewardId,
+    bool CanChoose,
+    int ResetCount,
+    int NextResetCost,
+    IReadOnlyList<RewardOptionView> Options);
+
 public sealed record HeroDraftView(
     Guid PlayerId,
     string Kind,
@@ -112,6 +124,7 @@ public sealed record RewardOptionView(
     string InstanceId,
     string RewardId,
     int Cost,
+    string Kind,
     string Rarity,
     bool CanAfford);
 
@@ -144,6 +157,7 @@ public sealed class GameViewFactory
                 player.BattlePoints.GainedThisTurn,
                 GameEngine.BattlePointGainCapPerTurn,
                 player.BattlePoints.LastReasonId),
+            player.Relics.Select(relic => new RelicView(relic.Id)).ToArray(),
             player.Characters.OrderBy(character => character.Slot)
                 .Select(character => CreateCharacter(state, player, character, viewerPlayerId)).ToArray())).ToArray();
 
@@ -153,15 +167,18 @@ public sealed class GameViewFactory
             GameEngine.IsRewardRound(roundNumber + 1),
             state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
                 && state.PendingHeroDraft is null
+                && state.PendingRelicReward is null
                 && state.ActionPoints >= GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield)
                 && state.ActivePlayer.ShieldDeploymentsThisTurn < GameEngine.MaxShieldDeploymentsPerTurn,
             GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield),
             state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayerId, state.ActivePlayer.Name,
             state.Phase.ToString(), state.WinnerPlayerId, state.IsDraw, viewerPlayerId,
             state.Phase == GamePhase.Playing && state.ActivePlayerId == viewerPlayerId
-                && state.RewardWindow is null && state.PendingRoleActionUpgrade is null && state.PendingHeroDraft is null,
+                && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
+                && state.PendingHeroDraft is null && state.PendingRelicReward is null,
             isHost, players, CreateRewardWindow(state, viewerPlayerId),
-            CreatePendingRoleActionUpgrade(state, viewerPlayerId), CreateHeroDraft(state, viewerPlayerId),
+            CreatePendingRoleActionUpgrade(state, viewerPlayerId),
+            CreatePendingRelicReward(state, viewerPlayerId), CreateHeroDraft(state, viewerPlayerId),
             state.Log.TakeLast(30).ToArray());
     }
 
@@ -171,7 +188,25 @@ public sealed class GameViewFactory
             : new PendingRoleActionUpgradeView(
                 state.PendingRoleActionUpgrade.PlayerId,
                 state.PendingRoleActionUpgrade.RewardId,
-                state.PendingRoleActionUpgrade.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId);
+                state.PendingRoleActionUpgrade.PlayerId == viewerPlayerId);
+
+    private static PendingRelicRewardView? CreatePendingRelicReward(GameState state, Guid viewerPlayerId)
+    {
+        if (state.PendingRelicReward is null)
+            return null;
+
+        var player = state.Players.Single(item => item.Id == state.PendingRelicReward.PlayerId);
+        var definitions = RewardCatalog.All.ToDictionary(item => item.Id);
+        return new PendingRelicRewardView(
+            state.PendingRelicReward.PlayerId,
+            state.PendingRelicReward.RewardId,
+            state.PendingRelicReward.PlayerId == viewerPlayerId,
+            state.PendingRelicReward.ResetCount,
+            GameEngine.GetRewardResetCost(state.PendingRelicReward.ResetCount),
+            state.PendingRelicReward.Options
+                .Select(option => CreateRewardOption(option, definitions, player))
+                .ToArray());
+    }
 
     private static HeroDraftView? CreateHeroDraft(GameState state, Guid viewerPlayerId)
     {
@@ -182,7 +217,7 @@ public sealed class GameViewFactory
         return new HeroDraftView(
             state.PendingHeroDraft.PlayerId,
             state.PendingHeroDraft.Kind.ToString(),
-            state.PendingHeroDraft.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId,
+            state.PendingHeroDraft.PlayerId == viewerPlayerId,
             state.PendingHeroDraft.ResetCount,
             GameEngine.GetRewardResetCost(state.PendingHeroDraft.ResetCount),
             state.PendingHeroDraft.MaxSelections,
@@ -221,18 +256,27 @@ public sealed class GameViewFactory
             GameEngine.GetRewardResetCost(state.RewardWindow.ResetCount),
             state.RewardWindow.PurchaseCount,
             GameEngine.RewardSkipBattlePoints,
-            state.RewardWindow.PlayerId == viewerPlayerId && state.ActivePlayerId == viewerPlayerId,
+            state.RewardWindow.PlayerId == viewerPlayerId,
             state.RewardWindow.Options.Select(option =>
             {
-                var definition = definitions[option.RewardId];
-                return new RewardOptionView(
-                    option.InstanceId,
-                    option.RewardId,
-                    option.Cost,
-                    definition.Rarity,
-                    player.BattlePoints.Current >= option.Cost
-                    && (definition.Kind != RewardKind.HeroRecruit || player.ActiveCharacterCount < 4));
+                return CreateRewardOption(option, definitions, player);
             }).ToArray());
+    }
+
+    private static RewardOptionView CreateRewardOption(
+        RewardOptionState option,
+        IReadOnlyDictionary<string, RewardDefinition> definitions,
+        PlayerState player)
+    {
+        var definition = definitions[option.RewardId];
+        return new RewardOptionView(
+            option.InstanceId,
+            option.RewardId,
+            option.Cost,
+            definition.Kind.ToString(),
+            definition.Rarity,
+            (definition.Kind == RewardKind.RelicChoice || player.BattlePoints.Current >= option.Cost)
+            && (definition.Kind != RewardKind.HeroRecruit || player.ActiveCharacterCount < 4));
     }
 
     private CharacterView CreateCharacter(GameState state, PlayerState player, CharacterState character,

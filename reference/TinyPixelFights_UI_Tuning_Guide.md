@@ -362,8 +362,9 @@ HP 区域指卡片下方中间的血球、当前 HP 数字以及右侧 `/最大 
 变量：
 
 ```css
+--hud-midline-y: 543px;
 --hud-turn-frame-left: 815px;
---hud-turn-frame-top: 470px;
+--hud-turn-frame-top: calc(var(--hud-midline-y) - 72.5px);
 --hud-turn-frame-width: 290px;
 --hud-turn-frame-height: 145px;
 --hud-turn-label-size: 12px;
@@ -378,7 +379,8 @@ HP 区域指卡片下方中间的血球、当前 HP 数字以及右侧 `/最大 
 调法：
 
 - TURN / ROUND 这个 frame 整体左右位置：改 `--hud-turn-frame-left`。
-- TURN / ROUND 这个 frame 整体上下位置：改 `--hud-turn-frame-top`。数值越小越靠上。
+- 中排 AP 光球、TURN / ROUND、BP 的共同水平线：改 `--hud-midline-y`。
+- TURN / ROUND 这个 frame 整体上下位置：优先跟随 `--hud-midline-y`，单独微调才改 `--hud-turn-frame-top`。数值越小越靠上。
 - 框整体宽度：改 `--hud-turn-frame-width`。
 - 框整体高度：改 `--hud-turn-frame-height`。
 - 当前 TURN / ROUND frame 宽高已经可以独立调整，不再强制 `高度 = 宽度 / 2`。如果高度改得过多，PNG frame 会有轻微拉伸；小范围微调没问题。
@@ -528,7 +530,7 @@ ENEMY / 玩家名
 
 ```css
 --ap-panel-left: 95px;
---ap-panel-top: 498px;
+--ap-panel-top: calc(var(--hud-midline-y) - 63px);
 --ap-panel-width: 362px;
 --ap-panel-height: 129px;
 --ap-title-size: 26px;
@@ -543,7 +545,7 @@ ENEMY / 玩家名
 调法：
 
 - AP 整体左右：改 `--ap-panel-left`。
-- AP 整体上下：改 `--ap-panel-top`。
+- AP 整体上下：优先跟随 `--hud-midline-y`，单独微调才改 `--ap-panel-top`。
 - AP 整体可用区域宽高：改 `--ap-panel-width / --ap-panel-height`。
 - ACTION POINT 字大小：改 `--ap-title-size`。
 - AP 光球大小：改 `--ap-orb-size`。
@@ -571,14 +573,13 @@ AP 光球应与卡牌上方 cost 点使用同一视觉语言。
 BP HUD 当前是一个独立战功资源显示：
 
 - 左侧：`ui_bp_medal2.png` 战功徽章。
-- 右侧上行：敌方 `当前BP / 上限`。
-- 右侧下行：我方 `当前BP / 上限`。
+- 右侧：我方 `当前BP / 上限` 与本 turn 增量。
 
 变量：
 
 ```css
 --bp-hud-left: 1482px;
---bp-hud-top: 492px;
+--bp-hud-top: calc(var(--hud-midline-y) - 20px);
 --bp-medal-size: 92px;
 --bp-row-width: 162px;
 --bp-row-height: 40px;
@@ -590,7 +591,7 @@ BP HUD 当前是一个独立战功资源显示：
 
 调法：
 
-- 整体位置：改 `--bp-hud-left / --bp-hud-top`。
+- 整体位置：左右改 `--bp-hud-left`；上下优先跟随 `--hud-midline-y`，单独微调才改 `--bp-hud-top`。
 - 左侧徽章大小：改 `--bp-medal-size`。
 - 右侧两行数值框宽高：改 `--bp-row-width / --bp-row-height`。
 - 上下两行间距：改 `--bp-row-gap`。
@@ -599,6 +600,20 @@ BP HUD 当前是一个独立战功资源显示：
 - `ENEMY / YOU` 标签大小：改 `--bp-label-size`。
 
 BP 数字字体走卡牌左上角攻击力同系字体：`--card-attack-font-family`，没有定义时回退到 `--font-display`。
+
+遗物总览 HUD：
+
+```css
+--relic-overview-left: var(--ap-panel-left);
+--relic-overview-top: 895px;
+--relic-overview-button-size: 76px;
+--relic-overview-detail-width: 430px;
+```
+
+- 入口默认和 AP HUD 左侧对齐：`--relic-overview-left`。
+- 入口上下位置：`--relic-overview-top`。
+- 单个遗物总览图标大小：`--relic-overview-button-size`。
+- 展开羊皮纸宽度：`--relic-overview-detail-width`。
 
 ---
 

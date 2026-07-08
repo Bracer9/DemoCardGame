@@ -7,7 +7,7 @@ const ui = {
   preview: document.querySelector('#preview-panel'), previewAttacker: document.querySelector('#preview-attacker'), previewDefender: document.querySelector('#preview-defender'),
   previewDamage: document.querySelector('#preview-damage'), previewCounter: document.querySelector('#preview-counter'), previewTrait: document.querySelector('#preview-trait'),
   previewNotes: document.querySelector('#preview-notes'), confirm: document.querySelector('#confirm-attack'), cancelPreview: document.querySelector('#cancel-preview'), log: document.querySelector('#battle-log'),
-  rewardWindow: document.querySelector('#reward-window'), rewardOptions: document.querySelector('#reward-options'), rewardReset: document.querySelector('#reward-reset'), rewardSkip: document.querySelector('#reward-skip'), rewardWaiting: document.querySelector('#reward-waiting'), rewardChildBack: document.querySelector('#reward-child-back'),
+  rewardWindow: document.querySelector('#reward-window'), rewardOptions: document.querySelector('#reward-options'), rewardTitle: document.querySelector('#reward-window h2'), rewardSubtitle: document.querySelector('#reward-window .reward-header p'), rewardReset: document.querySelector('#reward-reset'), rewardInlineBack: document.querySelector('#reward-inline-back'), rewardSkip: document.querySelector('#reward-skip'), rewardWaiting: document.querySelector('#reward-waiting'), rewardChildBack: document.querySelector('#reward-child-back'),
   heroDraftWindow: document.querySelector('#hero-draft-window'), heroDraftOptions: document.querySelector('#hero-draft-options'), heroDraftTitle: document.querySelector('#hero-draft-title'), heroDraftSubtitle: document.querySelector('#hero-draft-subtitle'), heroDraftWaiting: document.querySelector('#hero-draft-waiting'), heroDraftUpgrade: document.querySelector('#hero-draft-upgrade'), heroDraftConfirm: document.querySelector('#hero-draft-confirm'), heroDraftReset: document.querySelector('#hero-draft-reset'), heroDraftBack: document.querySelector('#hero-draft-back'),
   deputyConfirm: document.querySelector('#deputy-confirm-modal'), deputyConfirmTitle: document.querySelector('#deputy-confirm-title'), deputyConfirmSoldier: document.querySelector('#deputy-confirm-soldier'), deputyConfirmHero: document.querySelector('#deputy-confirm-hero'), deputyConfirmEffect: document.querySelector('#deputy-confirm-effect'), deputyConfirmNote: document.querySelector('#deputy-confirm-note'), deputyConfirmOk: document.querySelector('#deputy-confirm-ok'), deputyConfirmCancel: document.querySelector('#deputy-confirm-cancel'),
   toast: document.querySelector('#toast'), curtain: document.querySelector('#turn-curtain'), curtainPlayer: document.querySelector('#curtain-player'), fx: document.querySelector('#fx-layer'),
@@ -15,6 +15,7 @@ const ui = {
   inspector: document.querySelector('#character-inspector'), apHud: document.querySelector('#action-point-hud'),
   roleActionInspector: document.querySelector('#role-action-inspector'),
   bpHud: document.querySelector('#battle-point-hud'), bpInspector: document.querySelector('#bp-inspector'), activeBpValue: document.querySelector('#active-bp-value'), activeBpTurnGain: document.querySelector('#active-bp-turn-gain'),
+  relicOverview: document.querySelector('#relic-overview'), relicOverviewButton: document.querySelector('#relic-overview-button'), relicOverviewDetail: document.querySelector('#relic-overview-detail'),
   statusInspector: document.querySelector('#status-inspector'), shieldInspector: document.querySelector('#shield-inspector'), shieldButton: document.querySelector('#deploy-shield'),
   activeShield: document.querySelector('#active-shield'), opponentShield: document.querySelector('#opponent-shield'),
   activeShieldDome: document.querySelector('#active-shield-dome'), opponentShieldDome: document.querySelector('#opponent-shield-dome'),
@@ -598,12 +599,13 @@ function render() {
   renderShieldBadge(ui.activeShield, me.sharedShield);
   renderShieldBadge(ui.opponentShield, opponent.sharedShield);
   renderBattlePoints(me);
+  renderRelicOverview(me);
   renderRewardWindow();
   renderHeroDraftWindow();
   renderRewardChildBack();
   const activeSharedShield = active?.sharedShield || 0;
   const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && activeSharedShield > 0;
-  const shieldUnavailable = !game.canDeployShield || !game.canControl || dealing || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft);
+  const shieldUnavailable = !game.canDeployShield || !game.canControl || dealing || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
   ui.shieldButton.disabled = false;
   ui.shieldButton.classList.toggle('unavailable', shieldUnavailable);
   ui.shieldButton.setAttribute('aria-disabled', String(shieldUnavailable));
@@ -659,6 +661,7 @@ function render() {
   ui.app.classList.toggle('turn-locked', !game.canControl);
   ui.app.classList.toggle('role-action-upgrade-pending', Boolean(game.pendingRoleActionUpgrade?.canChoose));
   ui.app.classList.toggle('hero-draft-pending', Boolean(game.heroDraft));
+  ui.app.classList.toggle('relic-reward-pending', Boolean(game.pendingRelicReward));
   ui.app.classList.toggle('hero-draft-opening', game.heroDraft?.kind === 'Opening' || game.heroDraft?.kind === 'TestOpening');
   ui.app.classList.toggle('soldier-draft-pending', game.heroDraft?.kind === 'SoldierOpening' || game.heroDraft?.kind === 'SoldierRecruit');
   ui.app.classList.toggle('soldier-upgrade-targeting', Boolean(soldierUpgradeKey));
@@ -668,7 +671,7 @@ function render() {
   ui.app.classList.toggle('role-action-targeting', Boolean(pendingRoleAction));
   ui.app.classList.toggle('deputy-targeting', Boolean(pendingDeputy));
   ui.app.classList.toggle('attacker-selected', Boolean(selectedAttacker));
-  ui.endTurn.disabled = !game.canControl || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft);
+  ui.endTurn.disabled = !game.canControl || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
   ui.endTurn.classList.toggle('queued', endTurnQueued);
   ui.endTurn.classList.toggle('ap-empty-ready', game.canControl && game.phase !== 'Finished' && game.actionPoints === 0 && !endTurnQueued);
   ui.endTurn.setAttribute('aria-busy', String(endTurnQueued));
@@ -684,17 +687,27 @@ function renderRewardWindow() {
   const reward = game?.rewardWindow;
   if (!ui.rewardWindow) return;
   const deferred = isRewardPresentationDeferred();
+  const relicReward = game?.pendingRelicReward;
+  const isRelicChild = Boolean(reward && relicReward?.canChoose);
+  const rewardSource = isRelicChild ? relicReward : reward;
   const rewardChildOpen = Boolean(reward)
     && (Boolean(game?.pendingRoleActionUpgrade) || Boolean(game?.heroDraft && game.heroDraft.kind !== 'Opening' && game.heroDraft.kind !== 'TestOpening'));
   const open = Boolean(reward?.canChoose) && !rewardChildOpen && !deferred;
   ui.rewardWindow.classList.toggle('open', open);
   ui.rewardWindow.classList.toggle('can-choose', Boolean(reward?.canChoose));
+  ui.rewardWindow.classList.toggle('relic-child', isRelicChild);
+  ui.rewardWindow.classList.toggle('has-four-options', Number(rewardSource?.options?.length || 0) > 3);
   ui.rewardWindow.setAttribute('aria-hidden', String(!open));
   if (deferred) return;
   if (rewardChildOpen && reward?.canChoose) return;
-  if (!reward || !reward.canChoose) {
+  if (!reward || !reward.canChoose || !rewardSource) {
     ui.rewardOptions.innerHTML = '';
     lastRewardRenderKey = '';
+    if (ui.rewardTitle) ui.rewardTitle.textContent = i18n.t('rewardTitle');
+    if (ui.rewardSubtitle) ui.rewardSubtitle.textContent = i18n.t('rewardSubtitle');
+    if (ui.rewardReset) ui.rewardReset.hidden = true;
+    if (ui.rewardInlineBack) ui.rewardInlineBack.hidden = true;
+    if (ui.rewardSkip) ui.rewardSkip.hidden = false;
     return;
   }
 
@@ -705,35 +718,47 @@ function renderRewardWindow() {
   hideCharacterInspector();
   hideShieldInspector();
   closePreview();
+  if (ui.rewardTitle) ui.rewardTitle.textContent = i18n.t(isRelicChild ? 'rewardRelicTitle' : 'rewardTitle');
+  if (ui.rewardSubtitle) ui.rewardSubtitle.textContent = i18n.t(isRelicChild ? 'rewardRelicSubtitle' : 'rewardSubtitle');
   ui.rewardWaiting.hidden = reward.canChoose;
   const rewardKey = [
     i18n.language,
+    isRelicChild ? 'relic' : 'top',
     reward.playerId,
     reward.roundNumber,
-    reward.resetCount,
-    reward.canChoose,
-    ...(reward.options || []).map(option => `${option.instanceId}:${option.rewardId}:${option.cost}:${option.canAfford}`)
+    rewardSource.resetCount,
+    rewardSource.canChoose,
+    ...(rewardSource.options || []).map(option => `${option.instanceId}:${option.rewardId}:${option.cost}:${option.kind}:${option.canAfford}`)
   ].join('|');
   if (rewardKey !== lastRewardRenderKey) {
     lastRewardRenderKey = rewardKey;
-    ui.rewardOptions.innerHTML = (reward.options || []).map((option, index) => {
+    ui.rewardOptions.innerHTML = (rewardSource.options || []).map((option, index) => {
       const localized = i18n.reward(option.rewardId);
       const disabled = !reward.canChoose || !option.canAfford;
+      const isCategory = option.kind === 'RelicChoice';
+      const costLabel = isCategory ? i18n.t('rewardOpenRelics') : `${option.cost} BP`;
       return `<button class="reward-card ${option.canAfford ? '' : 'unaffordable'}" type="button" data-reward-instance="${escapeHtml(option.instanceId)}" data-index="${index}" ${disabled ? 'disabled' : ''}>
         <small>${escapeHtml(option.rarity || 'COMMON')}</small>
         <strong>${escapeHtml(localized.name)}</strong>
         <p>${escapeHtml(localized.description)}</p>
-        <b>${option.cost} BP</b>
+        <b>${escapeHtml(costLabel)}</b>
         ${option.canAfford ? '' : `<em>${escapeHtml(i18n.t('rewardCannotAfford'))}</em>`}
       </button>`;
     }).join('');
   }
 
-  const resetCost = Number(reward.nextResetCost || 0);
+  const resetCost = Number(rewardSource.nextResetCost || 0);
   const viewer = game.players.find(player => player.id === game.viewerPlayerId);
   const canAffordReset = Number(viewer?.battlePoints?.current || 0) >= resetCost;
+  ui.rewardReset.hidden = !isRelicChild;
   ui.rewardReset.disabled = !reward.canChoose || !canAffordReset;
   ui.rewardReset.innerHTML = `<span>${escapeHtml(i18n.t('rewardReset'))}</span><b>${escapeHtml(resetCost === 0 ? i18n.t('rewardResetFree') : i18n.t('rewardResetCost', { cost: resetCost }))}</b>`;
+  if (ui.rewardInlineBack) {
+    ui.rewardInlineBack.hidden = !isRelicChild;
+    ui.rewardInlineBack.disabled = !isRelicChild || !reward.canChoose;
+    ui.rewardInlineBack.innerHTML = `<span>${escapeHtml(i18n.t('rewardBack'))}</span>`;
+  }
+  ui.rewardSkip.hidden = isRelicChild;
   ui.rewardSkip.disabled = !reward.canChoose;
   ui.rewardSkip.innerHTML = `<span>${escapeHtml(Number(reward.purchaseCount || 0) > 0 ? i18n.t('rewardExit') : i18n.t('rewardSkip', { amount: Number(reward.skipBattlePoints || 0) }))}</span>`;
 }
@@ -1001,6 +1026,47 @@ function clearBpTurnGainDisplay() {
   if (!ui.activeBpTurnGain) return;
   ui.activeBpTurnGain.classList.remove('active', 'gain-pop');
   ui.activeBpTurnGain.textContent = '';
+}
+
+function relicIconId(relicId) {
+  return {
+    'dummy-reward-a': 'status.spell-ward',
+    'dummy-reward-b': 'status.chant',
+    'dummy-reward-c': 'status.strong-attack'
+  }[relicId] || 'event.trait';
+}
+
+function renderRelicOverview(player) {
+  if (!ui.relicOverview || !ui.relicOverviewButton || !ui.relicOverviewDetail) return;
+  const relics = Array.isArray(player?.relics) ? player.relics : [];
+  const hasRelics = relics.length > 0;
+  ui.relicOverview.hidden = !hasRelics;
+  ui.relicOverview.setAttribute('aria-hidden', String(!hasRelics));
+  if (!hasRelics) {
+    setRelicOverviewOpen(false);
+    ui.relicOverviewButton.innerHTML = '';
+    ui.relicOverviewDetail.innerHTML = '';
+    return;
+  }
+
+  ui.relicOverviewButton.innerHTML = `${art.icon('event.trait', { size: 'lg', label: i18n.t('relicOverview') })}<b>${escapeHtml(relics.length)}</b>`;
+  ui.relicOverviewButton.setAttribute('aria-label', i18n.t('relicOverview'));
+  ui.relicOverviewDetail.innerHTML = `<header><span>${escapeHtml(i18n.t('relicOverview'))}</span><strong>${escapeHtml(i18n.t('relics'))}</strong><b>${escapeHtml(relics.length)}</b></header>
+    <ul>${relics.map(relic => {
+      const localized = i18n.reward(relic.id);
+      return `<li>
+        <div class="effect-title">${art.icon(relicIconId(relic.id), { size: 'md', label: localized.name })}<div><b>${escapeHtml(localized.name)}</b><em>${escapeHtml(i18n.t('always'))}</em></div></div>
+        <p>${escapeHtml(localized.description)}</p>
+      </li>`;
+    }).join('')}</ul>`;
+  art.hydrate(ui.relicOverview);
+}
+
+function setRelicOverviewOpen(open) {
+  if (!ui.relicOverview || !ui.relicOverviewButton || !ui.relicOverviewDetail) return;
+  ui.relicOverview.classList.toggle('expanded', open);
+  ui.relicOverviewButton.setAttribute('aria-expanded', String(open));
+  ui.relicOverviewDetail.setAttribute('aria-hidden', String(!open));
 }
 
 function hasPendingShieldBreakForPlayer(state, player) {
@@ -2372,7 +2438,7 @@ async function resetHeroDraft() {
 }
 
 async function returnToRewardWindow() {
-  if (busy || !game?.rewardWindow?.canChoose || !(game?.heroDraft || game?.pendingRoleActionUpgrade)) return;
+  if (busy || !game?.rewardWindow?.canChoose || !(game?.heroDraft || game?.pendingRoleActionUpgrade || game?.pendingRelicReward)) return;
   sound.emit('ui.cancel');
   busy = true;
   try {
@@ -2669,6 +2735,7 @@ function shouldAdvanceAi() {
     && !game.rewardWindow?.canChoose
     && !game.heroDraft?.canChoose
     && !game.pendingRoleActionUpgrade?.canChoose
+    && !game.pendingRelicReward?.canChoose
     && !busy
     && !dealing
     && !eventPlayback
@@ -3395,7 +3462,8 @@ function playLayeredDamageFloats(target, { moraleAmount = 0, hpAmount = 0, type 
   if (morale > 0) {
     animateMoraleRingLoss(target, morale);
     moraleFloat(target, morale);
-    window.setTimeout(() => damageFloat(target, hp, type, { force: true, label: 'HP' }), 210);
+    if (hp > 0)
+      window.setTimeout(() => damageFloat(target, hp, type, { label: 'HP' }), 210);
     return wait(360);
   }
   damageFloat(target, hp, type);
@@ -3618,6 +3686,10 @@ function updateInstruction() {
   }
   if (game?.pendingRoleActionUpgrade?.canChoose) {
     ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('roleActionUpgradeInstruction'))}</strong><small>${escapeHtml(i18n.t('roleActionUpgradeHint'))}</small></div>`;
+    return;
+  }
+  if (game?.pendingRelicReward?.canChoose) {
+    ui.instruction.innerHTML = `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('rewardRelicInstruction'))}</strong><small>${escapeHtml(i18n.t('rewardRelicHint'))}</small></div>`;
     return;
   }
   if (pendingRoleAction) {
@@ -3946,6 +4018,11 @@ ui.bpHud?.addEventListener('mouseenter', showBpInspector);
 ui.bpHud?.addEventListener('mouseleave', hideBpInspector);
 ui.bpHud?.addEventListener('focusin', showBpInspector);
 ui.bpHud?.addEventListener('focusout', hideBpInspector);
+ui.relicOverviewButton?.addEventListener('click', event => {
+  if (!isTouchMode()) return;
+  event.stopPropagation();
+  setRelicOverviewOpen(!ui.relicOverview?.classList.contains('expanded'));
+});
 ui.rewardOptions.addEventListener('click', event => {
   const card = event.target instanceof Element ? event.target.closest('.reward-card[data-reward-instance]') : null;
   if (!card || card.disabled) return;
@@ -4037,6 +4114,7 @@ ui.heroDraftOptions?.addEventListener('mouseleave', () => {
 ui.heroDraftReset?.addEventListener('click', resetHeroDraft);
 ui.heroDraftBack?.addEventListener('click', returnToRewardWindow);
 ui.rewardChildBack?.addEventListener('click', returnToRewardWindow);
+ui.rewardInlineBack?.addEventListener('click', returnToRewardWindow);
 ui.heroDraftConfirm?.addEventListener('click', selectSoldierDraft);
 ui.heroDraftUpgrade?.addEventListener('click', beginSoldierUpgradeTargeting);
 ui.rewardReset.addEventListener('click', resetRewardWindow);
@@ -4216,9 +4294,14 @@ document.addEventListener('click', event => {
   setAudioMenuOpen(false);
 });
 document.addEventListener('click', event => {
+  if (!isTouchMode() || !ui.relicOverview?.classList.contains('expanded')) return;
+  if (event.target instanceof Element && ui.relicOverview.contains(event.target)) return;
+  setRelicOverviewOpen(false);
+});
+document.addEventListener('click', event => {
   if ((!selectedAttacker && !inspectedCardId && !pendingRoleAction) || busy || dealing) return;
   const interactive = event.target instanceof Element
-    ? event.target.closest('.fighter-card,.preview-panel,.reward-window,.hero-draft-window,.deputy-confirm-modal,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.battle-point-hud,.character-inspector,.status-inspector,.shield-inspector,.bp-inspector,.game-over,.start-screen,.deal-sequence')
+    ? event.target.closest('.fighter-card,.preview-panel,.reward-window,.hero-draft-window,.deputy-confirm-modal,.command-deck,.topbar,.battle-log-shell,.action-point-hud,.battle-point-hud,.relic-overview,.character-inspector,.status-inspector,.shield-inspector,.bp-inspector,.game-over,.start-screen,.deal-sequence')
     : null;
   if (interactive) return;
   cancelAiming();

@@ -77,12 +77,13 @@
   --hud-title-kicker-size: 8px;
   --hud-title-main-size: 17px;
   --hud-title-text-y: 0px;
+  --hud-midline-y: 543px;
   --hud-turn-frame-left: 815px;
-  --hud-turn-frame-top: 470px;
+  --hud-turn-frame-top: calc(var(--hud-midline-y) - 72.5px);
   --hud-turn-frame-width: 290px;
   --hud-turn-frame-height: 145px;
   --ap-panel-left: 95px;
-  --ap-panel-top: 498px;
+  --ap-panel-top: calc(var(--hud-midline-y) - 63px);
   --hud-top-menu-width: 250px;
   --hud-top-menu-right: 32px;
   --hud-top-menu-top: 58px;
@@ -127,7 +128,7 @@
   --ap-orb-top: 48px;
   --ap-orb-left: 124px;
   --bp-hud-left: 1482px;
-  --bp-hud-top: 492px;
+  --bp-hud-top: calc(var(--hud-midline-y) - 20px);
   --bp-medal-size: 92px;
   --bp-row-width: 162px;
   --bp-row-height: 40px;
@@ -135,6 +136,10 @@
   --bp-row-offset-x: 82px;
   --bp-number-size: 30px;
   --bp-label-size: 10px;
+  --relic-overview-left: var(--ap-panel-left);
+  --relic-overview-top: 895px;
+  --relic-overview-button-size: 76px;
+  --relic-overview-detail-width: 430px;
   --reward-overlay-bg: rgba(0,0,0,.58);
   --reward-card-bg: var(--hud-estimation-frame-light);
   --reward-panel-top: 120px;
@@ -1029,6 +1034,9 @@ body.ios-low-motion .battlefield-atmosphere-top::after {
   color:#24180f;
   text-align:center;
 }
+.reward-window.has-four-options .reward-panel {
+  width:calc(var(--reward-card-width) * 4 + var(--reward-card-gap) * 3 + 120px);
+}
 .reward-header {
   margin:0 auto 22px;
   width:760px;
@@ -1083,6 +1091,7 @@ body.ios-low-motion .battlefield-atmosphere-top::after {
 }
 .reward-card:nth-child(2) { animation-delay:.04s; }
 .reward-card:nth-child(3) { animation-delay:.08s; }
+.reward-card:nth-child(4) { animation-delay:.12s; }
 .reward-card:not(:disabled):hover {
   transform:translateY(-10px);
   filter:brightness(1.05);
@@ -5323,6 +5332,186 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 }
 .aura-detail li:last-child { border-bottom:0; }
 .aura-detail li p {
+  margin:5px 0 0;
+  color:var(--inspector-ink);
+  font-size:var(--inspector-effect-body-size);
+  line-height:1.55;
+}
+.relic-overview {
+  position:fixed;
+  z-index:220;
+  left:var(--relic-overview-left);
+  top:var(--relic-overview-top);
+  width:var(--relic-overview-button-size);
+  height:var(--relic-overview-button-size);
+  pointer-events:auto;
+}
+.relic-overview[hidden] { display:none; }
+.relic-overview-button {
+  position:relative;
+  z-index:2;
+  width:var(--relic-overview-button-size);
+  height:var(--relic-overview-button-size);
+  display:grid;
+  place-items:center;
+  padding:0;
+  color:#f1dfb8;
+  background:
+    radial-gradient(circle at 45% 38%, rgba(99,66,30,.94) 0 20%, rgba(36,21,12,.98) 58%, rgba(10,7,5,.98) 100%);
+  border:1px solid rgba(154,112,52,.82);
+  border-radius:50%;
+  box-shadow:
+    inset 0 0 0 2px rgba(18,10,6,.72),
+    inset 0 0 18px rgba(255,214,128,.16),
+    0 8px 18px rgba(30,15,8,.42),
+    0 0 0 1px rgba(255,232,166,.12);
+  filter:drop-shadow(0 9px 12px rgba(0,0,0,.32));
+}
+.relic-overview-button .ui-asset-icon {
+  --asset-size:48px;
+  border-color:rgba(205,164,86,.72);
+  background:radial-gradient(circle at 50% 42%, #22160e 0 45%, #0b0705 100%);
+  box-shadow:inset 0 0 0 2px rgba(7,4,3,.84), inset 0 0 12px rgba(255,218,135,.14);
+}
+.relic-overview-button b {
+  position:absolute;
+  right:3px;
+  bottom:2px;
+  min-width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  color:#2d1d0f;
+  background:#e6c98c;
+  border:1px solid rgba(74,47,21,.72);
+  border-radius:50%;
+  font-family:var(--font-display);
+  font-size:14px;
+  line-height:1;
+  text-shadow:0 1px 0 rgba(255,246,216,.7);
+}
+.relic-overview-detail {
+  position:absolute;
+  left:0;
+  bottom:calc(100% + 14px);
+  z-index:1;
+  width:var(--relic-overview-detail-width);
+  max-height:0;
+  overflow:hidden;
+  scrollbar-width:none;
+  padding:0 18px;
+  color:var(--inspector-ink);
+  pointer-events:none;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(8px) scale(.985);
+  transform-origin:left bottom;
+  background-color:#d8bd83;
+  background-image:
+    linear-gradient(180deg, rgba(255,240,196,.16), rgba(96,58,25,.10)),
+    var(--status-inspector-bg);
+  background-size:100% 100%, var(--inspector-frame-zoom) var(--inspector-frame-zoom);
+  background-repeat:no-repeat;
+  background-position:center;
+  border-radius:var(--inspector-radius);
+  box-shadow:0 18px 46px #000a,0 0 0 1px rgba(86,55,26,.30);
+  filter:saturate(.98) sepia(.04);
+  transition:opacity .16s ease, transform .2s ease, visibility .16s, max-height .2s ease, padding .2s ease;
+}
+.relic-overview-detail::-webkit-scrollbar { display:none; }
+.relic-overview-detail::before {
+  content:"";
+  position:absolute;
+  inset:var(--inspector-guide-inset);
+  border:1px solid rgba(89,56,27,.20);
+  border-radius:var(--inspector-guide-radius);
+  pointer-events:none;
+}
+body:not(.touch-mode) .relic-overview:hover .relic-overview-detail,
+body:not(.touch-mode) .relic-overview:focus-within .relic-overview-detail,
+.relic-overview.expanded .relic-overview-detail {
+  max-height:520px;
+  padding:18px 18px 16px;
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0) scale(1);
+  pointer-events:auto;
+  overflow:auto;
+}
+.relic-overview-detail header {
+  position:relative;
+  min-height:auto;
+  margin:0 0 10px;
+  padding:0 0 10px;
+  border-bottom:1px solid var(--inspector-line);
+}
+.relic-overview-detail header span {
+  display:inline-block;
+  color:var(--inspector-gold-ink);
+  font-family:var(--font-display);
+  font-size:var(--inspector-kicker-size);
+  font-weight:900;
+  letter-spacing:.18em;
+}
+.relic-overview-detail header strong {
+  display:block;
+  margin-top:4px;
+  color:var(--inspector-ink);
+  font-family:var(--font-display);
+  font-size:var(--inspector-effect-name-size);
+}
+.relic-overview-detail header b {
+  position:absolute;
+  right:2px;
+  bottom:10px;
+  color:#7a552b;
+  font-family:var(--font-display);
+  font-size:18px;
+}
+.relic-overview-detail ul {
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:grid;
+  gap:8px;
+}
+.relic-overview-detail li {
+  position:relative;
+  min-height:calc(var(--inspector-status-icon-size) + 4px);
+  padding:7px 0 8px calc(var(--inspector-status-icon-size) + 12px);
+  border-bottom:1px solid rgba(77,50,23,.18);
+}
+.relic-overview-detail li:last-child { border-bottom:0; }
+.relic-overview-detail .ui-asset-icon {
+  position:absolute;
+  left:0;
+  top:7px;
+  --asset-size:var(--inspector-status-icon-size);
+  background:radial-gradient(circle at 50% 42%, #22160e 0 45%, #0b0705 100%);
+  border:1px solid rgba(150,104,52,.72);
+  box-shadow:inset 0 0 0 2px rgba(7,4,3,.84), inset 0 0 12px rgba(255,218,135,.12), 0 4px 9px rgba(54,28,10,.36);
+}
+.relic-overview-detail .effect-title>div {
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px;
+}
+.relic-overview-detail li b {
+  color:var(--inspector-ink);
+  font-family:var(--font-display);
+  font-size:var(--inspector-effect-name-size);
+  line-height:1.22;
+}
+.relic-overview-detail li em {
+  color:var(--inspector-gold-ink);
+  font-family:var(--font-display);
+  font-size:10px;
+  font-style:normal;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+.relic-overview-detail li p {
   margin:5px 0 0;
   color:var(--inspector-ink);
   font-size:var(--inspector-effect-body-size);

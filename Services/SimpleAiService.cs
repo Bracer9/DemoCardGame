@@ -72,7 +72,8 @@ public sealed class SimpleAiService
         && (state.ActivePlayerId == aiPlayerId
             || state.RewardWindow?.PlayerId == aiPlayerId
             || state.PendingHeroDraft?.PlayerId == aiPlayerId
-            || state.PendingRoleActionUpgrade?.PlayerId == aiPlayerId);
+            || state.PendingRoleActionUpgrade?.PlayerId == aiPlayerId
+            || state.PendingRelicReward?.PlayerId == aiPlayerId);
 
     private bool TryAdvanceOneStep(GameState state, Guid aiPlayerId)
     {
@@ -164,6 +165,24 @@ public sealed class SimpleAiService
             return false;
 
         var player = state.Players.Single(item => item.Id == reward.PlayerId);
+        if (state.PendingRelicReward is { PlayerId: var pendingRelicPlayerId } pendingRelic
+            && pendingRelicPlayerId == player.Id)
+        {
+            var relicOption = pendingRelic.Options
+                .Where(option => player.BattlePoints.Current >= option.Cost)
+                .OrderByDescending(option => RewardScore(option, player))
+                .ThenBy(option => option.Cost)
+                .FirstOrDefault();
+            if (relicOption is null || RewardScore(relicOption, player) <= 0)
+            {
+                _engine.ReturnToRewardWindow(state, player.Id);
+                return true;
+            }
+
+            _engine.SelectReward(state, relicOption.InstanceId);
+            return true;
+        }
+
         var affordable = reward.Options
             .Where(option => player.BattlePoints.Current >= option.Cost)
             .ToList();
@@ -195,14 +214,19 @@ public sealed class SimpleAiService
                 && character.Definition.CardType == CardType.Soldier
                 && character.SoldierRank < 2))
             return -100;
+        if (option.RewardId == "relic-choice"
+            && !RewardCatalog.DummyRewards.Any(reward => player.BattlePoints.Current >= reward.Cost))
+            return -100;
 
         return option.RewardId switch
     {
         "hero-role-action-upgrade" => 100,
         "hero-recruit" => 82,
         "soldier-recruit" => 74,
-        "dummy-status-a" => 42,
-        "dummy-status-b" => 38,
+        "relic-choice" => 62,
+        "dummy-reward-c" => 42,
+        "dummy-reward-b" => 38,
+        "dummy-reward-a" => 34,
         _ => 20
     } - option.Cost;
     }

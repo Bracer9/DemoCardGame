@@ -44,6 +44,11 @@
     "battleLog": "战况记录",
     "rewardTitle": "选择战利品",
     "rewardSubtitle": "消耗BP获取奖励，或跳过以保存战功。",
+    "rewardRelicTitle": "选择遗物",
+    "rewardRelicSubtitle": "从本轮呈现的三件遗物中购买；购买后可继续选择、刷新或返回上一级。",
+    "rewardOpenRelics": "查看遗物",
+    "rewardRelicInstruction": "选择一件遗物",
+    "rewardRelicHint": "确认具体遗物时才会消耗BP；可刷新或返回上一级。",
     "rewardReset": "刷新",
     "rewardResetFree": "首次免费",
     "rewardResetCost": "{cost} BP",
@@ -108,6 +113,8 @@
     "unitDossier": "角色档案",
     "liveEffects": "实时状态",
     "effects": "增益 / 减益",
+    "relics": "遗物",
+    "relicOverview": "遗物总览",
     "always": "常驻",
     "shieldLead": "防御阵型会为我方全队展开共有盾。",
     "shieldFirst": "一层盾",
@@ -258,6 +265,10 @@
     "dummy-reward-c": {
       "name": "王家勋章",
       "description": "我方全体获得攻击+1。临时遗物效果。"
+    },
+    "relic-choice": {
+      "name": "遗物获取",
+      "description": "进入遗物选择，从三件不同遗物中挑选一件购买。进入本身不消耗BP。"
     },
     "hero-role-action-upgrade": {
       "name": "英雄职业训练",
@@ -862,6 +873,8 @@
     "error.pendingHeroDraft": "请先完成英雄选择。",
     "error.noHeroDraft": "当前没有可进行的英雄选择。",
     "error.noRewardChildMenu": "当前没有可返回的奖励子菜单。",
+    "error.pendingRelicReward": "请先处理遗物选择。",
+    "error.rewardResetUnavailable": "当前奖励菜单不能刷新。",
     "error.heroDraftInvalidChoice": "不能选择这个候选英雄。",
     "error.heroAlreadyOwned": "该英雄已经在队伍中。",
     "error.teamFull": "队伍已满。",

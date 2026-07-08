@@ -1,14 +1,14 @@
 # Tiny Pixel Fights — Relic / Build Support Design
 
 更新时间：2026-07-08  
-状态：设计稿，先不实装。目标是把奖励阶段中的临时占位奖励扩展为“帮助 build 成型”的遗物池。
+状态：设计稿 + 临时接入。目标是把奖励阶段中的临时占位奖励扩展为“帮助 build 成型”的遗物池。
 
 主要参考：
 
 - `reference/TinyPixelFights_RoleAction_Growth_Synergy_Design_20260629.md`
 - `reference/TinyPixelFights_Trait_RoleAction_Status_Unification_Draft.md`
 - `reference/TinyPixelFights_Soldier_Design_20260704.md`
-- 当前实现：`Domain/RewardDefinitions.cs`、`Domain/StatusEffects.cs`、`Domain/RoleActions.cs`、`Domain/Traits.cs`
+- 当前实现：`Domain/RewardDefinitions.cs`、`Domain/RelicEffects.cs`、`Domain/RoleActions.cs`、`Domain/Traits.cs`
 
 ## 1. 设计目标
 
@@ -21,6 +21,7 @@
 3. 尽量复用当前真实状态：强攻、咏唱、坚守、护咒、燃烧、空虚、脆弱、力竭、磨损、战栗、猎物、共享盾、BP、AP、士气。
 4. 不引入“有效伤害”概念。所有触发文本必须明确写 HP 伤害、士气伤害、绝对伤害或共享盾伤害。
 5. 遗物强度服务 build，不把所有队伍都推向同一个泛用最优解。
+6. 玩家可见效果文本要像 STS 遗物一样短：一句话说明触发条件和收益。细节、边界和实现说明放到“注意”或“实装落点”，不要塞进效果文本。
 
 ## 2. 当前奖励占位的替换方向
 
@@ -34,6 +35,13 @@
 | 未接入状态 | 全队物防 +1 | `relic-black-iron-rivets` 黑铁铆钉 | 物防 / 盾墙 / 抗物理爆发 |
 
 这四个可以作为第一批“静态数值遗物”，用于替换 dummy 奖励名和文案。后续 build 遗物应尽量少用永久 +1，而是提供触发、窗口、资源回收或状态组合。
+
+当前临时接入（2026-07-08）：
+
+- `dummy-reward-a/b/c` 购买后写入 `PlayerState.Relics`，由 `RelicEffects` 提供队伍级静态数值修正；它们不再作为 buff / debuff / status 挂到角色身上。
+- 前端暂时把已购买遗物显示在画面左下的 `relic-overview` 独立 HUD 入口里，不再塞进角色 inspector，避免污染角色状态说明。
+- PC：hover 遗物总览图标向上展开全部遗物名称与效果，移开收起。触屏设备：点击图标展开 / 收起，点击外部收起。
+- 当前临时图标复用已有 UI PNG：`dummy-reward-a` -> `status.spell-ward`，`dummy-reward-b` -> `status.chant`，`dummy-reward-c` -> `status.strong-attack`。后续正式遗物资源到位后再替换为 `relic.*` 图标映射。
 
 ## 3. 阶段定义
 
@@ -57,7 +65,7 @@
 |---|---|---|
 | 圣疗 / 防线 | Princess 祈祷路线、Cleric、Shieldmaiden、Knight | 治疗只修 HP，不影响士气；需要通过共享盾、护咒、BP 间接形成稳定防线。 |
 | 盾墙 / 守护 | Knight、Shieldmaiden、共享盾、坚守、守护誓约 | 容易只变成拖延；需要破盾后反击、盾量转化或 AP/BP 回报。 |
-| 魔法 / 咏唱 / 燃烧 | Mage、Oracle、Arcanist、咏唱、燃烧、空虚、星读魔力 | 前期缺稳定起手；中期需要“只打士气也有推进感”的状态收益。 |
+| 魔法 / 咏唱 / 燃烧 | Mage、Oracle、Arcanist、咏唱、燃烧、空虚、星读魔力 | 前期缺稳定起手；燃烧本体伤害低且受魔防影响，缺少把层数一次性兑现的结算机制；中期需要“只打士气也有推进感”的状态收益。 |
 | Debuff / 控制 | Druid、Mage 刻印路线、Duelist、Barbarian 挑衅 | 状态很多，但缺一个把多种 Debuff 串成胜利条件的引擎。 |
 | 物理节奏 / 再行动 | War Queen、Barbarian、Duelist、Peasant 民兵 | 爆发窗口强，但需要避免只看 +Attack；应围绕无盾目标、战栗、AP debt、额外攻击。 |
 | 士兵团 / 民兵 | Peasant、四类士兵 Rank1 Aura、Rank2 Role Action / 副官 | 士兵数量本身还缺奖励回报；需要让“招募士兵”成为 build，而不是只当副官素材。 |
@@ -72,10 +80,10 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 实装落点 |
 |---|---:|---:|---|---|---|
-| `relic-silver-ward-charm` | I | 3 | common | 我方全体魔防 +1。 | 复用 `RewardMagicalDefenseStatus`。 |
-| `relic-black-iron-rivets` | I | 3 | common | 我方全体物防 +1。 | 复用 `RewardPhysicalDefenseStatus`。 |
-| `relic-apprentice-star-ink` | I | 4 | rare | 我方魔法攻击单位攻击 +1。 | 复用 `RewardMagicalAttackStatus`。 |
-| `relic-war-council-banner` | III | 7 | epic | 我方全体攻击 +1。 | 复用 `RewardAttackStatus`。 |
+| `relic-silver-ward-charm` | I | 3 | common | 我方全体魔防 +1。 | 队伍级 `RelicEffects.ModifyMagicalDefense`。 |
+| `relic-black-iron-rivets` | I | 3 | common | 我方全体物防 +1。 | 队伍级 `RelicEffects.ModifyPhysicalDefense`。 |
+| `relic-apprentice-star-ink` | I | 4 | rare | 我方魔法攻击单位攻击 +1。 | 队伍级 `RelicEffects.ModifyBaseAttack`，限定魔法攻击单位。 |
+| `relic-war-council-banner` | III | 7 | epic | 我方全体攻击 +1。 | 队伍级 `RelicEffects.ModifyBaseAttack`。 |
 
 平衡备注：
 
@@ -88,9 +96,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-white-lily-censer` | I | 3 | common | 每个己方 turn 第一次我方通过 Role Action 实际回复 HP 时，目标获得 1 turn 护咒。 | Princess 祈祷、Cleric、Peasant 补给 | 新增 team relic hook：`OnRoleActionHealResolved`，赋予 `SpellWardStatus`。 |
-| `relic-cleanse-votive` | II | 5 | rare | 每个己方 turn 第一次我方成功净化 Debuff 时，获得 1 BP。受每 turn BP 获取上限限制。 | Saint Queen、Druid 净化、Cleric | `TryGainBp(..., reason: relic-cleanse)`；只看成功移除 Debuff。 |
-| `relic-miracle-keystone` | III | 7 | epic | 我方 Rank3 英雄通过 Role Action 影响至少 2 名我方角色后，我方共享盾 +2。每己方 turn 1 次。 | Miracle Standard、Holy Bastion、Grove Sanctuary | Role Action 结算后统计 affected allies；加 `SharedShield`。 |
+| `relic-white-lily-censer` | I | 3 | common | 每回合首次主动治疗 HP 时，目标获得护咒。 | Princess 祈祷、Cleric、Peasant 补给 | 新增 team relic hook：`OnRoleActionHealResolved`，赋予 `SpellWardStatus`。 |
+| `relic-cleanse-votive` | II | 5 | rare | 每回合首次成功净化时，获得 1 BP。 | Saint Queen、Druid 净化、Cleric | `TryGainBp(..., reason: relic-cleanse)`；只看成功移除 Debuff，受 BP 获取上限限制。 |
+| `relic-oath-keystone` | III | 7 | epic | 每回合第 3 次获得坚守或护咒时，共享盾 +3。 | 防线、净化、盾墙 | 监听 `FortifyStatus` / `SpellWardStatus` 应用；队伍级每 turn 计数。 |
 
 注意：
 
@@ -103,9 +111,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-mason-token` | I | 3 | common | 每个己方 turn 第一次部署或强化共享盾时，当前 HP 比例最低的我方角色获得 1 turn 坚守。 | Knight、Shieldmaiden、Saint Queen | 复用低血选择逻辑，赋予 `FortifyStatus`。 |
-| `relic-cracked-shield-bell` | II | 5 | rare | 每 round 1 次，我方共享盾被敌方攻击击破后，攻击者获得 1 turn 战栗。 | 盾墙、Raise Bulwark、Aegis Formation | 破盾事件 hook；赋予 `TremblingStatus`。 |
-| `relic-kingwall-standard` | III | 8 | epic | 我方回合开始时，若我方共享盾为 0 且我方有 Rank3 Knight 或 Rank2 Shieldmaiden 存活，获得共享盾 2。 | Holy Paladin、Dread Cavalier、Shieldmaiden | Turn start relic hook；不触发“部署共享盾”奖励，避免 BP 循环。 |
+| `relic-mason-token` | I | 3 | common | 每回合首次部署或强化共享盾时，低 HP 友方获得坚守。 | Knight、Shieldmaiden、Saint Queen | 复用低血选择逻辑，赋予 `FortifyStatus`。 |
+| `relic-cracked-shield-bell` | II | 5 | rare | 每 round 1 次，共享盾被击破后，攻击者获得战栗。 | 盾墙、Raise Bulwark、Aegis Formation | 破盾事件 hook；赋予 `TremblingStatus`。 |
+| `relic-kingwall-standard` | III | 8 | epic | 回合开始时，若共享盾为 0，获得共享盾 2。 | 盾墙、慢速防线 | 队伍级遗物；不触发“部署共享盾”奖励，避免 BP 循环。 |
 
 注意：
 
@@ -119,13 +127,15 @@
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
 | `relic-apprentice-star-ink` | I | 4 | rare | 我方魔法攻击单位攻击 +1。 | Mage、Oracle、Druid、Arcanist | 复用 `RewardMagicalAttackStatus`。 |
-| `relic-ember-astrolabe` | II | 5 | rare | 每个己方 turn 第一次我方赋予燃烧时，额外赋予 1 层燃烧。 | Searing Mark、Searing Brand、Starfall | 在 `AddBurning` 或状态应用后追加 `AddStacks(1)`。 |
-| `relic-hollow-comet-lens` | III | 8 | epic | 每个己方 turn 1 次，我方魔法伤害对敌方造成士气伤害但造成 0 点 HP 伤害时，目标获得 1 turn 空虚。 | Chant、Starfall、Astral Alignment、Archive Formula | Damage resolved hook；检查 `MoraleDamage > 0 && HpDamage == 0 && DamageType.Magical`，赋予 `VoidStatus`。 |
+| `relic-ember-astrolabe` | II | 5 | rare | 每回合首次赋予燃烧时，额外 +1 层。 | Searing Mark、Searing Brand、Starfall | 在 `AddBurning` 或状态应用后追加 `AddStacks(1)`。 |
+| `relic-ashen-detonator` | II | 6 | rare | 每回合 1 次，命中 3 层以上燃烧时，引爆燃烧。 | 燃烧、咏唱、魔法连击 | 消耗全部燃烧，造成等同层数的燃爆魔法伤害；不受魔防，仍先扣士气。 |
+| `relic-hollow-comet-lens` | III | 8 | epic | 每回合 1 次，魔法伤害只击伤士气时，目标获得空虚。 | Chant、Starfall、Astral Alignment、Archive Formula | Damage resolved hook；检查 `MoraleDamage > 0 && HpDamage == 0 && DamageType.Magical`，赋予 `VoidStatus`。 |
 
 注意：
 
 - `hollow-comet-lens` 让魔法队“剥士气”后仍有推进感，但不把士气伤害伪装成 HP 伤害。
 - `ember-astrolabe` 会放大 Oracle 的星读魔力和燃烧伤害，需要限制每己方 turn 1 次。
+- `ashen-detonator` 是燃烧 build 的层数兑现件。3 层阈值避免刚挂 1-2 层就被自动兑掉；它消耗燃烧，所以玩家需要在“继续堆层”与“现在引爆”之间取舍。燃爆不是绝对伤害，不绕过士气。
 
 ### 5.5 Debuff / 控制遗物
 
@@ -133,9 +143,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-witch-bell` | I | 3 | common | 每个己方 turn 第一次我方对敌方赋予通用 Debuff 后，若目标没有战栗，赋予 1 turn 战栗。 | Druid、Searing Brand、Challenge、Duelist | 状态应用 hook；通用 Debuff 指 `void/vulnerable/exhaustion/erosion/burning/trembling`。 |
-| `relic-spore-press` | II | 5 | rare | 每个己方 turn 第一次我方移除敌方可驱散 Buff 时，获得 1 BP。受每 turn BP 获取上限限制。 | Druid 孢子路线、Cleansing Herbs | 只看敌方 Buff 被移除，不看净化友方 Debuff。 |
-| `relic-plague-codex` | III | 8 | epic | 每个己方 turn 1 次，若敌方同时拥有输出降低类 Debuff 和承伤提高类 Debuff，立即受到 2 点士气伤害。 | Weakening Spores + Vulnerable/Void、Crimson Lunge | 新增 morale damage helper；输出降低类为 `exhaustion/erosion`，承伤提高类为 `vulnerable/void`。 |
+| `relic-witch-bell` | I | 3 | common | 每回合首次赋予敌方 Debuff 时，追加战栗。 | Druid、Searing Brand、Challenge、Duelist | 状态应用 hook；通用 Debuff 指 `void/vulnerable/exhaustion/erosion/burning/trembling`。 |
+| `relic-spore-press` | II | 5 | rare | 每回合首次驱散敌方 Buff 时，获得 1 BP。 | Druid 孢子路线、Cleansing Herbs | 只看敌方 Buff 被移除，不看净化友方 Debuff；受 BP 获取上限限制。 |
+| `relic-plague-codex` | III | 8 | epic | 每回合 1 次，敌方同时拥有两类破绽时，受到 2 点士气伤害。 | Weakening Spores + Vulnerable/Void、Crimson Lunge | 两类破绽指 `exhaustion/erosion` 与 `vulnerable/void`。 |
 
 注意：
 
@@ -149,8 +159,8 @@
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
 | `relic-red-whetstone` | I | 3 | common | 我方物理攻击单位攻击 +1。 | Barbarian、Knight、Monster、Peasant、Duelist | 建议新增 `RewardPhysicalAttackStatus`，与魔法攻击奖励对称。 |
-| `relic-duelist-ticket` | II | 5 | rare | 每个己方 turn 第一次我方物理单位主动攻击没有共享盾的敌方角色前，攻击者获得 1 turn 强攻。 | Duelist Aura、War Queen、Barbarian | 类似 `DuelSenseTrait.OnAttackDeclared`，但全队每 turn 1 次。 |
-| `relic-victory-drum` | III | 8 | epic | 每个己方 turn 1 次，我方通过 Role Action 获得额外主动攻击机会后，若该角色本 turn 下一次主动攻击造成 HP 伤害，获得 1 BP。 | Edict of Victory、Star Reading、Militia Call、Glory Roar | 给目标挂临时 relic marker；攻击结算看真实 HPDamage。 |
+| `relic-duelist-ticket` | II | 5 | rare | 每回合首次攻击无盾敌人前，物理攻击者获得强攻。 | Duelist Aura、War Queen、Barbarian | 类似 `DuelSenseTrait.OnAttackDeclared`，但全队每 turn 1 次。 |
+| `relic-victory-drum` | III | 8 | epic | 每回合 1 次，额外攻击造成 HP 伤害时，获得 1 BP。 | Edict of Victory、Star Reading、Militia Call、Glory Roar | 给目标挂临时 relic marker；攻击结算看真实 HPDamage。 |
 
 注意：
 
@@ -163,9 +173,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-muster-papers` | I | 3 | common | 士兵招募奖励成本 -1 BP。不会低于 1 BP。 | 士兵团、Peasant | Reward cost modifier；只影响 `soldier-recruit`。 |
-| `relic-shared-drillbook` | II | 5 | rare | 若我方有至少 2 名士兵存活并在场，我方士兵攻击 +1。 | Militia Foreman、Call the Hunt、士兵 Aura | 新增 soldier-only attack aura；不可驱散。 |
-| `relic-veteran-captain-badge` | III | 7 | epic | 每个己方 turn 第一次成功使用士兵 Role Action 后，获得 1 BP。受每 turn BP 获取上限限制。 | Rank2 士兵、Militia Call | Role Action 结算后检查 actor.CardType == Soldier。 |
+| `relic-muster-papers` | I | 3 | common | 士兵招募成本 -1 BP。 | 士兵团、Peasant | Reward cost modifier；只影响 `soldier-recruit`，不会低于 1 BP。 |
+| `relic-shared-drillbook` | II | 5 | rare | 若有 2 名以上士兵在场，士兵攻击 +1。 | Militia Foreman、Call the Hunt、士兵 Aura | 新增 soldier-only attack aura；不可驱散。 |
+| `relic-veteran-captain-badge` | III | 7 | epic | 每回合首次使用士兵 Role Action 后，获得 1 BP。 | Rank2 士兵、Militia Call | Role Action 结算后检查 actor.CardType == Soldier；受 BP 获取上限限制。 |
 
 注意：
 
@@ -178,9 +188,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-blood-coin` | I | 3 | common | 每个己方 turn 第一次我方因支付 HP 代价或献祭失去 HP 后，获得 1 BP。受每 turn BP 获取上限限制。 | Dark Pact、Abyssal Bargain | 监听非伤害型 HP loss；不响应敌方造成伤害。 |
-| `relic-hunter-fang` | II | 5 | rare | 每个己方 turn 第一次我方对拥有猎物或强化猎物的目标造成绝对伤害后，目标获得 1 turn 脆弱。 | Predatory Gaze、Nightmare Stare | 绝对伤害结算后赋予 `VulnerableStatus`。 |
-| `relic-abyss-contract-seal` | III | 8 | epic | 每个己方 turn 1 次，我方角色因献祭或支付 HP 代价后，若仍存活，获得 1 turn 护咒，并使其下一次主动攻击附加 2 点绝对伤害。 | Dark Pact、Abyssal Bargain、Monster | 赋予 `SpellWardStatus` + 可复用或新增一次性 absolute marker。 |
+| `relic-blood-coin` | I | 3 | common | 每回合首次支付 HP 后，获得 1 BP。 | Dark Pact、Abyssal Bargain | 监听非伤害型 HP loss；不响应敌方造成伤害；受 BP 获取上限限制。 |
+| `relic-hunter-fang` | II | 5 | rare | 每回合首次对猎物造成绝对伤害后，目标获得脆弱。 | Predatory Gaze、Nightmare Stare | 绝对伤害结算后赋予 `VulnerableStatus`。 |
+| `relic-abyss-contract-seal` | III | 8 | epic | 每回合 1 次，支付 HP 后获得护咒，并使下次攻击附加 2 绝对伤害。 | Dark Pact、Abyssal Bargain、Monster | 赋予 `SpellWardStatus` + 可复用或新增一次性 absolute marker。 |
 
 注意：
 
@@ -193,9 +203,9 @@
 
 | ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
 |---|---:|---:|---|---|---|---|
-| `relic-campaign-ledger` | I | 3 | common | 若己方 turn 结束时 AP 为 0，尝试获得 1 BP。受每 turn BP 获取上限限制。 | 低 Cost 队、Royal Command、士兵团 | EndTurn 前 `TryGainBp`，之后按实际 BP 恢复士气。 |
-| `relic-green-standard` | II | 5 | rare | 每个己方 turn 第一次击破敌方共享盾时，额外获得 1 BP。受每 turn BP 获取上限限制。 | Barbarian、Knight Iron Charge、物理节奏 | 复用破盾 BP 事件，增加 relic reason。 |
-| `relic-command-table` | III | 8 | epic | 若我方有存活 Rank3 英雄，每个己方 turn 第一次成功使用 2 AP 以上 Role Action 后，返还 1 AP。 | Miracle Standard、Grove Sanctuary、Arcane Channel | Role Action 支付后结算返还；不能使本次行动成本低于 1 的表现混乱。 |
+| `relic-campaign-ledger` | I | 3 | common | 回合结束时若 AP 为 0，获得 1 BP。 | 低 Cost 队、Royal Command、士兵团 | EndTurn 前 `TryGainBp`，之后按实际 BP 恢复士气；受 BP 获取上限限制。 |
+| `relic-green-standard` | II | 5 | rare | 每回合首次击破敌方共享盾时，额外获得 1 BP。 | Barbarian、Knight Iron Charge、物理节奏 | 复用破盾 BP 事件；受 BP 获取上限限制。 |
+| `relic-command-table` | III | 8 | epic | 每回合首次使用 2 AP 以上行动后，返还 1 AP。 | 高费行动、指挥、终局技能 | Role Action 支付后结算返还；不要求特定角色。 |
 
 注意：
 
@@ -226,6 +236,7 @@
 - `relic-cleanse-votive`
 - `relic-cracked-shield-bell`
 - `relic-ember-astrolabe`
+- `relic-ashen-detonator`
 - `relic-spore-press`
 - `relic-duelist-ticket`
 - `relic-shared-drillbook`
@@ -237,7 +248,7 @@
 用于 round 12 起，或队伍已有 Rank2 / Rank3 时提高权重。
 
 - `relic-war-council-banner`
-- `relic-miracle-keystone`
+- `relic-oath-keystone`
 - `relic-kingwall-standard`
 - `relic-hollow-comet-lens`
 - `relic-plague-codex`
@@ -301,7 +312,7 @@ public sealed record RelicDefinition(
 
 1. 替换 dummy 奖励：银护符、黑铁铆钉、见习星墨、军议战旗。
 2. 做 4 个 Stage I build 信号：白百合香炉、石匠令、红磨刀石、募兵文书。
-3. 做 4 个 Stage II 引擎：余烬星盘、孢子压榨器、决斗券、碎盾铃。
+3. 做 5 个 Stage II 引擎：余烬星盘、灰烬引爆器、孢子压榨器、决斗券、碎盾铃。
 4. 最后做 Stage III：空心彗镜、胜利鼓、瘟疫法典、指挥桌。
 
 这样第一轮不会一次性引入太多 hook，同时已经能让魔法、盾墙、物理节奏、士兵团、Debuff 五条方向明显成形。
