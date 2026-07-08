@@ -73,8 +73,15 @@ test('all eight event assets are wired into synchronized battle playback', () =>
 
 test('confirmed attacks render a synchronized attacker-to-target link', () => {
   assert.match(appSource, /async function playExchangeEvent[\s\S]*showCombatLink\(attacker, defender\)/);
+  assert.match(appSource, /const counterHadImpact = counterDamage > 0 \|\| counterMoraleDamage > 0 \|\| counterShieldAbsorbed > 0;/);
+  assert.match(appSource, /if \(counterHadImpact\) launchFx\(defender, attacker, counterType\);/);
   assert.match(appSource, /function showCombatLink\(attacker, defender\)/);
+  assert.match(appSource, /Math\.atan2\(to\.y - controlY, to\.x - controlX\)/);
+  assert.match(appSource, /pathLength="1"/);
   assert.match(appSource, /combat-link-head/);
+  assert.match(appSource, /combat-head-chevron/);
+  assert.match(stylesSource, /stroke-dashoffset:1/);
+  assert.match(stylesSource, /@keyframes combatArcStrike[\s\S]*stroke-dashoffset:0/);
 });
 
 test('rank 2 and rank 3 heroes use the advanced hero card background', () => {

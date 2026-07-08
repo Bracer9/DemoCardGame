@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<TraitRegistry>();
 builder.Services.AddSingleton<RoleActionRegistry>();
 builder.Services.AddSingleton<GameEngine>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<GameSession>();
 builder.Services.AddSingleton<OnlineGameSession>();
 builder.Services.AddSingleton<GameViewFactory>();

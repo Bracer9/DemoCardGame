@@ -49,21 +49,23 @@ public sealed class MagicPowerStatus(Guid sourceCharacterId)
     public override bool IsDispellable => false;
 }
 
-public sealed class DeployingStatus(Guid sourceCharacterId, Guid ownerPlayerId, int remainingOwnerTurnStarts = 1)
+public sealed class DeployingStatus(Guid sourceCharacterId, Guid ownerPlayerId, int readyOnTurnNumber)
     : StatusEffect("deploying", true, sourceCharacterId)
 {
     public Guid OwnerPlayerId { get; } = ownerPlayerId;
-    public int RemainingOwnerTurnStarts { get; private set; } = Math.Max(1, remainingOwnerTurnStarts);
+    public int ReadyOnTurnNumber { get; } = Math.Max(1, readyOnTurnNumber);
     public override bool IsDispellable => false;
     public override bool BlocksActiveAttack => true;
 
+    public void ExpireIfReady(int turnNumber)
+    {
+        if (turnNumber >= ReadyOnTurnNumber)
+            Expired = true;
+    }
+
     public override void OnTurnStart(GameEngineContext context, CharacterState owner)
     {
-        if (context.State.ActivePlayerId != OwnerPlayerId || Expired)
-            return;
-
-        RemainingOwnerTurnStarts--;
-        Expired = RemainingOwnerTurnStarts <= 0;
+        ExpireIfReady(context.State.TurnNumber);
     }
 }
 

@@ -276,7 +276,7 @@ public sealed class GameEngine
                 string.Equals(item.Key, characterKey, StringComparison.OrdinalIgnoreCase)))
         };
         if (draft.Kind == HeroDraftKind.Recruit)
-            AddDeploying(character);
+            AddDeploying(state, character);
 
         GrantStartingMagicPower(player);
         Log(state, L10n.Text("log.heroDraftSelected",
@@ -352,7 +352,7 @@ public sealed class GameEngine
                 string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
             var soldier = AddHero(player, definition);
             if (draft.Kind == HeroDraftKind.SoldierRecruit)
-                AddDeploying(soldier);
+                AddDeploying(state, soldier);
             Log(state, L10n.Text("log.soldierDraftSelected",
                 ("player", L10n.Player(player.Name)),
                 ("character", L10n.Character(soldier.Definition.Key)),
@@ -1037,11 +1037,14 @@ public sealed class GameEngine
     public static bool IsDeploying(CharacterState character) =>
         character.Statuses.Any(status => status.Id == "deploying" && !status.Expired);
 
-    private static void AddDeploying(CharacterState character)
+    private static void AddDeploying(GameState state, CharacterState character)
     {
         character.Statuses.RemoveAll(status => status.Id == "deploying");
-        character.Statuses.Add(new DeployingStatus(character.Id, character.PlayerId));
+        character.Statuses.Add(new DeployingStatus(character.Id, character.PlayerId, GetDeployingReadyTurnNumber(state)));
     }
+
+    private static int GetDeployingReadyTurnNumber(GameState state) =>
+        CurrentRoundNumber(state) * 2 + 3;
 
     public IReadOnlyList<CharacterRoleAction> GetRoleActionUpgradeChoices(CharacterState character) =>
         character.IsAlive && character.Definition.CardType == CardType.Hero && character.HeroRank == 0
@@ -1125,6 +1128,7 @@ public sealed class GameEngine
     private void ProcessTurnStart(GameState state)
     {
         var context = new GameEngineContext(this, state);
+        ExpireReadyDeployingStatuses(state);
         if (state.ActivePlayer.SharedShieldDefenseExpireOnTurnStartPlayerId == state.ActivePlayerId)
         {
             state.ActivePlayer.SharedShieldPhysicalDefense = 0;
@@ -1147,6 +1151,16 @@ public sealed class GameEngine
         {
             if (!IsDeploying(character))
                 _traits.Get(character.Definition.TraitId).OnTurnStart(context, character);
+        }
+    }
+
+    private static void ExpireReadyDeployingStatuses(GameState state)
+    {
+        foreach (var character in state.Players.SelectMany(player => player.Characters))
+        {
+            foreach (var status in character.Statuses.OfType<DeployingStatus>().Where(status => !status.Expired).ToArray())
+                status.ExpireIfReady(state.TurnNumber);
+            character.Statuses.RemoveAll(status => status.Expired);
         }
     }
 
@@ -1401,18 +1415,10 @@ public sealed class GameEngine
 
     public void TryOpenRewardWindowForActivePlayer(GameState state)
     {
-        if (state.IsTestMode)
-            return;
-        if (state.Phase != GamePhase.Playing || state.RewardWindow is not null)
+        if (!ShouldOpenRewardWindowForActivePlayer(state))
             return;
 
-        var round = (state.TurnNumber + 1) / 2;
-        if (!IsRewardRound(round))
-            return;
-
-        var key = RewardWindowKey(state.ActivePlayer.Id, round);
-        if (state.ResolvedRewardWindows.Contains(key))
-            return;
+        var round = CurrentRoundNumber(state);
 
         state.RewardWindow = new RewardWindowState
         {
@@ -1425,6 +1431,22 @@ public sealed class GameEngine
             ("player", L10n.Player(state.ActivePlayer.Name)),
             ("round", L10n.Raw(round))), "system");
     }
+
+    private bool ShouldOpenRewardWindowForActivePlayer(GameState state)
+    {
+        if (state.IsTestMode)
+            return false;
+        if (state.Phase != GamePhase.Playing || state.RewardWindow is not null)
+            return false;
+
+        var round = CurrentRoundNumber(state);
+        if (!IsRewardRound(round))
+            return false;
+
+        return !state.ResolvedRewardWindows.Contains(RewardWindowKey(state.ActivePlayer.Id, round));
+    }
+
+    private static int CurrentRoundNumber(GameState state) => (state.TurnNumber + 1) / 2;
 
     public RewardKind SelectReward(GameState state, string instanceId)
     {

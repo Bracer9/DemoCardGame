@@ -37,8 +37,13 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(magicPowerStatus, /StatusEffect\("magic-power", false, sourceCharacterId\)/);
   assert.doesNotMatch(magicPowerStatus, /IsAttackBuff => true/);
   assert.match(magicPowerStatus, /IsDispellable => false/);
-  assert.match(deployingStatus, /remainingOwnerTurnStarts = 1/);
-  assert.match(deployingStatus, /RemainingOwnerTurnStarts--/);
+  assert.match(deployingStatus, /readyOnTurnNumber/);
+  assert.match(deployingStatus, /ReadyOnTurnNumber/);
+  assert.match(deployingStatus, /ExpireIfReady\(int turnNumber\)/);
+  assert.match(engineSource, /new DeployingStatus\(character\.Id, character\.PlayerId, GetDeployingReadyTurnNumber\(state\)\)/);
+  assert.match(engineSource, /private static int GetDeployingReadyTurnNumber\(GameState state\) =>\s*CurrentRoundNumber\(state\) \* 2 \+ 3/);
+  assert.match(engineSource, /ExpireReadyDeployingStatuses\(state\)/);
+  assert.match(engineSource, /state\.Players\.SelectMany\(player => player\.Characters\)/);
   assert.match(engineSource, /ThreadCutMoraleDamagePerMark = 2/);
   assert.match(engineSource, /var count = CountThreadCutMarks\(target\)/);
   assert.match(engineSource, /DealMoraleDamage\(state, target, ThreadCutMoraleDamagePerMark \* count/);
@@ -47,6 +52,9 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(engineSource, /\("counterMoraleDamage", L10n\.Raw\(counterPacket\.MoraleDamage\)\)/);
   assert.match(appSource, /playLayeredDamageFloats\(defender, \{ moraleAmount: attackMoraleDamage, hpAmount: attackDamage/);
   assert.match(appSource, /if \(hp > 0\)\s+window\.setTimeout\(\(\) => damageFloat\(target, hp, type, \{ label: 'HP' \}\), 210\)/);
+  assert.match(appSource, /if \(value > 0\) animateHpOrbLoss\(target, value\);/);
+  assert.match(appSource, /function animateHpOrbLoss\(card, amount\)/);
+  assert.match(appSource, /updatePendingVisualHp\(card, nextHp\)/);
   assert.doesNotMatch(appSource, /force: true, label: 'HP'/);
   assert.equal(appSource.includes("attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`"), true);
   assert.equal(appSource.includes("moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`"), true);

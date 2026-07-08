@@ -533,7 +533,7 @@
     },
     "deploying": {
       "name": "部署中",
-      "timing": "到拥有者下个己方回合开始",
+      "timing": "到双方各过1个正常回合后的下一轮开始",
       "description": "不能主动攻击或使用职业行动；不能被攻击、职业行动、Trait、治疗或Buff指定。"
     },
     "magic-power": {

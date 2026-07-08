@@ -488,7 +488,7 @@ Api/
   AttackPreviewService.cs  攻击预测
 
 Services/
-  GameSession.cs           本地单局 session
+  GameSession.cs           本地内存 session 池
   OnlineGameSession.cs     在线房间与座位/session
 
 wwwroot/
@@ -553,7 +553,7 @@ tests/
 - `POST /api/game/shield`
 - `POST /api/game/end-turn`
 
-本地模式使用 `GameSession`，只有一个全局状态，适合 playtest。
+本地模式使用 `GameSession`，通过前端 `X-Local-Session` header 按浏览器 token 隔离内存状态。不同设备或不同浏览器可各玩各的本地 / AI / 测试模式，不需要数据库；Render 重启或实例休眠后这些本地状态不会持久保留。
 
 ### 7.2 在线 API
 

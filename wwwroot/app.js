@@ -405,6 +405,24 @@ let roleActionDragActive = false;
 let touchDrag = null;
 let suppressTouchClickUntil = 0;
 let sessionMode = null;
+const LOCAL_SESSION_TOKEN_KEY = 'tpf-local-session-token';
+function createLocalSessionToken() {
+  const bytes = new Uint8Array(16);
+  if (window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+function loadLocalSessionToken() {
+  let token = localStorage.getItem(LOCAL_SESSION_TOKEN_KEY);
+  if (!token) {
+    token = createLocalSessionToken();
+    localStorage.setItem(LOCAL_SESSION_TOKEN_KEY, token);
+  }
+  return token;
+}
+let localSessionToken = loadLocalSessionToken();
 let playerToken = localStorage.getItem('tpf-online-player-token') || '';
 let room = null;
 let pollTimer = null;
@@ -420,6 +438,7 @@ let pendingVisualBaselines = null;
 let rewardVisualHold = false;
 let aiAdvancing = false;
 let aiAdvanceTimer = null;
+let turnCurtainLock = false;
 const cardRenderSignatures = new WeakMap();
 const recentSoundEvents = new Map();
 const VOICE_REACTION_DELAY_MS = 760;
@@ -561,7 +580,14 @@ dragGhost.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;heigh
 document.body.appendChild(dragGhost);
 
 const api = async (url, options = {}) => {
-  const headers = { 'Content-Type': 'application/json', ...(playerToken ? { 'X-Player-Token': playerToken } : {}), ...(options.headers || {}) };
+  const isOnlineApi = url.startsWith('/api/online');
+  const isLocalGameApi = url.startsWith('/api/game');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(isOnlineApi && playerToken ? { 'X-Player-Token': playerToken } : {}),
+    ...(isLocalGameApi && localSessionToken ? { 'X-Local-Session': localSessionToken } : {}),
+    ...(options.headers || {})
+  };
   const response = await fetch(url, { ...options, headers });
   const payload = await response.json();
   if (!response.ok) {
@@ -585,6 +611,16 @@ const loadGame = async () => {
   render();
 };
 
+function canUseLocalControls() {
+  return Boolean(game?.canControl && !turnCurtainLock);
+}
+
+function setTurnCurtainLock(locked) {
+  if (turnCurtainLock === locked) return;
+  turnCurtainLock = locked;
+  if (game) render();
+}
+
 function render() {
   if (!game) return;
   const active = game.players.find(player => player.id === game.activePlayerId);
@@ -605,8 +641,9 @@ function render() {
   renderRewardChildBack();
   const activeSharedShield = active?.sharedShield || 0;
   const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && activeSharedShield > 0;
-  const shieldUnavailable = !game.canDeployShield || !game.canControl || dealing || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
-  ui.shieldButton.disabled = false;
+  const localControls = canUseLocalControls();
+  const shieldUnavailable = !game.canDeployShield || !localControls || dealing || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
+  ui.shieldButton.disabled = shieldUnavailable;
   ui.shieldButton.classList.toggle('unavailable', shieldUnavailable);
   ui.shieldButton.setAttribute('aria-disabled', String(shieldUnavailable));
   ui.shieldButton.classList.toggle('deployed', me.sharedShield > 0);
@@ -658,7 +695,7 @@ function render() {
   renderLog();
   updateInstruction();
   renderGameOver();
-  ui.app.classList.toggle('turn-locked', !game.canControl);
+  ui.app.classList.toggle('turn-locked', !localControls);
   ui.app.classList.toggle('role-action-upgrade-pending', Boolean(game.pendingRoleActionUpgrade?.canChoose));
   ui.app.classList.toggle('hero-draft-pending', Boolean(game.heroDraft));
   ui.app.classList.toggle('relic-reward-pending', Boolean(game.pendingRelicReward));
@@ -671,9 +708,9 @@ function render() {
   ui.app.classList.toggle('role-action-targeting', Boolean(pendingRoleAction));
   ui.app.classList.toggle('deputy-targeting', Boolean(pendingDeputy));
   ui.app.classList.toggle('attacker-selected', Boolean(selectedAttacker));
-  ui.endTurn.disabled = !game.canControl || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
+  ui.endTurn.disabled = !localControls || game.phase === 'Finished' || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
   ui.endTurn.classList.toggle('queued', endTurnQueued);
-  ui.endTurn.classList.toggle('ap-empty-ready', game.canControl && game.phase !== 'Finished' && game.actionPoints === 0 && !endTurnQueued);
+  ui.endTurn.classList.toggle('ap-empty-ready', localControls && game.phase !== 'Finished' && game.actionPoints === 0 && !endTurnQueued);
   ui.endTurn.setAttribute('aria-busy', String(endTurnQueued));
   document.querySelector('#new-game').disabled = !game.isHost;
   document.querySelector('#play-again').disabled = !game.isHost;
@@ -1278,14 +1315,15 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
       && String(logArg(entry, 'characterId') || '') === String(card.id));
   const visuallyAlive = visualIsAlive || isPendingDefeatAnimation;
   const isDeploying = (card.statuses || []).some(status => status.id === 'deploying');
-  const hasEnabledRoleAction = isActiveSide && game?.canControl
+  const localControls = canUseLocalControls();
+  const hasEnabledRoleAction = isActiveSide && localControls
     && Array.isArray(card.roleActions) && card.roleActions.some(action => action.enabled);
   const hasAvailableAction = Boolean(card.canAct || hasEnabledRoleAction);
-  const canConsiderAttackCost = isActiveSide && game?.canControl && visuallyAlive && !card.hasActed;
+  const canConsiderAttackCost = isActiveSide && localControls && visuallyAlive && !card.hasActed;
   if (canConsiderAttackCost && card.cost <= game.actionPoints) classes.push('affordable-cost');
   if (canConsiderAttackCost && card.cost > game.actionPoints) classes.push('unaffordable-cost');
-  if (isActiveSide && game?.canControl && visuallyAlive && card.hasActed) classes.push('attack-spent');
-  if (card.canAct && !isPendingDefeatAnimation) classes.push('can-act');
+  if (isActiveSide && localControls && visuallyAlive && card.hasActed) classes.push('attack-spent');
+  if (localControls && card.canAct && !isPendingDefeatAnimation) classes.push('can-act');
   if (isActiveSide && Array.isArray(card.roleActions) && card.roleActions.length && visuallyAlive)
     classes.push('role-action-owner');
   if (card.deputy) classes.push('has-deputy');
@@ -1296,7 +1334,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
   if (pendingDeputy && isActiveSide && visuallyAlive && !isDeploying && card.cardType === 'Hero' && !card.deputy)
     classes.push('deputy-target', 'role-action-target');
   if (isLowHpForSelect({ ...card, currentHp: visualCurrentHp })) classes.push('low-hp');
-  if (isActiveSide && game?.canControl && visuallyAlive && !hasAvailableAction) classes.push('acted');
+  if (isActiveSide && localControls && visuallyAlive && !hasAvailableAction) classes.push('acted');
   if (isDeploying) classes.push('deploying');
   const soldierUpgradePreviewKey = selectedRecruitSoldierUpgradeKey();
   if ((soldierUpgradeKey || soldierUpgradePreviewKey) && isActiveSide && visuallyAlive && card.cardType === 'Soldier' && card.key === (soldierUpgradeKey || soldierUpgradePreviewKey) && Number(card.soldierRank || 0) < 2) {
@@ -1343,7 +1381,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
     && isActiveSide && visualIsDraftCandidate && inspectedCardId === card.id
     ? `<button class="hero-draft-confirm-card" type="button" data-hero-key="${escapeHtml(card.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>`
     : '';
-  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}--morale-ratio:${moraleRatio.toFixed(3)};" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-hero-rank="${Number(card.heroRank || 0)}" data-hero-path-role-action-id="${escapeHtml(card.heroPathRoleActionId || '')}" data-morale="${morale}" data-max-morale="${maxMorale}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${card.canAct}">
+  return `<article class="${classes.join(' ')}" style="${cardPoseStyle(isActiveSide, index, count)}--morale-ratio:${moraleRatio.toFixed(3)};" data-id="${card.id}" data-key="${card.key}" data-card-type="${escapeHtml(card.cardType || '')}" data-soldier-rank="${Number(card.soldierRank || 0)}" data-hero-rank="${Number(card.heroRank || 0)}" data-hero-path-role-action-id="${escapeHtml(card.heroPathRoleActionId || '')}" data-current-hp="${visualCurrentHp}" data-max-hp="${Number(card.maxHp || 0)}" data-morale="${morale}" data-max-morale="${maxMorale}" data-side="${isActiveSide ? 'active' : 'opponent'}" data-zone="${escapeHtml(card.zone || (card.isInBattle ? 'Battlefield' : 'Defeated'))}" draggable="${localControls && card.canAct}">
     ${deputyStack}
     <div class="card-front">
       ${draftConfirm}
@@ -1631,7 +1669,7 @@ function showCharacterInspector(element) {
         const localized = i18n.roleAction(action.id);
         const summary = roleActionSummary(localized.description);
         const disabledText = action.disabledReason ? i18n.message(action.disabledReason) : '';
-        const disabled = !isUpgradeChoiceMode && !action.enabled;
+        const disabled = !isUpgradeChoiceMode && (!canUseLocalControls() || !action.enabled);
         const cooldownRemaining = Number(action.cooldownRemaining || 0);
         const cooldownTurns = Number(action.cooldownTurns || 0);
         const costLabel = cooldownRemaining > 0 ? `CD ${cooldownRemaining}` : `${action.cost} AP`;
@@ -2288,14 +2326,14 @@ async function executeAttack() {
 }
 
 async function endTurn() {
-  if (!game?.canControl || game.phase === 'Finished' || endTurnQueued) return;
+  if (!canUseLocalControls() || game.phase === 'Finished' || endTurnQueued) return;
   sound.emit('ui.turn-end');
   endTurnQueued = true;
   ui.endTurn.classList.add('queued');
   ui.endTurn.classList.remove('ap-empty-ready');
   ui.endTurn.setAttribute('aria-busy', 'true');
   while (busy) await wait(40);
-  if (!game?.canControl || game.phase === 'Finished') {
+  if (!canUseLocalControls() || game.phase === 'Finished') {
     endTurnQueued = false;
     ui.endTurn.classList.remove('queued');
     ui.endTurn.setAttribute('aria-busy', 'false');
@@ -2308,10 +2346,8 @@ async function endTurn() {
     const bpRecoveryAmount = Math.max(0, Number(endingPlayer?.battlePoints?.gainedThisTurn || 0));
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
     await animateBpRecoveryToHp(bpRecoveryAmount);
-    sound.emit('turn.change');
     game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
-    ui.curtainPlayer.textContent = i18n.playerName(game.activePlayerName); ui.curtain.classList.remove('play'); void ui.curtain.offsetWidth; ui.curtain.classList.add('play');
-    await wait(620); render(); await wait(430); ui.curtain.classList.remove('play');
+    await playTurnCurtain(game.activePlayerName, true);
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally {
@@ -2324,7 +2360,7 @@ async function endTurn() {
 }
 
 async function deployShield() {
-  if (busy || !game?.canControl || !game?.canDeployShield) return;
+  if (busy || !canUseLocalControls() || !game?.canDeployShield) return;
   sound.emit('ui.shield-command');
   busy = true;
   ui.shieldButton.disabled = true;
@@ -2687,7 +2723,7 @@ async function selectRoleActionUpgrade(characterId, roleActionId) {
 }
 
 async function useRoleAction(characterId, roleActionId, targetCharacterId = null) {
-  if (busy || !game?.canControl) return;
+  if (busy || !canUseLocalControls()) return;
   sound.emit('ui.confirm');
   busy = true;
   pendingRoleAction = null;
@@ -2772,6 +2808,8 @@ async function advanceAiTurn() {
     selectedDefender = null;
     inspectedCardId = null;
     closePreview();
+    if (oldActivePlayerId && oldActivePlayerId !== game.activePlayerId)
+      turnCurtainLock = true;
     render();
     await playNewLogEvents(game);
     if (oldActivePlayerId && oldActivePlayerId !== game.activePlayerId)
@@ -2869,14 +2907,22 @@ function closeDealLayer() {
 }
 
 async function playTurnCurtain(playerName = game?.activePlayerName, emitSound = true) {
-  if (!playerName) return;
-  if (emitSound) sound.emit('turn.change');
-  ui.curtainPlayer.textContent = i18n.playerName(playerName);
-  ui.curtain.classList.remove('play');
-  void ui.curtain.offsetWidth;
-  ui.curtain.classList.add('play');
-  await wait(1000);
-  ui.curtain.classList.remove('play');
+  if (!playerName) {
+    setTurnCurtainLock(false);
+    return;
+  }
+  setTurnCurtainLock(true);
+  try {
+    if (emitSound) sound.emit('turn.change');
+    ui.curtainPlayer.textContent = i18n.playerName(playerName);
+    ui.curtain.classList.remove('play');
+    void ui.curtain.offsetWidth;
+    ui.curtain.classList.add('play');
+    await wait(1000);
+    ui.curtain.classList.remove('play');
+  } finally {
+    setTurnCurtainLock(false);
+  }
 }
 
 async function playDealSequence(alreadyOpen = false) {
@@ -3163,7 +3209,10 @@ async function playExchangeEvent(entry, state, options = {}) {
   if (attackDamage === 0 && attackMoraleDamage === 0 && attackShieldAbsorbed === 0) sound.emit('combat.no-damage');
   if (counterDamage === 0 && counterMoraleDamage === 0 && counterShieldAbsorbed === 0) emitSoundThrottled('combat.no-damage', 180);
   const combatLink = showCombatLink(attacker, defender);
-  launchFx(attacker, defender, attackType); launchFx(defender, attacker, counterType);
+  const attackHadImpact = attackDamage > 0 || attackMoraleDamage > 0 || attackShieldAbsorbed > 0;
+  const counterHadImpact = counterDamage > 0 || counterMoraleDamage > 0 || counterShieldAbsorbed > 0;
+  if (attackHadImpact) launchFx(attacker, defender, attackType);
+  if (counterHadImpact) launchFx(defender, attacker, counterType);
   await wait(180);
   if (attackType === 'Magical' && attackDamage > 0 && attackShieldAbsorbed === 0) sound.emit('combat.magic-impact');
   if (counterType === 'Magical' && counterDamage > 0 && counterShieldAbsorbed === 0) sound.emit('combat.magic-counter');
@@ -3430,6 +3479,7 @@ function showCombatLink(attacker, defender) {
   const arcLift = Math.min(230, Math.max(80, distance * 0.22));
   const controlX = from.x + dx * 0.5;
   const controlY = from.y + dy * 0.5 - arcLift;
+  const headAngle = Math.atan2(to.y - controlY, to.x - controlX) * 180 / Math.PI;
   const path = `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${controlX.toFixed(1)} ${controlY.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
   const gradientId = `combat-arc-gradient-${Date.now().toString(36)}-${Math.floor(Math.random() * 10000)}`;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -3444,10 +3494,11 @@ function showCombatLink(attacker, defender) {
         <stop offset="100%" stop-color="var(--combat-arc-hot)" stop-opacity="1"></stop>
       </linearGradient>
     </defs>
-    <path class="combat-link-glow" d="${path}"/>
-    <path class="combat-link-core" d="${path}" stroke="url(#${gradientId})"/>
+    <path class="combat-link-glow" d="${path}" pathLength="1"/>
+    <path class="combat-link-core" d="${path}" pathLength="1" stroke="url(#${gradientId})"/>
     <circle class="combat-link-source" cx="${from.x}" cy="${from.y}" r="7"/>
-    <g class="combat-link-head" transform="translate(${to.x} ${to.y})">
+    <g class="combat-link-head" transform="translate(${to.x} ${to.y}) rotate(${headAngle.toFixed(1)})">
+      <path class="combat-head-chevron" d="M -18 -9 L 2 0 L -18 9"></path>
       <circle class="combat-head-aura" r="20"></circle>
       <circle class="combat-head-ring" r="11"></circle>
       <circle class="combat-head-core" r="5"></circle>
@@ -3478,6 +3529,7 @@ function damageFloat(target, amount, type, options = {}) {
   const value = Math.max(0, Number(amount || 0));
   if (!options.force && value <= 0) return;
   if (value > 0) emitSoundThrottled('combat.hp-loss', 90);
+  if (value > 0) animateHpOrbLoss(target, value);
   const p = center(target), el = document.createElement('b');
   const tone = type === 'Magical' ? 'magic' : type === 'Absolute' ? 'absolute' : 'physical';
   el.className = `damage-float ${tone}${value <= 0 ? ' zero' : ''}`;
@@ -3486,6 +3538,55 @@ function damageFloat(target, amount, type, options = {}) {
   el.style.top = `${p.y}px`;
   ui.fx.appendChild(el);
   setTimeout(() => el.remove(), 850);
+}
+
+function updatePendingVisualHp(card, currentHp) {
+  const id = card?.dataset?.id;
+  const baseline = id && pendingVisualBaselines?.get(String(id));
+  if (baseline) baseline.currentHp = currentHp;
+}
+
+function animateHpOrbLoss(card, amount) {
+  if (!card) return;
+  const orb = card.querySelector('.stat-orb.hp');
+  const value = Math.max(0, Number(amount || 0));
+  const maxHp = Math.max(0, Number(card.dataset.maxHp || 0));
+  const currentHp = Math.max(0, Number(card.dataset.currentHp || 0));
+  if (!orb || !maxHp || !value) return;
+  const nextHp = Math.max(0, currentHp - value);
+  if (nextHp >= currentHp) return;
+  const strong = orb.querySelector('strong');
+  const from = Math.max(0, Math.min(1, currentHp / maxHp));
+  const to = Math.max(0, Math.min(1, nextHp / maxHp));
+  const durationMs = 340;
+  const startedAt = performance.now();
+  card.dataset.currentHp = String(nextHp);
+  updatePendingVisualHp(card, nextHp);
+  orb.classList.toggle('hp-empty', nextHp <= 0);
+  orb.classList.remove('hp-damaged', 'hp-syncing');
+  void orb.offsetWidth;
+  orb.classList.add('hp-damaged', 'hp-syncing');
+  if (strong) {
+    strong.classList.toggle('hp-over', nextHp > maxHp);
+    strong.innerHTML = `${nextHp}<small>/${maxHp}</small>`;
+    strong.classList.remove('hp-changing');
+    void strong.offsetWidth;
+    strong.classList.add('hp-changing');
+  }
+  const step = now => {
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    orb.style.setProperty('--hp-ratio', (from + (to - from) * eased).toFixed(3));
+    if (progress < 1) requestAnimationFrame(step);
+    else {
+      orb.style.setProperty('--hp-ratio', to.toFixed(3));
+      window.setTimeout(() => {
+        orb.classList.remove('hp-damaged', 'hp-syncing');
+        strong?.classList.remove('hp-changing');
+      }, 170);
+    }
+  };
+  requestAnimationFrame(step);
 }
 
 function moraleFloat(target, amount) {
@@ -3963,6 +4064,8 @@ async function pollOnlineState() {
       lastApSnapshot = null;
       lastBpGainSnapshot = null;
     }
+    if (oldActive && oldActive !== game.activePlayerId)
+      turnCurtainLock = true;
     selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; closePreview(); render();
     if (isNewGame) {
       resetEventCursor(game);
