@@ -6,6 +6,7 @@ const statusSource = fs.readFileSync('Domain/StatusEffects.cs', 'utf8');
 const traitSource = fs.readFileSync('Domain/Traits.cs', 'utf8');
 const engineSource = fs.readFileSync('Domain/GameEngine.cs', 'utf8');
 const previewSource = fs.readFileSync('Api/AttackPreviewService.cs', 'utf8');
+const appSource = fs.readFileSync('wwwroot/app.js', 'utf8');
 const assetManifest = JSON.parse(fs.readFileSync('wwwroot/config/ui-assets.json', 'utf8'));
 
 function classBody(source, className) {
@@ -42,6 +43,12 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(engineSource, /var count = CountThreadCutMarks\(target\)/);
   assert.match(engineSource, /DealMoraleDamage\(state, target, ThreadCutMoraleDamagePerMark \* count/);
   assert.doesNotMatch(engineSource, /Math\.Clamp\(CountThreadCutMarks/);
+  assert.match(engineSource, /\("attackMoraleDamage", L10n\.Raw\(attackPacket\.MoraleDamage\)\)/);
+  assert.match(engineSource, /\("counterMoraleDamage", L10n\.Raw\(counterPacket\.MoraleDamage\)\)/);
+  assert.match(appSource, /playLayeredDamageFloats\(defender, \{ moraleAmount: attackMoraleDamage, hpAmount: attackDamage/);
+  assert.match(appSource, /window\.setTimeout\(\(\) => damageFloat\(target, hp, type, \{ force: true, label: 'HP' \}\), 210\)/);
+  assert.equal(appSource.includes("attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`"), true);
+  assert.equal(appSource.includes("moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`"), true);
   assert.match(harvestStatus, /IsAttackBuff => true/);
   assert.doesNotMatch(harvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsDispellable => false/);

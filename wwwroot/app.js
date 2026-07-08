@@ -68,14 +68,35 @@ function stageRect(element) {
 
 const touchModeQuery = window.matchMedia?.('(pointer: coarse)');
 
+function isMacDevice() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  return (/mac/i.test(platform) || /Macintosh/i.test(userAgent)) && Number(navigator.maxTouchPoints || 0) <= 1;
+}
+
+function isIosDevice() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  const maxTouchPoints = Number(navigator.maxTouchPoints || 0);
+  return /iPad|iPhone|iPod/i.test(platform)
+    || /iPad|iPhone|iPod/i.test(userAgent)
+    || (/Macintosh/i.test(userAgent) && maxTouchPoints > 1);
+}
+
 function isTouchMode() {
   return Boolean(touchModeQuery?.matches);
+}
+
+function syncDeviceFxMode() {
+  document.body.classList.toggle('mac-low-motion', isMacDevice());
+  document.body.classList.toggle('ios-low-motion', isIosDevice());
 }
 
 function syncTouchMode() {
   document.body.classList.toggle('touch-mode', isTouchMode());
 }
 
+syncDeviceFxMode();
 syncTouchMode();
 touchModeQuery?.addEventListener?.('change', syncTouchMode);
 
@@ -398,6 +419,7 @@ let pendingVisualBaselines = null;
 let rewardVisualHold = false;
 let aiAdvancing = false;
 let aiAdvanceTimer = null;
+const cardRenderSignatures = new WeakMap();
 const recentSoundEvents = new Map();
 const VOICE_REACTION_DELAY_MS = 760;
 const ORDINARY_HIT_VOICE_REACTION_DELAY_MS = 980;
@@ -626,8 +648,8 @@ function render() {
   const opponentCharacters = visibleBattleCharacters(opponent, pendingDefeatIds);
   ui.activeCards.dataset.count = String(activeCharacters.length);
   ui.opponentCards.dataset.count = String(opponentCharacters.length);
-  ui.activeCards.innerHTML = renderCardRow(activeCharacters, true);
-  ui.opponentCards.innerHTML = renderCardRow(opponentCharacters, false);
+  renderBattleCardRow(ui.activeCards, activeCharacters, true);
+  renderBattleCardRow(ui.opponentCards, opponentCharacters, false);
   renderPersistentShield(ui.activeShieldDome, ui.activeCards, me, hasPendingShieldBreakForPlayer(game, me));
   renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent, hasPendingShieldBreakForPlayer(game, opponent));
   bindCards();
@@ -653,6 +675,7 @@ function render() {
   document.querySelector('#new-game').disabled = !game.isHost;
   document.querySelector('#play-again').disabled = !game.isHost;
   art.hydrate(document);
+  syncCombatInteractionUi({ syncInspector: false });
   syncSelectedInspector();
   scheduleAiAdvance();
 }
@@ -1032,8 +1055,96 @@ function visibleBattleCharacters(player, pendingDefeatIds = new Set()) {
     || pendingDefeatIds.has(character.id));
 }
 
-function renderCardRow(characters, isActiveSide) {
-  return characters.map((character, index) => cardMarkup(character, isActiveSide, index, characters.length)).join('');
+function renderCardRow(characters, isActiveSide, options = {}) {
+  return characters.map((character, index) => cardMarkup(character, isActiveSide, index, characters.length, options)).join('');
+}
+
+function renderBattleCardRow(container, characters, isActiveSide) {
+  if (!container) return;
+  const canReuseCards = !(game?.heroDraft?.kind === 'Opening' || game?.heroDraft?.kind === 'TestOpening');
+  if (!canReuseCards) {
+    container.innerHTML = renderCardRow(characters, isActiveSide);
+    return;
+  }
+
+  const existingById = new Map(
+    [...container.querySelectorAll(':scope > .fighter-card[data-id]')]
+      .map(element => [String(element.dataset.id), element])
+  );
+  const nextElements = characters.map((character, index) => {
+    const markup = cardMarkup(character, isActiveSide, index, characters.length, { includeInteractionState: false });
+    const existing = existingById.get(String(character.id));
+    const template = document.createElement('template');
+    template.innerHTML = markup.trim();
+    const element = template.content.firstElementChild;
+    if (existing) {
+      if (cardRenderSignatures.get(existing) !== markup) {
+        morphElement(existing, element);
+        cardRenderSignatures.set(existing, markup);
+      }
+      return existing;
+    }
+    cardRenderSignatures.set(element, markup);
+    return element;
+  });
+  const nextSet = new Set(nextElements);
+  nextElements.forEach((element, index) => {
+    const current = container.children[index];
+    if (current === element) return;
+    container.insertBefore(element, current || null);
+  });
+  [...container.children].forEach(child => {
+    if (!nextSet.has(child)) child.remove();
+  });
+}
+
+function morphElement(target, source) {
+  if (!(target instanceof Element) || !(source instanceof Element) || target.tagName !== source.tagName) {
+    target.replaceWith(source);
+    return source;
+  }
+  syncElementAttributes(target, source);
+  const targetChildren = [...target.childNodes];
+  const sourceChildren = [...source.childNodes];
+  const max = Math.max(targetChildren.length, sourceChildren.length);
+  for (let index = 0; index < max; index++) {
+    const current = targetChildren[index];
+    const next = sourceChildren[index];
+    if (!next) {
+      current?.remove();
+      continue;
+    }
+    if (!current) {
+      target.appendChild(next.cloneNode(true));
+      continue;
+    }
+    if (current.nodeType === Node.TEXT_NODE && next.nodeType === Node.TEXT_NODE) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      continue;
+    }
+    if (current.nodeType !== next.nodeType) {
+      current.replaceWith(next.cloneNode(true));
+      continue;
+    }
+    if (current instanceof Element && next instanceof Element && current.tagName === next.tagName) {
+      morphElement(current, next);
+      continue;
+    }
+    current.replaceWith(next.cloneNode(true));
+  }
+  return target;
+}
+
+function syncElementAttributes(target, source) {
+  const preserved = new Set(['data-card-bound']);
+  [...target.attributes].forEach(attribute => {
+    if (preserved.has(attribute.name)) return;
+    if (!source.hasAttribute(attribute.name)) target.removeAttribute(attribute.name);
+  });
+  [...source.attributes].forEach(attribute => {
+    if (target.getAttribute(attribute.name) !== attribute.value)
+      target.setAttribute(attribute.name, attribute.value);
+  });
 }
 
 function defenseMarkup(value, tagName = 'strong') {
@@ -1085,10 +1196,12 @@ function primaryTrait(card) {
   return Array.isArray(card?.traits) && card.traits.length > 0 ? card.traits[0] : null;
 }
 
-function cardMarkup(card, isActiveSide, index = 0, count = 1) {
+function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
+  const includeInteractionState = options.includeInteractionState !== false;
   const classes = ['fighter-card'];
   const visualBaseline = hasUnplayedLogEvents(game) ? pendingVisualBaselines?.get(String(card.id)) : null;
   const visualCurrentHp = Number(visualBaseline?.currentHp ?? card.currentHp);
+  const visualMorale = Number(visualBaseline?.morale ?? card.morale);
   const visualIsAlive = Boolean(visualBaseline?.isAlive ?? card.isAlive);
   const visualIsInBattle = Boolean(visualBaseline?.isInBattle ?? card.isInBattle);
   const visualIsDraftCandidate = card.zone === 'DraftCandidate';
@@ -1126,13 +1239,13 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   }
   if (!visuallyAlive) classes.push('defeated');
   if (visualIsDraftCandidate) classes.push('draft-candidate');
-  if (visualIsDraftCandidate && inspectedCardId === card.id) classes.push('draft-inspected', 'selected');
+  if (includeInteractionState && visualIsDraftCandidate && inspectedCardId === card.id) classes.push('draft-inspected', 'selected');
   if (!visualIsInBattle && !visualIsDraftCandidate && !isPendingDefeatAnimation) classes.push('leaving-battle');
   if (isPendingDefeatAnimation) classes.push('pending-defeat');
   classes.push('full-art-card');
   if (dealing) classes.push('deal-hidden');
-  if (card.id === selectedAttacker) classes.push('selected');
-  if (card.id === selectedDefender) classes.push('target-selected');
+  if (includeInteractionState && card.id === selectedAttacker) classes.push('selected');
+  if (includeInteractionState && card.id === selectedDefender) classes.push('target-selected');
   const translatedStatuses = card.statuses.map(status => i18n.status(status));
   const visibleStatuses = translatedStatuses.filter(status => !isAuraDisplayStatus(status));
   const statuses = visibleStatuses.map(status => `<span class="status-chip ${status.isBuff ? '' : 'debuff'}" title="${escapeHtml(status.description)}">${art.icon(art.forStatus(status.id), { size: 'xs', label: status.name })}<span>${escapeHtml(status.name)}</span></span>`).join('');
@@ -1143,7 +1256,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
   const over = visualCurrentHp > card.maxHp ? 'hp-over' : '';
   const hpRatio = card.maxHp > 0 ? Math.max(0, Math.min(1, visualCurrentHp / card.maxHp)) : 0;
   const hpEmpty = visualCurrentHp <= 0 ? ' hp-empty' : '';
-  const morale = Math.max(0, Number(card.morale ?? 0));
+  const morale = Math.max(0, visualMorale);
   const maxMorale = Math.max(0, Number(card.maxMorale ?? 0));
   const moraleRatio = maxMorale > 0 ? Math.max(0, Math.min(1, morale / maxMorale)) : 0;
   const moraleTone = moraleRatio <= .25 ? 'low' : moraleRatio >= .72 ? 'high' : 'mid';
@@ -1160,7 +1273,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1) {
         <span>${escapeHtml(i18n.characterName(card.deputy.soldierKey))}</span>
       </div>`
     : '';
-  const draftConfirm = (game?.heroDraft?.kind === 'Opening' || game?.heroDraft?.kind === 'TestOpening') && game.heroDraft.canChoose
+  const draftConfirm = includeInteractionState && (game?.heroDraft?.kind === 'Opening' || game?.heroDraft?.kind === 'TestOpening') && game.heroDraft.canChoose
     && isActiveSide && visualIsDraftCandidate && inspectedCardId === card.id
     ? `<button class="hero-draft-confirm-card" type="button" data-hero-key="${escapeHtml(card.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>`
     : '';
@@ -1198,6 +1311,8 @@ function cardPoseStyle(isActiveSide, index, count) {
 
 function bindCards() {
   document.querySelectorAll('.fighter-card').forEach(card => {
+    if (card.dataset.cardBound === 'true') return;
+    card.dataset.cardBound = 'true';
     card.querySelector('.hero-draft-confirm-card')?.addEventListener('click', event => {
       event.stopPropagation();
       selectHeroDraft(card.dataset.key, { animateOpening: true });
@@ -1600,6 +1715,42 @@ function hideRoleActionInspector() {
   ui.roleActionInspector.setAttribute('aria-hidden', 'true');
 }
 
+function syncCombatInteractionUi({ syncInspector = true } = {}) {
+  document.querySelectorAll('.fighter-card[data-id]').forEach(card => {
+    const id = card.dataset.id;
+    const cardData = findCard(id);
+    const visuallyTargetable = !card.classList.contains('defeated') && !card.classList.contains('deploying');
+    const isDraftCandidate = card.dataset.zone === 'DraftCandidate' || card.classList.contains('draft-candidate');
+    const soldierUpgradeTarget = Boolean(soldierUpgradeKey)
+      && card.dataset.side === 'active'
+      && card.dataset.cardType === 'Soldier'
+      && cardData?.key === soldierUpgradeKey
+      && Number(card.dataset.soldierRank || 0) < 2
+      && visuallyTargetable;
+    const deputyTarget = Boolean(pendingDeputy)
+      && card.dataset.side === 'active'
+      && card.dataset.cardType === 'Hero'
+      && !cardData?.deputy
+      && visuallyTargetable;
+    const roleActionTarget = Boolean(pendingRoleAction)
+      && card.dataset.side === 'active'
+      && visuallyTargetable;
+
+    card.classList.toggle('selected', id === selectedAttacker || (isDraftCandidate && id === inspectedCardId));
+    card.classList.toggle('target-selected', id === selectedDefender);
+    card.classList.toggle('draft-inspected', isDraftCandidate && id === inspectedCardId);
+    card.classList.toggle('deputy-target', deputyTarget);
+    card.classList.toggle('soldier-upgrade-target', soldierUpgradeTarget);
+    card.classList.toggle('role-action-target', roleActionTarget || deputyTarget || soldierUpgradeTarget);
+  });
+  ui.app.classList.toggle('attacker-selected', Boolean(selectedAttacker));
+  ui.app.classList.toggle('role-action-targeting', Boolean(pendingRoleAction));
+  ui.app.classList.toggle('deputy-targeting', Boolean(pendingDeputy));
+  ui.app.classList.toggle('soldier-upgrade-targeting', Boolean(soldierUpgradeKey));
+  updateInstruction();
+  if (syncInspector) syncSelectedInspector();
+}
+
 function syncSelectedInspector() {
   if (!inspectedCardId || dealing || ui.preview.classList.contains('open')) {
     hideCharacterInspector();
@@ -1802,7 +1953,7 @@ function roleActionTargetInstructionKey(targetKinds = []) {
   return 'roleActionSelectTarget';
 }
 
-function cancelAiming({ rerender = true } = {}) {
+function cancelAiming({ rerender = false } = {}) {
   const hadAiming = Boolean(selectedAttacker || pendingRoleAction || pendingDeputy || inspectedCardId || ui.preview.classList.contains('open'));
   selectedAttacker = null;
   selectedDefender = null;
@@ -1813,6 +1964,7 @@ function cancelAiming({ rerender = true } = {}) {
   hideAttackArrow();
   hideCharacterInspector();
   if (hadAiming && rerender) render();
+  else if (hadAiming) syncCombatInteractionUi({ syncInspector: false });
 }
 
 function beginRoleActionTargeting(characterId, roleActionId, targetKinds, { renderFirst = true, startArrow = true } = {}) {
@@ -1823,7 +1975,7 @@ function beginRoleActionTargeting(characterId, roleActionId, targetKinds, { rend
   inspectedCardId = null;
   closePreview();
   hideCharacterInspector();
-  if (renderFirst) render();
+  if (renderFirst) syncCombatInteractionUi({ syncInspector: false });
   if (startArrow) {
     const caster = characterElementById(characterId);
     if (caster) startAttackArrow(caster, 'role-action');
@@ -1841,7 +1993,7 @@ function beginDeputyTargeting(soldierId) {
   hideAttackArrow();
   hideCharacterInspector();
   sound.emit('ui.card-select');
-  render();
+  syncCombatInteractionUi({ syncInspector: false });
   showToast(i18n.t('deputySelectHero'));
 }
 
@@ -1933,7 +2085,8 @@ function inspectPassiveCard(id) {
     sound.emit('ui.card-select');
     if (card?.zone === 'DraftCandidate') emitSelectVoice(card);
   }
-  render();
+  if (card?.zone === 'DraftCandidate') render();
+  else syncCombatInteractionUi();
 }
 
 function onCardClick(element) {
@@ -1942,7 +2095,7 @@ function onCardClick(element) {
   if (pendingDeputy) {
     if (!canAssignDeputyToCard(element)) {
       pendingDeputy = null;
-      render();
+      syncCombatInteractionUi({ syncInspector: false });
       return;
     }
     assignDeputy(pendingDeputy.soldierId, id);
@@ -1997,7 +2150,7 @@ function onCardClick(element) {
       sound.emit('ui.card-select');
       emitSelectVoice(element);
     }
-    render(); return;
+    syncCombatInteractionUi(); return;
   }
   if (element.classList.contains('defeated') || element.classList.contains('deploying')) return;
   if (!selectedAttacker) { suppressOpponentHoverInspector(element); return; }
@@ -2011,10 +2164,15 @@ async function chooseDefender(id) {
     const payload = await gameApi(`/game/preview?attackerId=${selectedAttacker}&defenderId=${id}`);
     preview = payload.data;
     if (!preview.isValid) throw new Error(i18n.message(preview.error));
-    render();
+    syncCombatInteractionUi({ syncInspector: false });
     renderPreview();
     emitAttackPreviewVoice(findCard(selectedAttacker), findCard(selectedDefender), preview);
-  } catch (error) { sound.emit('ui.invalid-action'); showToast(error.message); }
+  } catch (error) {
+    selectedDefender = null;
+    syncCombatInteractionUi();
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+  }
 }
 
 function renderPreview() {
@@ -2798,6 +2956,7 @@ function captureCharacterVisualBaselines(state = game) {
   for (const character of state.players.flatMap(player => player.characters)) {
     baselines.set(String(character.id), {
       currentHp: character.currentHp,
+      morale: character.morale,
       isAlive: character.isAlive,
       isInBattle: character.isInBattle
     });
@@ -2913,6 +3072,8 @@ async function playExchangeEvent(entry, state, options = {}) {
   const counterType = logArg(entry, 'counterType') || 'Physical';
   const attackDamage = Number(logArg(entry, 'attackDamage') || 0);
   const counterDamage = Number(logArg(entry, 'counterDamage') || 0);
+  const attackMoraleDamage = Number(logArg(entry, 'attackMoraleDamage') || 0);
+  const counterMoraleDamage = Number(logArg(entry, 'counterMoraleDamage') || 0);
   const attackShieldAbsorbed = Number(logArg(entry, 'attackShieldAbsorbed') || 0);
   const counterShieldAbsorbed = Number(logArg(entry, 'counterShieldAbsorbed') || 0);
   const guardRedirects = options.guardRedirects || [];
@@ -2928,8 +3089,8 @@ async function playExchangeEvent(entry, state, options = {}) {
   if (attackType === 'Magical') sound.emit('combat.magic-active');
   if (attackType === 'Physical' && attackDamage > 0 && attackShieldAbsorbed === 0) sound.emit('combat.physical-hit');
   if (counterType === 'Physical' && counterDamage > 0 && counterShieldAbsorbed === 0) sound.emit('combat.physical-hit');
-  if (attackDamage === 0 && attackShieldAbsorbed === 0) sound.emit('combat.no-damage');
-  if (counterDamage === 0 && counterShieldAbsorbed === 0) emitSoundThrottled('combat.no-damage', 180);
+  if (attackDamage === 0 && attackMoraleDamage === 0 && attackShieldAbsorbed === 0) sound.emit('combat.no-damage');
+  if (counterDamage === 0 && counterMoraleDamage === 0 && counterShieldAbsorbed === 0) emitSoundThrottled('combat.no-damage', 180);
   const combatLink = showCombatLink(attacker, defender);
   launchFx(attacker, defender, attackType); launchFx(defender, attacker, counterType);
   await wait(180);
@@ -2939,15 +3100,17 @@ async function playExchangeEvent(entry, state, options = {}) {
     await playGuardRedirectEvent(guardEntry, state, { emitVoice: false });
   }
   await Promise.all([
-    eventBurst(defender, art.forDamageType(attackType), { title: attackType === 'Magical' ? i18n.t('eventMagical') : i18n.t('eventPhysical'), amount: `-${attackDamage}`, tone: attackType === 'Magical' ? 'magic' : 'physical' }),
-    eventBurst(attacker, eventIcon.counter, { title: i18n.t('eventCounter'), secondaryIconId: art.forDamageType(counterType), amount: `-${counterDamage}`, tone: 'counter' })
+    eventBurst(defender, art.forDamageType(attackType), { title: attackType === 'Magical' ? i18n.t('eventMagical') : i18n.t('eventPhysical'), amount: attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`, tone: attackType === 'Magical' ? 'magic' : 'physical' }),
+    eventBurst(attacker, eventIcon.counter, { title: i18n.t('eventCounter'), secondaryIconId: art.forDamageType(counterType), amount: counterMoraleDamage > 0 || counterDamage <= 0 ? null : `-${counterDamage}`, tone: 'counter' })
   ]);
   defender.classList.add(attackType === 'Magical' ? 'impact-magic' : 'impact-physical');
   attacker.classList.add(counterType === 'Magical' ? 'impact-magic' : 'impact-physical');
   setTimeout(() => defender.classList.remove('impact-magic', 'impact-physical'), 520);
   setTimeout(() => attacker.classList.remove('impact-magic', 'impact-physical'), 520);
-  if (attackDamage > 0) damageFloat(defender, attackDamage, attackType);
-  if (counterDamage > 0) damageFloat(attacker, counterDamage, counterType);
+  await Promise.all([
+    playLayeredDamageFloats(defender, { moraleAmount: attackMoraleDamage, hpAmount: attackDamage, type: attackType }),
+    playLayeredDamageFloats(attacker, { moraleAmount: counterMoraleDamage, hpAmount: counterDamage, type: counterType })
+  ]);
   await wait(470);
   if (combatLink) {
     combatLink.classList.add('leaving');
@@ -3032,15 +3195,24 @@ async function playLogEntry(entry, state) {
         await eventBurst(target, eventIcon.status, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'status' });
       else
         await eventBurst(characterElementFromLog(state, entry, 'source'), eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, tone: 'trait' });
-      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: `-${totalAmount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'trait' });
-      if (target && hpAmount > 0) damageFloat(target, hpAmount, type);
+      await eventBurst(target, art.forDamageType(type), { title: i18n.damageType(type), amount: moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`, tone: type === 'Magical' ? 'magic' : type === 'Physical' ? 'physical' : 'trait' });
+      if (target) await playLayeredDamageFloats(target, { moraleAmount, hpAmount, type });
       emitDamageTakenVoice(characterData || characterKey, hpAmount, state, { source: effect?.kind === 'status' ? 'status' : effect?.kind === 'roleAction' ? 'role-action' : 'trait', damageType: type, traitId: effect?.kind === 'trait' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
+      await wait(340); break;
+    }
+    case 'log.moraleDamage': {
+      if (effect?.kind === 'roleAction') sound.emit('combat.trait-damage');
+      await eventBurst(target, effectIcon || eventIcon.status, { title: effectLabel(effect), secondaryIconId: effectIcon ? eventIcon.status : null, tone: 'status' });
+      if (target) {
+        animateMoraleRingLoss(target, amount);
+        moraleFloat(target, amount);
+      }
       await wait(340); break;
     }
     case 'log.collateralDamage':
       if (effect?.value === 'guard') sound.emit('trait.guard-collateral');
       else if (amount > 0) sound.emit('combat.physical-hit');
-      await eventBurst(target, eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: `-${amount}`, tone: 'trait' });
+      await eventBurst(target, eventIcon.trait, { title: effectLabel(effect), secondaryIconId: effectIcon, amount: amount > 0 ? `-${amount}` : null, tone: 'trait' });
       if (target && amount > 0) damageFloat(target, amount, 'Physical');
       if (effect?.value !== 'guard')
         emitDamageTakenVoice(characterData || characterKey, amount, state, { source: 'collateral', damageType: 'Physical', statusId: effect?.value });
@@ -3216,7 +3388,46 @@ function showCombatLink(attacker, defender) {
   ui.fx.appendChild(svg);
   return svg;
 }
-function damageFloat(target, amount, type) { emitSoundThrottled('combat.hp-loss', 90); const p = center(target), el = document.createElement('b'); el.className = `damage-float ${type === 'Magical' ? 'magic' : type === 'Absolute' ? 'absolute' : 'physical'}`; el.textContent = `-${amount}`; el.style.left = `${p.x}px`; el.style.top = `${p.y}px`; ui.fx.appendChild(el); setTimeout(() => el.remove(), 850); }
+function playLayeredDamageFloats(target, { moraleAmount = 0, hpAmount = 0, type = 'Physical' } = {}) {
+  const morale = Math.max(0, Number(moraleAmount || 0));
+  const hp = Math.max(0, Number(hpAmount || 0));
+  if (!target || (!morale && !hp)) return Promise.resolve();
+  if (morale > 0) {
+    animateMoraleRingLoss(target, morale);
+    moraleFloat(target, morale);
+    window.setTimeout(() => damageFloat(target, hp, type, { force: true, label: 'HP' }), 210);
+    return wait(360);
+  }
+  damageFloat(target, hp, type);
+  return Promise.resolve();
+}
+
+function damageFloat(target, amount, type, options = {}) {
+  const value = Math.max(0, Number(amount || 0));
+  if (!options.force && value <= 0) return;
+  if (value > 0) emitSoundThrottled('combat.hp-loss', 90);
+  const p = center(target), el = document.createElement('b');
+  const tone = type === 'Magical' ? 'magic' : type === 'Absolute' ? 'absolute' : 'physical';
+  el.className = `damage-float ${tone}${value <= 0 ? ' zero' : ''}`;
+  el.textContent = options.label ? `${options.label} -${value}` : `-${value}`;
+  el.style.left = `${p.x}px`;
+  el.style.top = `${p.y}px`;
+  ui.fx.appendChild(el);
+  setTimeout(() => el.remove(), 850);
+}
+
+function moraleFloat(target, amount) {
+  const value = Math.max(0, Number(amount || 0));
+  if (!value) return;
+  const p = center(target), el = document.createElement('b');
+  el.className = 'damage-float morale';
+  el.textContent = `${i18n.t('moraleDamageShort')} -${value}`;
+  el.style.left = `${p.x - 10}px`;
+  el.style.top = `${p.y - 70}px`;
+  ui.fx.appendChild(el);
+  setTimeout(() => el.remove(), 850);
+}
+
 function playShieldFormationAnimation(dome) {
   dome.classList.remove('forming'); void dome.offsetWidth; dome.classList.add('forming');
   return wait(620).then(() => dome.classList.remove('forming'));
@@ -3324,6 +3535,37 @@ function animateMoraleRingRecovery(card, amount) {
   };
   requestAnimationFrame(step);
 }
+
+function animateMoraleRingLoss(card, amount) {
+  if (!card) return;
+  const ring = card.querySelector('.morale-ring');
+  const maxMorale = Math.max(0, Number(card.dataset.maxMorale || 0));
+  const currentMorale = Math.max(0, Number(card.dataset.morale || 0));
+  const loss = Math.max(0, Number(amount || 0));
+  if (!ring || !maxMorale || !loss) return;
+  const nextMorale = Math.max(0, currentMorale - loss);
+  if (nextMorale >= currentMorale) return;
+  const from = Math.max(0, Math.min(1, currentMorale / maxMorale));
+  const to = Math.max(0, Math.min(1, nextMorale / maxMorale));
+  const durationMs = 320;
+  const startedAt = performance.now();
+  card.dataset.morale = String(nextMorale);
+  ring.title = `Morale ${nextMorale}/${maxMorale}`;
+  ring.classList.remove('morale-damaged');
+  void ring.offsetWidth;
+  ring.classList.add('morale-damaged');
+  const step = now => {
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    card.style.setProperty('--morale-ratio', (from + (to - from) * eased).toFixed(3));
+    if (progress < 1) requestAnimationFrame(step);
+    else {
+      card.style.setProperty('--morale-ratio', to.toFixed(3));
+      window.setTimeout(() => ring.classList.remove('morale-damaged'), 180);
+    }
+  };
+  requestAnimationFrame(step);
+}
 function breakShieldDome(dome) {
   const wasActive = dome.classList.contains('active');
   const shouldHideAfterBreak = dome.dataset.pendingBreak === 'true' || !wasActive;
@@ -3401,7 +3643,7 @@ function cancelAttackPreview() {
   inspectedCardId = null;
   hideAttackArrow();
   closePreview();
-  render();
+  syncCombatInteractionUi({ syncInspector: false });
 }
 function showToast(value) { ui.toast.textContent = typeof value === 'string' ? value : i18n.message(value); ui.toast.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => ui.toast.classList.remove('show'), 2200); }
 function escapeHtml(value='') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }

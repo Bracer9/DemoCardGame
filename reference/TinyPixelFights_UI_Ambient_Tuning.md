@@ -84,6 +84,14 @@ CSS 参数：
 
 注意：particle 使用 `background-position` 按 tile 尺寸无缝滚动，避免循环回到起点时出现瞬移。
 
+macOS / iOS 性能档：
+
+- `app.js` 会在 macOS 桌面设备上给 `<body>` 自动加 `mac-low-motion`。
+- `app.js` 会在 iPhone / iPad / iPadOS 桌面 UA 上给 `<body>` 自动加 `ios-low-motion`。
+- 这两个档位只静止/降低 `.battlefield-atmosphere` 的上下金色 particles，并移除其 `blur/drop-shadow`。
+- 攻击拖拽抛物线、确认攻击连线、护盾破碎粒子等一次性战斗反馈不受影响。
+- 移动端图片闪烁问题主要由卡牌 DOM 复用处理；该档位只负责降低持续环境粒子的 GPU 压力。
+
 ## 4. 可行动卡牌旧金令光
 
 位置：`wwwroot/styles.css` 顶部 `:root`。

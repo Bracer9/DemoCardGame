@@ -537,6 +537,31 @@ button:hover:not(:disabled), button:active:not(:disabled) { cursor: var(--cursor
   opacity:calc(var(--battlefield-particle-opacity) * .34);
   animation-direction:alternate-reverse;
 }
+body.mac-low-motion,
+body.ios-low-motion {
+  --battlefield-particle-opacity:.22;
+}
+body.mac-low-motion .battlefield-atmosphere::before,
+body.mac-low-motion .battlefield-atmosphere::after,
+body.ios-low-motion .battlefield-atmosphere::before,
+body.ios-low-motion .battlefield-atmosphere::after {
+  animation:none !important;
+  filter:none;
+}
+body.mac-low-motion .battlefield-atmosphere-bottom::before,
+body.mac-low-motion .battlefield-atmosphere-bottom::after,
+body.ios-low-motion .battlefield-atmosphere-bottom::before,
+body.ios-low-motion .battlefield-atmosphere-bottom::after {
+  opacity:0;
+}
+body.mac-low-motion .battlefield-atmosphere-top::before,
+body.ios-low-motion .battlefield-atmosphere-top::before {
+  opacity:.10;
+}
+body.mac-low-motion .battlefield-atmosphere-top::after,
+body.ios-low-motion .battlefield-atmosphere-top::after {
+  opacity:.06;
+}
 .start-screen {
   position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; overflow: hidden;
   background:url("/assets/ui/TableBackground.png") center / cover no-repeat #100b08;
@@ -2859,6 +2884,9 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 .fighter-card.full-art-card .morale-ring.morale-recovering {
   animation:moraleRingRecover .54s cubic-bezier(.17,.82,.24,1) both;
 }
+.fighter-card.full-art-card .morale-ring.morale-damaged {
+  animation:moraleRingDamaged .42s cubic-bezier(.2,.7,.22,1) both;
+}
 .fighter-card.full-art-card .stat-orb.hp.hp-empty {
   background:radial-gradient(circle at 50% 50%, transparent 0 46%, #4a0d11 49% 64%, #1c0406 76% 100%);
   border-color:#8d6e43aa;
@@ -4052,6 +4080,8 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 .damage-float { position: fixed; z-index: 68; color: white; font-family: Georgia,serif; font-size: 30px; font-weight: 900; text-shadow: 2px 2px 0 #000,0 0 15px currentColor; pointer-events: none; animation: floatDamage .8s ease-out both; }
 .damage-float.magic { color: #d7b3ff; }.damage-float.physical { color: #ff766b; }
 .damage-float.absolute { color:#ffe6a2; text-shadow:2px 2px 0 #000,0 0 18px #fff2af; }
+.damage-float.morale { z-index:76; color:#e4c079; font-size:34px; letter-spacing:.04em; text-shadow:2px 2px 0 #1a0d04,0 0 10px rgba(0,0,0,.86),0 0 18px rgba(184,149,85,.78),0 0 28px rgba(230,201,140,.34); }
+.damage-float.zero { z-index:74; color:#c7a982; font-size:23px; opacity:.82; text-shadow:2px 2px 0 #120303,0 0 8px rgba(199,169,130,.36); }
 .event-burst { position:fixed; z-index:72; display:flex; align-items:center; gap:12px; min-width:max-content; padding:11px 16px 11px 12px; color:#fff; background:linear-gradient(100deg,#080708f2,#1a1215ed); border:1px solid #8b6970; border-left:5px solid var(--red); box-shadow:0 12px 34px #000e,0 0 24px #d51c3238; transform:translate(-50%,-50%); pointer-events:none; animation:eventBurst 1.2s cubic-bezier(.16,.75,.24,1) both; }
 .event-burst .event-burst-primary { --asset-size:116px; filter:drop-shadow(0 0 10px currentColor); }
 .event-burst .event-burst-secondary { --asset-size:52px; margin-left:-25px; border-radius:50%; box-shadow:0 0 0 4px #090708,0 0 14px currentColor; }
@@ -5678,6 +5708,27 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
       0 0 9px rgba(184,149,85,.40),
       0 0 14px rgba(230,201,140,.18),
       inset 0 0 0 1px rgba(121,86,43,.76);
+  }
+  100% {
+    filter:brightness(1);
+    box-shadow:
+      0 0 3px rgba(138,106,61,.28),
+      inset 0 0 0 1px rgba(79,56,32,.68);
+  }
+}
+@keyframes moraleRingDamaged {
+  0% {
+    filter:brightness(1);
+    box-shadow:
+      0 0 3px rgba(138,106,61,.28),
+      inset 0 0 0 1px rgba(79,56,32,.68);
+  }
+  34% {
+    filter:brightness(1.24) saturate(1.08);
+    box-shadow:
+      0 0 10px rgba(184,149,85,.48),
+      0 0 16px rgba(108,67,28,.22),
+      inset 0 0 0 1px rgba(184,149,85,.82);
   }
   100% {
     filter:brightness(1);
