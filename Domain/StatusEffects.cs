@@ -701,16 +701,6 @@ public sealed class GloryRoarStatus(Guid sourceCharacterId, Guid ownerPlayerId)
     }
 }
 
-public sealed class DuelSenseStrikeStatus(Guid sourceCharacterId)
-    : StatusEffect("duel-sense-strike", true, sourceCharacterId)
-{
-    public const int AbsoluteDamage = 2;
-    public override int Magnitude => AbsoluteDamage;
-    public override bool IsAttackBuff => true;
-
-    public void Consume() => Expired = true;
-}
-
 public sealed class RewardAttackStatus(Guid sourceCharacterId)
     : StatusEffect("reward-attack", true, sourceCharacterId)
 {

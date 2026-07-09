@@ -38,3 +38,15 @@ test('relic rewards use a top-level category and a pending child menu', () => {
   assert.doesNotMatch(stylesSource, /\.relic-overview\s*\{[\s\S]*?z-index\s*:\s*220/);
   assert.match(stylesSource, /\.relic-overview-detail\s*\{[\s\S]*?z-index\s*:\s*96/);
 });
+
+test('formal relic pool is wired into reward choices', () => {
+  assert.match(rewardDefinitions, /public static IReadOnlyList<RewardDefinition> RelicRewards/);
+  assert.match(rewardDefinitions, /RelicCatalog\.All/);
+  assert.match(gameEngine, /RewardCatalog\.RelicRewards/);
+  assert.doesNotMatch(gameEngine, /RewardCatalog\.DummyRewards\s*[\r\n\s]*\.OrderBy/);
+  assert.match(gameEngine, /RelicCatalog\.Find\(reward\.Id\)/);
+  assert.match(gameEngine, /relic-ashen-detonator/);
+  assert.match(gameEngine, /relic-red-hourglass/);
+  assert.match(appSource, /relic-silver-ward-charm/);
+  assert.match(appSource, /kind === 'reward'/);
+});

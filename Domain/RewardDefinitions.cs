@@ -24,6 +24,11 @@ public static class RewardCatalog
         new("dummy-reward-c", 6, "epic")
     ];
 
+    public static IReadOnlyList<RewardDefinition> RelicRewards { get; } =
+        RelicCatalog.All
+            .Select(relic => new RewardDefinition(relic.Id, relic.Cost, relic.Rarity))
+            .ToArray();
+
     public static RewardDefinition HeroRoleActionUpgrade { get; } =
         new("hero-role-action-upgrade", 4, "rare", RewardKind.HeroRoleActionUpgrade);
 
@@ -42,6 +47,7 @@ public static class RewardCatalog
         HeroRecruit,
         SoldierRecruit,
         RelicChoice,
+        ..RelicRewards,
         ..DummyRewards
     ];
 }

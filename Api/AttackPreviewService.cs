@@ -40,11 +40,12 @@ public sealed class AttackPreviewService
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
             attack = AddDirectHpDamage(attack, rageShieldBreakBonus);
-        var duelSenseBonus = attackHp.HpDamageMin < defender.CurrentHp
-            ? ForecastDuelSenseAbsoluteBonus(state, attacker, defender)
-            : 0;
+        var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker);
+        var duelSenseBefore = attack;
         if (duelSenseBonus > 0)
-            attack = AddDirectHpDamage(attack, duelSenseBonus);
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack, duelSenseBonus);
+        var duelSenseWillTrigger = duelSenseBonus > 0
+            && (attack.HpDamageMin != duelSenseBefore.HpDamageMin || attack.HpDamageMax != duelSenseBefore.HpDamageMax);
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defenderAttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
         var counter = ForecastDamage(state, attacker, counterBase, defenderAttackType, DamageSource.CounterAttack);
@@ -120,7 +121,7 @@ public sealed class AttackPreviewService
         if (rageShieldBreakBonus > 0)
             notes.Add(L10n.Text("preview.roleAction.warCryShieldBreak",
                 ("value", L10n.Raw(rageShieldBreakBonus))));
-        if (duelSenseBonus > 0)
+        if (duelSenseWillTrigger)
             notes.Add(L10n.Text("preview.trait.duelSenseBonus",
                 ("value", L10n.Raw(duelSenseBonus))));
         if (attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired))
@@ -170,6 +171,28 @@ public sealed class AttackPreviewService
                 HpDamageMin = forecast.HpDamageMin + damage,
                 HpDamageMax = forecast.HpDamageMax + damage
             };
+    }
+
+    private static DamageForecast AddDirectHpDamageIfTargetSurvives(CharacterState target, DamageForecast forecast, int amount)
+    {
+        var damage = Math.Max(0, amount);
+        var targetHp = Math.Max(0, target.CurrentHp);
+        if (damage <= 0 || targetHp <= 0 || forecast.HpDamageMin >= targetHp)
+            return forecast;
+
+        var survivingHpMax = Math.Min(forecast.HpDamageMax, targetHp - 1);
+        var hpDamageMax = Math.Max(forecast.HpDamageMax, survivingHpMax + damage);
+        var totalMaxWithBonus = forecast.HpDamageMax < targetHp
+            ? forecast.Max + damage
+            : forecast.Min + Math.Min(Math.Max(0, forecast.Max - forecast.Min), Math.Max(0, survivingHpMax - forecast.HpDamageMin)) + damage;
+
+        return forecast with
+        {
+            Min = forecast.Min + damage,
+            Max = Math.Max(forecast.Max, totalMaxWithBonus),
+            HpDamageMin = forecast.HpDamageMin + damage,
+            HpDamageMax = hpDamageMax
+        };
     }
 
     private static DamageForecast ForecastDamageLanding(CharacterState target, DamageForecast forecast)
@@ -333,10 +356,10 @@ public sealed class AttackPreviewService
         attacker.DeputyEffectId == "deputy-duelist"
         && !state.FindOwner(attacker).DeputyPassivesUsedThisTurn.Contains($"{attacker.Id:N}:deputy-duelist");
 
-    private static int ForecastDuelSenseAbsoluteBonus(GameState state, CharacterState attacker, CharacterState defender) =>
+    private static int ForecastDuelSenseAbsoluteBonus(GameState state, CharacterState attacker) =>
         ShouldForecastDuelSenseAbsolute(attacker)
             || ShouldForecastDeputyDuelistStrike(state, attacker)
-            ? DuelSenseStrikeStatus.AbsoluteDamage
+            ? DuelSenseTrait.AbsoluteDamage
             : 0;
 
     private static bool IsCommonDebuff(StatusEffect status) =>

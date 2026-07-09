@@ -1079,7 +1079,24 @@ function relicIconId(relicId) {
   return {
     'dummy-reward-a': 'status.spell-ward',
     'dummy-reward-b': 'status.chant',
-    'dummy-reward-c': 'status.strong-attack'
+    'dummy-reward-c': 'status.strong-attack',
+    'relic-silver-ward-charm': 'status.spell-ward',
+    'relic-black-iron-rivets': 'status.fortify',
+    'relic-apprentice-star-ink': 'status.chant',
+    'relic-mason-token': 'status.team-shield',
+    'relic-red-whetstone': 'status.strong-attack',
+    'relic-ember-astrolabe': 'status.burning',
+    'relic-hollow-comet-lens': 'status.void',
+    'relic-cracked-shield-bell': 'status.trembling',
+    'relic-duelist-ticket': 'trait.duel-sense',
+    'relic-green-standard': 'event.shield',
+    'relic-ashen-detonator': 'status.burning',
+    'relic-smoldering-censer': 'status.burning',
+    'relic-kingwall-standard': 'status.team-shield',
+    'relic-bastion-hammer': 'event.shield',
+    'relic-victory-drum': 'event.physical',
+    'relic-red-hourglass': 'status.strong-attack',
+    'relic-war-council-banner': 'event.trait'
   }[relicId] || 'event.trait';
 }
 
@@ -3080,6 +3097,7 @@ function effectLabel(arg) {
   if (!arg) return i18n.t('eventTrait');
   if (arg.kind === 'status') return i18n.status({ id: arg.value, magnitude: 0 }).name;
   if (arg.kind === 'roleAction') return i18n.roleAction(arg.value).name;
+  if (arg.kind === 'reward') return i18n.reward(arg.value).name;
   return i18n.trait(arg.value).name;
 }
 
@@ -3274,7 +3292,9 @@ async function playLogEntry(entry, state) {
     ? art.forStatus(effect.value)
     : effect?.kind === 'roleAction'
       ? art.forRoleAction(effect.value)
-      : art.forTrait(effect?.value);
+      : effect?.kind === 'reward'
+        ? relicIconId(effect.value)
+        : art.forTrait(effect?.value);
   const amount = Number(logArg(entry, 'amount') || 0);
 
   switch (key) {

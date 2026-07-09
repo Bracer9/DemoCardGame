@@ -229,7 +229,9 @@
     "role-action-cleanse": "ロールアクションで浄化成功",
     "role-action-dark-pact": "闇の契約で瀕死",
     "first-role-action": "初回ロールアクション",
-    "rank3-kill": "最終ロールアクション撃破"
+    "rank3-kill": "最終ロールアクション撃破",
+    "relic-green-standard": "緑旗",
+    "relic-victory-drum": "勝利の太鼓"
   },
   "deputies": {
     "deputy-cleric": {
@@ -265,6 +267,74 @@
     "dummy-reward-c": {
       "name": "王家の勲章",
       "description": "味方全体に攻撃+1を付与。仮の遺物効果。"
+    },
+    "relic-silver-ward-charm": {
+      "name": "銀の護符",
+      "description": "味方全体の魔防+1。"
+    },
+    "relic-black-iron-rivets": {
+      "name": "黒鉄の鋲",
+      "description": "味方全体の物防+1。"
+    },
+    "relic-apprentice-star-ink": {
+      "name": "見習い星墨",
+      "description": "味方の魔法攻撃ユニットの攻撃+1。"
+    },
+    "relic-mason-token": {
+      "name": "石工の印",
+      "description": "各ターン初めて共有シールドを展開または強化した時、低HPの味方に堅守を付与。"
+    },
+    "relic-red-whetstone": {
+      "name": "赤い砥石",
+      "description": "味方の物理攻撃ユニットの攻撃+1。"
+    },
+    "relic-ember-astrolabe": {
+      "name": "残り火の星盤",
+      "description": "各ターン初めて燃焼を付与する時、追加で+1層。"
+    },
+    "relic-hollow-comet-lens": {
+      "name": "空洞彗星レンズ",
+      "description": "各ターン初めて士気だけに魔法ダメージを与えた時、空虚を付与。"
+    },
+    "relic-cracked-shield-bell": {
+      "name": "ひび割れ盾鈴",
+      "description": "各ターン1回、共有シールドが破壊された後、攻撃者に戦慄を付与。"
+    },
+    "relic-duelist-ticket": {
+      "name": "決闘券",
+      "description": "各ターン初めてシールドのない敵を攻撃する前、物理攻撃者が強攻を得る。"
+    },
+    "relic-green-standard": {
+      "name": "緑旗",
+      "description": "各ターン初めて敵の共有シールドを破壊した時、追加で1 BPを得る。"
+    },
+    "relic-ashen-detonator": {
+      "name": "灰の起爆器",
+      "description": "各ターン1回、3層以上の燃焼を持つ対象に命中した時、燃焼を爆発させる。"
+    },
+    "relic-smoldering-censer": {
+      "name": "燻る香炉",
+      "description": "燃焼の基本ダメージ+1。"
+    },
+    "relic-kingwall-standard": {
+      "name": "王壁の軍旗",
+      "description": "ターン開始時、共有シールドが0なら共有シールド2を得る。"
+    },
+    "relic-bastion-hammer": {
+      "name": "堡塁ハンマー",
+      "description": "共有シールドが破壊された時、攻撃者に3士気ダメージ。"
+    },
+    "relic-victory-drum": {
+      "name": "勝利の太鼓",
+      "description": "各ターン1回、追加攻撃がHPダメージを与えた時、1 BPを得る。"
+    },
+    "relic-red-hourglass": {
+      "name": "赤い砂時計",
+      "description": "各ターン3回目の主動攻撃のダメージ+3。"
+    },
+    "relic-war-council-banner": {
+      "name": "軍議の戦旗",
+      "description": "味方全体の攻撃+1。"
     },
     "relic-choice": {
       "name": "遺物獲得",
@@ -773,6 +843,7 @@
     "log.rewardPurchased": "{player}が{reward}を選択し、{cost} BPを支払った。",
     "log.rewardReset": "{player}が報酬をリセット（消費 {cost} BP、{count}回目）。",
     "log.rewardSkipped": "{player}が報酬をスキップし、{amount} BPを得ようとした。",
+    "log.relicTriggered": "{relic}が発動。",
     "log.effectDamage": "{effect}：{character}に{amount}{damageType}ダメージ。",
     "log.effectDamageWithMorale": "{effect}：{character}に{amount}{damageType}ダメージ（HP {hpAmount} / 士気 {moraleAmount}）。",
     "log.defeated": "{character}は戦闘不能。",

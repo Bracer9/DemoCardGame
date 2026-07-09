@@ -265,7 +265,7 @@ public sealed class SearingMarkTrait : CharacterTrait
         if (!guaranteed && !context.Roll(0.50))
             return;
 
-        GameEngine.AddBurning(exchange.Defender, owner.Id);
+        GameEngine.AddBurning(exchange.Defender, owner.Id, state: context.State);
         if (HeroRankRules.HasRank2Path(owner, "searing-brand"))
             GameEngine.AddVoid(exchange.Defender, owner.Id);
         context.Log(L10n.Text("log.statusApplied",
@@ -518,6 +518,8 @@ public sealed class ShieldDrillTrait : CharacterTrait
 
 public sealed class DuelSenseTrait : CharacterTrait
 {
+    public const int AbsoluteDamage = 2;
+
     public override TraitMetadata Metadata { get; } = new(
         "duel-sense",
         TraitTriggerKind.OnAttackResolved,
@@ -543,7 +545,7 @@ public sealed class DuelSenseTrait : CharacterTrait
         if (owner.SoldierRank >= 1
             && exchange.Defender.IsAlive
             && owner.TraitsUsedThisTurn.Add("duel-sense-absolute"))
-            context.DealAbsoluteDamage(exchange.Defender, DuelSenseStrikeStatus.AbsoluteDamage, owner.Id, "duel-sense");
+            context.DealAbsoluteDamage(exchange.Defender, AbsoluteDamage, owner.Id, "duel-sense");
     }
 }
 

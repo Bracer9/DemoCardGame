@@ -589,6 +589,7 @@ public sealed class GameEngine
         var defenderOwner = state.FindOwner(defender);
         var defenderShieldBefore = defenderOwner.SharedShield;
 
+        TriggerDuelistTicket(state, attacker, defenderOwner);
         ModifyDamage(state, attackPacket);
         ModifyDamage(state, counterPacket);
 
@@ -596,8 +597,8 @@ public sealed class GameEngine
         var actualAttackTarget = attackPacket.TargetCharacter;
         actualAttackTarget.CurrentHp = Math.Max(0, actualAttackTarget.CurrentHp - attackPacket.Amount);
         ResolvePreyZeroDamage(state, attackPacket);
+        TriggerRelicsAfterDamageResolved(state, attackPacket);
         ResolveVictoryEdictAfterActiveAttack(state, attacker, actualAttackTarget);
-        ResolveDuelSenseAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolvePactAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolveAbyssalBargainAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolveGloryRoarAfterActiveAttack(state, attacker);
@@ -644,8 +645,9 @@ public sealed class GameEngine
                 ("characterId", L10n.Raw(item.Packet.TargetCharacter.Id)),
                 ("amount", L10n.Raw(item.Packet.Amount))), "physical");
 
-        TryAwardEnemyShieldBreakBp(state, attackerOwner, defenderOwner, defenderShieldBefore, attackPacket.ShieldAbsorbed);
+        TryAwardEnemyShieldBreakBp(state, attacker, attackerOwner, defenderOwner, defenderShieldBefore, attackPacket.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, attackerOwner, defenderOwner, attackPacket.Amount);
+        TriggerVictoryDrum(state, attackerOwner, attacker, attackPacket.Amount);
         TryResolveRageShieldBreak(state, attacker, actualAttackTarget, defenderOwner, defenderShieldBefore, attackPacket.ShieldAbsorbed);
         if (attackerAttackType == DamageType.Magical && attackPacket.Amount > 0)
         {
@@ -707,6 +709,7 @@ public sealed class GameEngine
             ("shield", L10n.Raw(player.SharedShield))), "shield");
         TriggerShieldDrill(state, player.Characters.FirstOrDefault(character =>
             character.IsAlive && character.Definition.TraitId == "shield-drill"));
+        TriggerMasonToken(state, player);
         if (isReinforcing && player.ShieldDeploymentsThisTurn >= MaxShieldDeploymentsPerTurn)
             TryGainBp(state, player, 1, BpReasonShieldFullyDeployed);
     }
@@ -743,6 +746,7 @@ public sealed class GameEngine
         state.ActivePlayer.BattlePoints.GainedThisTurn = 0;
         state.ActivePlayer.FirstRoleActionBpGrantedThisTurn = false;
         state.ActivePlayer.DeputyPassivesUsedThisTurn.Clear();
+        state.ActivePlayer.RelicsUsedThisTurn.Clear();
 
         if (state.ActivePlayer.SharedShield > 0)
             Log(state, L10n.Text("log.shieldExpired", ("player", L10n.Player(state.ActivePlayer.Name))), "shield");
@@ -766,6 +770,7 @@ public sealed class GameEngine
             ("turn", L10n.Raw(state.TurnNumber)),
             ("player", L10n.Player(state.ActivePlayer.Name))), "turn");
         TryGainBp(state, state.ActivePlayer, 1, BpReasonTurnStart);
+        TriggerKingwallStandard(state, state.ActivePlayer);
         ProcessTurnStart(state);
         TryOpenRewardWindowForActivePlayer(state);
         ResolveDefeats(state);
@@ -1167,6 +1172,7 @@ public sealed class GameEngine
     private void ModifyDamage(GameState state, DamagePacket packet)
     {
         var sourceOwner = state.FindOwner(packet.SourceCharacter);
+        TriggerRedHourglass(state, sourceOwner, packet);
         foreach (var status in packet.SourceCharacter.Statuses.Where(status => !status.Expired))
             status.ModifyOutgoingDamage(new GameEngineContext(this, state), packet.SourceCharacter, packet);
 
@@ -1289,7 +1295,7 @@ public sealed class GameEngine
         ModifyDamage(state, packet);
         collateral.Target.CurrentHp = Math.Max(0, collateral.Target.CurrentHp - packet.Amount);
         ResolvePreyZeroDamage(state, packet);
-        TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
+        TryAwardEnemyShieldBreakBp(state, collateral.Source, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
         return packet;
     }
@@ -1579,7 +1585,7 @@ public sealed class GameEngine
                 reward.Id,
                 GetRewardOptionCost(player, reward)));
         window.RelicResetCount = 0;
-        RefreshRelicRewardOptions(window.RelicOptions, player);
+        RefreshRelicRewardOptions(window.RelicOptions, player, window.RoundNumber);
     }
 
     private static int GetRewardOptionCost(PlayerState player, RewardDefinition reward) =>
@@ -1587,10 +1593,30 @@ public sealed class GameEngine
             ? 0
             : reward.Cost;
 
-    private void RefreshRelicRewardOptions(List<RewardOptionState> options, PlayerState player)
+    private void RefreshRelicRewardOptions(List<RewardOptionState> options, PlayerState player, int roundNumber)
     {
         options.Clear();
-        foreach (var reward in RewardCatalog.DummyRewards
+        var hasAdvancedUnit = player.Characters.Any(character =>
+            character.IsInBattle && (character.HeroRank >= 2 || character.SoldierRank >= 2));
+        var maxStage = roundNumber >= 12 || hasAdvancedUnit
+            ? RelicStage.Three
+            : roundNumber >= 8
+                ? RelicStage.Two
+                : RelicStage.One;
+        var owned = player.Relics.Select(relic => relic.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var candidates = RewardCatalog.RelicRewards
+            .Where(reward => !owned.Contains(reward.Id))
+            .Where(reward => RelicCatalog.Find(reward.Id) is { } relic && relic.Stage <= maxStage)
+            .ToArray();
+
+        if (candidates.Length < 3)
+        {
+            candidates = RewardCatalog.RelicRewards
+                .Where(reward => !owned.Contains(reward.Id))
+                .ToArray();
+        }
+
+        foreach (var reward in candidates
             .OrderBy(_ => _random.Next())
             .Take(3))
         {
@@ -1632,7 +1658,7 @@ public sealed class GameEngine
 
         pending.ResetCount++;
         window.RelicResetCount = pending.ResetCount;
-        RefreshRelicRewardOptions(window.RelicOptions, player);
+        RefreshRelicRewardOptions(window.RelicOptions, player, window.RoundNumber);
         pending.Options.Clear();
         pending.Options.AddRange(window.RelicOptions);
         Log(state, L10n.Text("log.rewardReset",
@@ -2071,6 +2097,7 @@ public sealed class GameEngine
             ("pdef", L10n.Raw(owner.SharedShieldPhysicalDefense))), "shield");
         TriggerShieldDrill(state, actor);
         TriggerDeputyShieldmaiden(state, actor);
+        TriggerMasonToken(state, owner);
     }
 
     private void UseWarCry(GameState state, CharacterState actor)
@@ -2095,7 +2122,7 @@ public sealed class GameEngine
 
     private void UseSearingBrand(GameState state, CharacterState actor, CharacterState target)
     {
-        AddBurning(target, actor.Id);
+        AddBurning(target, actor.Id, state: state);
         AddVoid(target, actor.Id);
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
@@ -2324,6 +2351,7 @@ public sealed class GameEngine
             ("shield", L10n.Raw(owner.SharedShield))), "shield");
         TriggerShieldDrill(state, actor);
         TriggerDeputyShieldmaiden(state, actor);
+        TriggerMasonToken(state, owner);
     }
 
     private void UseCrimsonLunge(GameState state, CharacterState actor, CharacterState target)
@@ -2475,7 +2503,7 @@ public sealed class GameEngine
     {
         var damage = Math.Max(1, GetActiveAttack(state, actor));
         DealRoleActionDamage(state, target, damage, DamageType.Magical, actor.Id, "starfall");
-        AddBurning(target, actor.Id);
+        AddBurning(target, actor.Id, state: state);
         TriggerArcaneResonance(state, actor, fromRoleAction: true);
         TriggerDeputyArcanist(state, actor, fromRoleAction: true);
     }
@@ -2487,7 +2515,7 @@ public sealed class GameEngine
         var hadMagicDebuff = target.Statuses.Any(status => !status.Expired && status.Id is "burning" or "void");
         var damage = GetActiveAttack(state, actor) + (hadMagicDebuff ? target.Statuses.OfType<BurningStatus>().FirstOrDefault(status => !status.Expired)?.Stacks ?? 0 : 0);
         DealRoleActionDamage(state, target, Math.Max(1, damage), DamageType.Magical, actor.Id, "archive-formula");
-        AddBurning(target, actor.Id, Math.Max(1, CountCommonDebuffs(target)));
+        AddBurning(target, actor.Id, Math.Max(1, CountCommonDebuffs(target)), state);
         TriggerArcaneResonance(state, actor, fromRoleAction: true);
         TriggerDeputyArcanist(state, actor, fromRoleAction: true);
     }
@@ -2868,7 +2896,7 @@ public sealed class GameEngine
             AddStrongAttack(host, host.Id);
             LogDeputyTriggered(state, host, "deputy-duelist", "strong-attack", host);
         }
-        DealAbsoluteDamage(state, target, DuelSenseStrikeStatus.AbsoluteDamage, host.Id, L10n.Trait("duel-sense"));
+        DealAbsoluteDamage(state, target, DuelSenseTrait.AbsoluteDamage, host.Id, L10n.Trait("duel-sense"));
     }
 
     private void TriggerDeputyArcanist(GameState state, CharacterState host, bool fromRoleAction)
@@ -2879,6 +2907,120 @@ public sealed class GameEngine
         AddMagicSurge(host, host.Id, fromRoleAction ? 3 : TurnDurationStatus.DefaultTurns);
         host.BonusAttackUsesThisTurn++;
         LogDeputyTriggered(state, host, "deputy-arcanist", "magic-surge", host);
+    }
+
+    private void TriggerDuelistTicket(GameState state, CharacterState attacker, PlayerState targetOwner)
+    {
+        var owner = state.FindOwner(attacker);
+        if (owner.Id != state.ActivePlayerId
+            || targetOwner.Id == owner.Id
+            || targetOwner.SharedShield > 0
+            || GetAttackType(attacker) != DamageType.Physical
+            || !RelicEffects.TryUseTurnRelic(owner, "relic-duelist-ticket"))
+            return;
+
+        AddStrongAttack(attacker, attacker.Id);
+        LogRelicTriggered(state, owner, "relic-duelist-ticket", attacker);
+    }
+
+    private void TriggerRedHourglass(GameState state, PlayerState owner, DamagePacket packet)
+    {
+        if (packet.Source != DamageSource.ActiveAttack
+            || packet.SourceCharacter.PlayerId != state.ActivePlayerId
+            || owner.Id != state.ActivePlayerId
+            || state.ActiveAttacksTakenThisTurn != 2
+            || packet.Amount <= 0
+            || !RelicEffects.TryUseTurnRelic(owner, "relic-red-hourglass"))
+            return;
+
+        packet.Amount += 3;
+        LogRelicTriggered(state, owner, "relic-red-hourglass", packet.SourceCharacter);
+    }
+
+    private void TriggerRelicsAfterDamageResolved(GameState state, DamagePacket packet)
+    {
+        if (packet.FinalCharacterDamage <= 0 || !packet.TargetCharacter.IsAlive)
+            return;
+
+        var sourceOwner = state.FindOwner(packet.SourceCharacter);
+        if (packet.DamageType == DamageType.Magical
+            && packet.MoraleDamage > 0
+            && packet.HpDamage == 0
+            && RelicEffects.TryUseTurnRelic(sourceOwner, "relic-hollow-comet-lens"))
+        {
+            AddVoid(packet.TargetCharacter, packet.SourceCharacter.Id);
+            LogRelicTriggered(state, sourceOwner, "relic-hollow-comet-lens", packet.TargetCharacter);
+            Log(state, L10n.Text("log.statusApplied",
+                ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
+                ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
+                ("status", L10n.Status("void"))), "magic");
+        }
+
+        var burning = packet.TargetCharacter.Statuses.OfType<BurningStatus>().FirstOrDefault(status => !status.Expired);
+        if (burning is not null
+            && burning.Stacks >= 3
+            && RelicEffects.TryUseTurnRelic(sourceOwner, "relic-ashen-detonator"))
+        {
+            var stacks = burning.Stacks;
+            packet.TargetCharacter.Statuses.Remove(burning);
+            LogRelicTriggered(state, sourceOwner, "relic-ashen-detonator", packet.TargetCharacter);
+            DealRelicDamage(state, packet.TargetCharacter, stacks, DamageType.Magical, packet.SourceCharacter.Id,
+                "relic-ashen-detonator", ignoreDefense: true);
+        }
+    }
+
+    private void TriggerVictoryDrum(GameState state, PlayerState owner, CharacterState attacker, int hpDamage)
+    {
+        if (hpDamage <= 0
+            || attacker.AttackUsesThisTurn <= 0
+            || owner.Id != state.ActivePlayerId
+            || !RelicEffects.TryUseTurnRelic(owner, "relic-victory-drum"))
+            return;
+
+        LogRelicTriggered(state, owner, "relic-victory-drum", attacker);
+        TryGainBp(state, owner, 1, "relic-victory-drum");
+    }
+
+    private void TriggerKingwallStandard(GameState state, PlayerState player)
+    {
+        if (player.SharedShield > 0 || !RelicEffects.HasRelic(player, "relic-kingwall-standard"))
+            return;
+
+        player.SharedShield = 2;
+        LogRelicTriggered(state, player, "relic-kingwall-standard");
+    }
+
+    private void TriggerMasonToken(GameState state, PlayerState owner)
+    {
+        if (!RelicEffects.TryUseTurnRelic(owner, "relic-mason-token"))
+            return;
+
+        var target = LowestHpAlly(owner);
+        if (target is null)
+            return;
+
+        AddFortify(target, target.Id);
+        LogRelicTriggered(state, owner, "relic-mason-token", target);
+        Log(state, L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("fortify"))), "buff");
+    }
+
+    private CharacterState? LowestHpAlly(PlayerState owner) =>
+        owner.Characters
+            .Where(character => character.IsAlive && !IsDeploying(character))
+            .OrderBy(character => GetMaxHp(character) == 0 ? 1 : (double)character.CurrentHp / GetMaxHp(character))
+            .ThenBy(character => character.CurrentHp)
+            .FirstOrDefault();
+
+    private void LogRelicTriggered(GameState state, PlayerState owner, string relicId, CharacterState? target = null)
+    {
+        Log(state, L10n.Text("log.relicTriggered",
+            ("player", L10n.Player(owner.Name)),
+            ("relic", L10n.Reward(relicId)),
+            ("target", target is null ? L10n.Raw("") : L10n.Character(target.Definition.Key)),
+            ("targetId", target is null ? L10n.Raw("") : L10n.Raw(target.Id))), "system");
     }
 
     internal static void AddStrongAttack(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
@@ -2939,6 +3081,7 @@ public sealed class GameEngine
 
     private void TryAwardEnemyShieldBreakBp(
         GameState state,
+        CharacterState source,
         PlayerState sourceOwner,
         PlayerState targetOwner,
         int shieldBefore,
@@ -2949,6 +3092,9 @@ public sealed class GameEngine
             return;
 
         TryGainBp(state, sourceOwner, 1, BpReasonBreakEnemyShield);
+        if (RelicEffects.TryUseTurnRelic(sourceOwner, "relic-green-standard"))
+            TryGainBp(state, sourceOwner, 1, "relic-green-standard");
+        TriggerShieldBreakRelics(state, source, targetOwner);
         TriggerKnightShieldBreakRank2(state, targetOwner);
     }
 
@@ -2968,6 +3114,25 @@ public sealed class GameEngine
             ("character", L10n.Character(knight.Definition.Key)),
             ("characterId", L10n.Raw(knight.Id)),
             ("status", L10n.Status("strong-attack"))), "buff");
+    }
+
+    private void TriggerShieldBreakRelics(GameState state, CharacterState attacker, PlayerState shieldOwner)
+    {
+        if (RelicEffects.TryUseTurnRelic(shieldOwner, "relic-cracked-shield-bell"))
+        {
+            AddTrembling(attacker, attacker.Id);
+            LogRelicTriggered(state, shieldOwner, "relic-cracked-shield-bell", attacker);
+            Log(state, L10n.Text("log.statusApplied",
+                ("character", L10n.Character(attacker.Definition.Key)),
+                ("characterId", L10n.Raw(attacker.Id)),
+                ("status", L10n.Status("trembling"))), "debuff");
+        }
+
+        if (RelicEffects.TryUseTurnRelic(shieldOwner, "relic-bastion-hammer"))
+        {
+            LogRelicTriggered(state, shieldOwner, "relic-bastion-hammer", attacker);
+            DealRelicMoraleDamage(state, attacker, 3, attacker.Id, "relic-bastion-hammer");
+        }
     }
 
     private void TryResolveRageShieldBreak(
@@ -3005,13 +3170,16 @@ public sealed class GameEngine
             return 0;
 
         var source = state.FindCharacter(sourceCharacterId);
+        var finalAmount = amount;
+        if (effectId == "burning" && RelicEffects.HasRelic(state.FindOwner(source), "relic-smoldering-censer"))
+            finalAmount++;
         var packet = new DamagePacket
         {
             SourceCharacter = source,
             TargetCharacter = target,
             DamageType = damageType,
             Source = DamageSource.Trait,
-            Amount = amount,
+            Amount = finalAmount,
             ReceivesMagicPowerBonus = receivesMagicPowerBonus
         };
         var sourceOwner = state.FindOwner(source);
@@ -3020,13 +3188,14 @@ public sealed class GameEngine
         ModifyDamage(state, packet);
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
         ResolvePreyZeroDamage(state, packet);
+        TriggerRelicsAfterDamageResolved(state, packet);
         foreach (var note in packet.Notes)
             Log(state, note, "status");
         var effectArg = effectId is "burning" or "guard"
             ? L10n.Status(effectId)
             : L10n.Trait(effectId);
         LogEffectDamage(state, packet, effectArg, damageType == DamageType.Physical ? "physical" : "magic");
-        TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
+        TryAwardEnemyShieldBreakBp(state, source, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
         return packet.Amount;
     }
@@ -3318,10 +3487,11 @@ public sealed class GameEngine
         ModifyDamage(state, packet);
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
         ResolvePreyZeroDamage(state, packet);
+        TriggerRelicsAfterDamageResolved(state, packet);
         foreach (var note in packet.Notes)
             Log(state, note, "status");
         LogEffectDamage(state, packet, L10n.RoleAction(roleActionId), damageType == DamageType.Physical ? "physical" : "magic");
-        TryAwardEnemyShieldBreakBp(state, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
+        TryAwardEnemyShieldBreakBp(state, source, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
         return packet.Amount;
     }
@@ -3341,6 +3511,38 @@ public sealed class GameEngine
             ("damageType", L10n.Damage(packet.DamageType))), tone);
     }
 
+    private int DealRelicDamage(
+        GameState state,
+        CharacterState target,
+        int amount,
+        DamageType damageType,
+        Guid sourceCharacterId,
+        string relicId,
+        bool ignoreDefense = false)
+    {
+        if (IsDeploying(target) || amount <= 0)
+            return 0;
+
+        var source = state.FindCharacter(sourceCharacterId);
+        var packet = new DamagePacket
+        {
+            SourceCharacter = source,
+            TargetCharacter = target,
+            DamageType = damageType,
+            Source = DamageSource.Trait,
+            Amount = amount,
+            ReceivesMagicPowerBonus = false,
+            IgnoresSharedShield = true,
+            IgnoresTargetDefense = ignoreDefense
+        };
+        ModifyDamage(state, packet);
+        target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
+        foreach (var note in packet.Notes)
+            Log(state, note, "status");
+        LogEffectDamage(state, packet, L10n.Reward(relicId), damageType == DamageType.Magical ? "magic" : "physical");
+        return packet.Amount;
+    }
+
     private void DealMoraleDamage(GameState state, CharacterState target, int amount, Guid sourceCharacterId, string roleActionId)
     {
         var damage = Math.Min(Math.Max(0, target.Morale), Math.Max(0, amount));
@@ -3350,6 +3552,22 @@ public sealed class GameEngine
         var source = state.FindCharacter(sourceCharacterId);
         Log(state, L10n.Text("log.moraleDamage",
             ("effect", L10n.RoleAction(roleActionId)),
+            ("source", L10n.Character(source.Definition.Key)),
+            ("sourceId", L10n.Raw(source.Id)),
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+                ("amount", L10n.Raw(damage))), "status");
+    }
+
+    private void DealRelicMoraleDamage(GameState state, CharacterState target, int amount, Guid sourceCharacterId, string relicId)
+    {
+        var damage = Math.Min(Math.Max(0, target.Morale), Math.Max(0, amount));
+        if (damage <= 0)
+            return;
+        target.Morale = Math.Max(0, target.Morale - damage);
+        var source = state.FindCharacter(sourceCharacterId);
+        Log(state, L10n.Text("log.moraleDamage",
+            ("effect", L10n.Reward(relicId)),
             ("source", L10n.Character(source.Definition.Key)),
             ("sourceId", L10n.Raw(source.Id)),
             ("character", L10n.Character(target.Definition.Key)),
@@ -3460,26 +3678,25 @@ public sealed class GameEngine
         TryGainBp(state, state.ActivePlayer, 1, BpReasonRank3Kill);
     }
 
-    private void ResolveDuelSenseAfterActiveAttack(GameState state, CharacterState attacker, CharacterState target)
+    internal static void AddBurning(CharacterState target, Guid sourceCharacterId, int stacks = 1, GameState? state = null)
     {
-        foreach (var status in attacker.Statuses.OfType<DuelSenseStrikeStatus>().Where(status => !status.Expired).ToArray())
+        var amount = Math.Max(1, stacks);
+        if (state is not null)
         {
-            if (target.IsAlive)
-                DealAbsoluteDamage(state, target, status.Magnitude, status.SourceCharacterId, L10n.Trait("duel-sense"));
-            status.Consume();
+            var sourceOwner = state.Players.FirstOrDefault(player =>
+                player.Characters.Any(character => character.Id == sourceCharacterId));
+            if (sourceOwner is not null && RelicEffects.TryUseTurnRelic(sourceOwner, "relic-ember-astrolabe"))
+                amount++;
         }
-    }
 
-    internal static void AddBurning(CharacterState target, Guid sourceCharacterId, int stacks = 1)
-    {
         var burning = target.Statuses.OfType<BurningStatus>().FirstOrDefault(status => !status.Expired);
         if (burning is not null)
         {
-            burning.AddStacks(stacks);
+            burning.AddStacks(amount);
             return;
         }
 
-        target.Statuses.Add(new BurningStatus(sourceCharacterId, target.PlayerId, stacks));
+        target.Statuses.Add(new BurningStatus(sourceCharacterId, target.PlayerId, amount));
     }
 
     private static void RemoveMagicPowerFromOwner(PlayerState owner, Guid oracleId)

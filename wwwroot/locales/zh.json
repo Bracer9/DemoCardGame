@@ -229,7 +229,9 @@
     "role-action-cleanse": "职业行动净化成功",
     "role-action-dark-pact": "黑暗契约濒危",
     "first-role-action": "首次职业行动",
-    "rank3-kill": "最终职业行动击败"
+    "rank3-kill": "最终职业行动击败",
+    "relic-green-standard": "绿旗",
+    "relic-victory-drum": "胜利鼓"
   },
   "deputies": {
     "deputy-cleric": {
@@ -265,6 +267,74 @@
     "dummy-reward-c": {
       "name": "王家勋章",
       "description": "我方全体获得攻击+1。临时遗物效果。"
+    },
+    "relic-silver-ward-charm": {
+      "name": "银护符",
+      "description": "我方全体魔防+1。"
+    },
+    "relic-black-iron-rivets": {
+      "name": "黑铁铆钉",
+      "description": "我方全体物防+1。"
+    },
+    "relic-apprentice-star-ink": {
+      "name": "见习星墨",
+      "description": "我方魔法攻击单位攻击+1。"
+    },
+    "relic-mason-token": {
+      "name": "石匠令",
+      "description": "每回合首次部署或强化共享盾时，低HP友方获得坚守。"
+    },
+    "relic-red-whetstone": {
+      "name": "红磨刀石",
+      "description": "我方物理攻击单位攻击+1。"
+    },
+    "relic-ember-astrolabe": {
+      "name": "余烬星盘",
+      "description": "每回合首次赋予燃烧时，额外+1层。"
+    },
+    "relic-hollow-comet-lens": {
+      "name": "空心彗镜",
+      "description": "每回合首次只击伤士气的魔法伤害，赋予空虚。"
+    },
+    "relic-cracked-shield-bell": {
+      "name": "碎盾铃",
+      "description": "每回合1次，共享盾被击破后，攻击者获得战栗。"
+    },
+    "relic-duelist-ticket": {
+      "name": "决斗券",
+      "description": "每回合首次攻击无盾敌人前，物理攻击者获得强攻。"
+    },
+    "relic-green-standard": {
+      "name": "绿旗",
+      "description": "每回合首次击破敌方共享盾时，额外获得1 BP。"
+    },
+    "relic-ashen-detonator": {
+      "name": "灰烬引爆器",
+      "description": "每回合1次，命中3层以上燃烧时，引爆燃烧。"
+    },
+    "relic-smoldering-censer": {
+      "name": "余燃香炉",
+      "description": "燃烧基础伤害+1。"
+    },
+    "relic-kingwall-standard": {
+      "name": "王墙军旗",
+      "description": "回合开始时，若共享盾为0，获得共享盾2。"
+    },
+    "relic-bastion-hammer": {
+      "name": "壁垒锤",
+      "description": "共享盾被击破时，攻击者受到3点士气伤害。"
+    },
+    "relic-victory-drum": {
+      "name": "胜利鼓",
+      "description": "每回合1次，额外攻击造成HP伤害时，获得1 BP。"
+    },
+    "relic-red-hourglass": {
+      "name": "红沙漏",
+      "description": "每回合第3次主动攻击伤害+3。"
+    },
+    "relic-war-council-banner": {
+      "name": "军议战旗",
+      "description": "我方全体攻击+1。"
     },
     "relic-choice": {
       "name": "遗物获取",
@@ -773,6 +843,7 @@
     "log.rewardPurchased": "{player}选择了{reward}，支付{cost} BP。",
     "log.rewardReset": "{player}刷新奖励（消耗{cost} BP，第{count}次）。",
     "log.rewardSkipped": "{player}跳过奖励，并尝试获得{amount} BP。",
+    "log.relicTriggered": "{relic}触发。",
     "log.effectDamage": "{effect}：{character}受到{amount}点{damageType}伤害。",
     "log.effectDamageWithMorale": "{effect}：{character}受到{amount}点{damageType}伤害（HP {hpAmount} / 士气 {moraleAmount}）。",
     "log.defeated": "{character}已无法战斗。",

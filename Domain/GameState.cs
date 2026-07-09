@@ -88,6 +88,7 @@ public sealed class PlayerState
     public bool HasClaimedFreeHeroRoleActionUpgrade { get; set; }
     public bool FirstRoleActionBpGrantedThisTurn { get; set; }
     public HashSet<string> DeputyPassivesUsedThisTurn { get; } = [];
+    public HashSet<string> RelicsUsedThisTurn { get; } = [];
     public int ActiveCharacterCount => Characters.Count(character => character.IsInBattle);
     public bool IsDefeated => Characters.All(character => !character.IsAlive);
 }
