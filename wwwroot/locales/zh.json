@@ -245,12 +245,12 @@
     "deputy-duelist": {
       "name": "决斗副手",
       "stat": "物攻 +2",
-      "passive": "每己方回合1次，宿主攻击没有共有盾保护的敌人前，触发决斗嗅觉：获得强攻，并在本次攻击后追加2点绝对伤害。"
+      "passive": "每己方回合1次，宿主主动攻击对敌人造成HP伤害后，获得强攻；本次攻击后追加2点绝对伤害。"
     },
     "deputy-arcanist": {
       "name": "秘术参谋",
       "stat": "魔攻 +2",
-      "passive": "每己方回合1次，宿主造成魔法伤害或施加指定debuff后，获得咏唱，并可以再次主动攻击。"
+      "passive": "每己方回合1次，宿主造成魔法伤害或施加指定debuff后，获得魔涌，并可以再次主动攻击。"
     }
   },
   "rewards": {
@@ -375,13 +375,13 @@
       "button": "盾阵"
     },
     "crimson-lunge": {
-      "name": "绯红突刺",
-      "description": "目标获得战栗（无法反击）；若已有通用debuff，再获得脆弱（受到物理伤害增加）。",
-      "button": "突刺"
+      "name": "致命架势",
+      "description": "我方物理单位获得猛击：下一次主动物理伤害×2。",
+      "button": "架势"
     },
     "astral-focus": {
       "name": "星界聚焦",
-      "description": "我方目标获得咏唱（魔法伤害翻倍）；敌方目标获得空虚（受到魔法伤害增加）。",
+      "description": "我方魔法单位获得咏唱：下一次魔法伤害×2。",
       "button": "聚焦"
     },
     "miracle-standard": {
@@ -411,7 +411,7 @@
     },
     "militia-call": {
       "name": "民兵号令",
-      "description": "我方农民或士兵获得1次额外主动攻击；物理单位获得强攻，魔法单位获得咏唱。下一次主动攻击额外+农民当前攻击力；若目标是士兵，再额外+该士兵当前阶级。",
+      "description": "我方农民或士兵获得1次额外主动攻击；物理单位获得强攻，魔法单位获得魔涌。下一次主动攻击额外+农民当前攻击力；若目标是士兵，再额外+该士兵当前阶级。",
       "button": "号令"
     },
     "starfall": {
@@ -473,23 +473,23 @@
     },
     "exhaustion": {
       "name": "力竭",
-      "timing": "持续到回合结束",
-      "description": "造成的物理伤害×0.5，最低为1。"
+      "timing": "按回合持续",
+      "description": "造成的物理伤害×0.5，最低为1。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "erosion": {
       "name": "磨损",
-      "timing": "持续到回合结束",
-      "description": "造成的魔法伤害×0.5，最低为1。"
+      "timing": "按回合持续",
+      "description": "造成的魔法伤害×0.5，最低为1。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "void": {
       "name": "空虚",
-      "timing": "持续到回合结束",
-      "description": "受到的魔法伤害×1.25，向上取整。"
+      "timing": "按回合持续",
+      "description": "受到的魔法伤害×1.25，向上取整。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "fortify": {
       "name": "坚守",
-      "timing": "按层数持续",
-      "description": "受到的物理伤害×0.5，最低为1。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "timing": "按回合持续",
+      "description": "受到的物理伤害×0.5，最低为1。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "guard-oath": {
       "name": "守护誓约",
@@ -498,13 +498,18 @@
     },
     "trembling": {
       "name": "战栗",
-      "timing": "持续到回合结束",
-      "description": "无法反击。"
+      "timing": "按回合持续",
+      "description": "无法反击。重复获得不叠加持续时间。剩余回合：{magnitude}。"
     },
     "chant": {
       "name": "咏唱",
       "timing": "下一次魔法伤害",
       "description": "下一次魔法伤害×2。剩余层数：{magnitude}。"
+    },
+    "magic-surge": {
+      "name": "魔涌",
+      "timing": "按回合持续",
+      "description": "主动魔法伤害×1.5，向上取整。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "chant-pending": {
       "name": "蓄能准备",
@@ -629,8 +634,8 @@
     },
     "strong-attack": {
       "name": "强攻",
-      "timing": "按层数持续",
-      "description": "主动物理伤害×1.5，向上取整。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "timing": "按回合持续",
+      "description": "主动物理伤害×1.5，向上取整。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "mighty-strike": {
       "name": "猛击",
@@ -639,13 +644,13 @@
     },
     "spell-ward": {
       "name": "护咒",
-      "timing": "按层数持续",
-      "description": "受到的魔法伤害×0.5，最低为1。己方回合结束时消耗1层，剩余层数：{magnitude}。"
+      "timing": "按回合持续",
+      "description": "受到的魔法伤害×0.5，最低为1。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "vulnerable": {
       "name": "脆弱",
-      "timing": "持续到回合结束",
-      "description": "受到的物理伤害×1.25，向上取整。"
+      "timing": "按回合持续",
+      "description": "受到的物理伤害×1.25，向上取整。己方回合结束时消耗1回合，剩余回合：{magnitude}。"
     },
     "edict-of-victory": {
       "name": "胜利敕令",
@@ -838,6 +843,7 @@
     "note.fortifyPhysical": "{character}的坚守（物理伤害减半）：物理伤害从{before}变为{after}。",
     "note.guardOathPhysical": "{character}的守护誓约：物理伤害从{before}变为{after}。",
     "note.strongAttack": "{character}的强攻：物理伤害从{before}变为{after}。",
+    "note.magicSurge": "{character}的魔涌：魔法伤害从{before}变为{after}。",
     "note.mightyStrikePhysical": "{character}的猛击：物理伤害从{before}变为{after}。",
     "note.spellWardMagical": "{character}的护咒：魔法伤害从{before}变为{after}。",
     "note.vulnerablePhysical": "{character}的脆弱：物理伤害从{before}变为{after}。",
@@ -888,7 +894,7 @@
     "log.soldierDraftSelected": "{player}招募了{character}。",
     "log.soldierRankUp": "{character}升至Rank {rank}。",
     "log.aegisFormation": "{character}整备盾阵：共有盾{shield}。",
-    "log.crimsonLunge": "{actor}向{target}发动绯红突刺。"
+    "log.crimsonLunge": "{target}获得猛击。"
   },
   "abilityKinds": {
     "Trait": "特性",
@@ -1100,23 +1106,23 @@
     },
     "duel-sense": {
       "name": "决斗嗅觉",
-      "description": "每个己方回合1次，主动攻击没有共有盾的敌人前，自身获得1层强攻（物理伤害增加）。",
-      "card": "攻击无盾目标前获得强攻。",
+      "description": "每个己方回合1次，自身主动攻击第一次对敌人造成HP伤害后，获得强攻（主动物理伤害增加）。",
+      "card": "首次主动攻击造成HP伤害后获得强攻。",
       "ranks": {
         "1": {
-          "description": "每个己方回合1次，主动攻击没有共有盾的敌人前，自身获得1层强攻（物理伤害增加），并额外造成2点绝对伤害。自身存活时，我方物理攻击单位攻击+2。",
-          "card": "攻击无盾目标前获得强攻，追加绝对伤害；物理单位攻击+2光环。"
+          "description": "每个己方回合1次，自身主动攻击第一次对敌人造成HP伤害后，获得强攻（主动物理伤害增加）。此外，每个己方回合1次，自身主动攻击后对目标追加2点绝对伤害。自身存活时，我方物理攻击单位攻击+2。",
+          "card": "首次主动HP伤害后获得强攻；主动攻击后追加绝对伤害；物理单位攻击+2光环。"
         }
       }
     },
     "arcane-resonance": {
       "name": "秘术共鸣",
-      "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，自身获得咏唱（魔法伤害翻倍）。",
-      "card": "魔法链触发时获得咏唱（魔法伤害翻倍）。",
+      "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，魔攻最高的我方英雄获得魔涌。",
+      "card": "魔法链触发时，魔攻最高英雄获得魔涌。",
       "ranks": {
         "1": {
-          "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，自身获得咏唱（魔法伤害翻倍）；若由Role Action触发，咏唱层数额外+1。自身存活时，我方魔法攻击单位攻击+2。",
-          "card": "魔法链触发时获得咏唱；Role Action触发更强；魔法单位攻击+2光环。"
+          "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，我方全体魔法单位获得魔涌；若由Role Action触发，魔涌持续时间额外+1回合。自身存活时，我方魔法攻击单位攻击+2。",
+          "card": "魔法链触发时，全体魔法单位获得魔涌；Role Action触发更久；魔法单位攻击+2光环。"
         }
       }
     }

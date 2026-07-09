@@ -89,33 +89,36 @@ public sealed class BurningStatus(Guid sourceCharacterId, Guid triggerPlayerId, 
     }
 }
 
-public abstract class TurnLimitedStatus : StatusEffect
+public abstract class TurnDurationStatus : StatusEffect
 {
-    protected TurnLimitedStatus(
+    public const int DefaultTurns = 2;
+
+    protected TurnDurationStatus(
         string id,
         bool isBuff,
         Guid sourceCharacterId,
-        Guid? expireOnTurnStartPlayerId = null,
-        Guid? expireOnTurnEndPlayerId = null)
+        int turns = DefaultTurns)
         : base(id, isBuff, sourceCharacterId)
     {
-        ExpireOnTurnStartPlayerId = expireOnTurnStartPlayerId;
-        ExpireOnTurnEndPlayerId = expireOnTurnEndPlayerId;
+        RemainingTurns = Math.Max(1, turns);
     }
 
-    public Guid? ExpireOnTurnStartPlayerId { get; }
-    public Guid? ExpireOnTurnEndPlayerId { get; }
+    public int RemainingTurns { get; private set; }
+    public override int Magnitude => RemainingTurns;
 
-    public override void OnTurnStart(GameEngineContext context, CharacterState owner)
-    {
-        if (ExpireOnTurnStartPlayerId == context.State.ActivePlayerId)
-            Expired = true;
-    }
+    public void AddTurns(int turns = 1) =>
+        RemainingTurns += Math.Max(1, turns);
+
+    public void RefreshTurns(int turns) =>
+        RemainingTurns = Math.Max(RemainingTurns, Math.Max(1, turns));
 
     public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
     {
-        if (ExpireOnTurnEndPlayerId == context.State.ActivePlayerId)
-            Expired = true;
+        if (context.State.ActivePlayerId != owner.PlayerId)
+            return;
+
+        RemainingTurns--;
+        Expired = RemainingTurns <= 0;
     }
 }
 
@@ -237,8 +240,8 @@ public sealed class AttackSealedStatus(Guid sourceCharacterId, Guid expirePlayer
     }
 }
 
-public sealed class VoidStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("void", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+public sealed class VoidStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("void", false, sourceCharacterId, turns)
 {
     public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -258,8 +261,8 @@ public sealed class VoidStatus(Guid sourceCharacterId, Guid expirePlayerId)
     }
 }
 
-public sealed class VulnerableStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("vulnerable", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+public sealed class VulnerableStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("vulnerable", false, sourceCharacterId, turns)
 {
     public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -279,8 +282,8 @@ public sealed class VulnerableStatus(Guid sourceCharacterId, Guid expirePlayerId
     }
 }
 
-public sealed class ExhaustionStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("exhaustion", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+public sealed class ExhaustionStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("exhaustion", false, sourceCharacterId, turns)
 {
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -300,8 +303,8 @@ public sealed class ExhaustionStatus(Guid sourceCharacterId, Guid expirePlayerId
     }
 }
 
-public sealed class ErosionStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("erosion", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+public sealed class ErosionStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("erosion", false, sourceCharacterId, turns)
 {
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -321,24 +324,10 @@ public sealed class ErosionStatus(Guid sourceCharacterId, Guid expirePlayerId)
     }
 }
 
-public sealed class StrongAttackStatus(Guid sourceCharacterId, Guid ownerPlayerId, int turns = 1)
-    : StatusEffect("strong-attack", true, sourceCharacterId)
+public sealed class StrongAttackStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("strong-attack", true, sourceCharacterId, turns)
 {
-    private int _remainingTurnEnds = Math.Max(1, turns);
-    public override int Magnitude => _remainingTurnEnds;
     public override bool IsAttackBuff => true;
-
-    public void AddTurns(int turns = 1) =>
-        _remainingTurnEnds += Math.Max(1, turns);
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId != ownerPlayerId)
-            return;
-
-        _remainingTurnEnds--;
-        Expired = _remainingTurnEnds <= 0;
-    }
 
     public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
@@ -352,6 +341,30 @@ public sealed class StrongAttackStatus(Guid sourceCharacterId, Guid ownerPlayerI
         var before = packet.Amount;
         packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.5));
         packet.Notes.Add(L10n.Text("note.strongAttack",
+            ("character", L10n.Character(owner.Definition.Key)),
+            ("characterId", L10n.Raw(owner.Id)),
+            ("before", L10n.Raw(before)),
+            ("after", L10n.Raw(packet.Amount))));
+    }
+}
+
+public sealed class MagicSurgeStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("magic-surge", true, sourceCharacterId, turns)
+{
+    public override bool IsAttackBuff => true;
+
+    public override void ModifyOutgoingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
+    {
+        if (Expired
+            || packet.SourceCharacter.Id != owner.Id
+            || packet.Source != DamageSource.ActiveAttack
+            || packet.DamageType != DamageType.Magical
+            || packet.Amount <= 0)
+            return;
+
+        var before = packet.Amount;
+        packet.Amount = Math.Max(1, (int)Math.Ceiling(packet.Amount * 1.5));
+        packet.Notes.Add(L10n.Text("note.magicSurge",
             ("character", L10n.Character(owner.Definition.Key)),
             ("characterId", L10n.Raw(owner.Id)),
             ("before", L10n.Raw(before)),
@@ -392,24 +405,9 @@ public sealed class PendingHarvestStatus(Guid sourceCharacterId, Guid triggerPla
     }
 }
 
-public sealed class FortifyStatus(Guid sourceCharacterId, int turns = 1)
-    : StatusEffect("fortify", true, sourceCharacterId)
+public sealed class FortifyStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("fortify", true, sourceCharacterId, turns)
 {
-    private int _remainingTurnEnds = Math.Max(1, turns);
-    public override int Magnitude => _remainingTurnEnds;
-
-    public void AddTurns(int turns = 1) =>
-        _remainingTurnEnds += Math.Max(1, turns);
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId != owner.PlayerId)
-            return;
-
-        _remainingTurnEnds--;
-        Expired = _remainingTurnEnds <= 0;
-    }
-
     public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
         if (Expired
@@ -428,24 +426,9 @@ public sealed class FortifyStatus(Guid sourceCharacterId, int turns = 1)
     }
 }
 
-public sealed class SpellWardStatus(Guid sourceCharacterId, int turns = 1)
-    : StatusEffect("spell-ward", true, sourceCharacterId)
+public sealed class SpellWardStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("spell-ward", true, sourceCharacterId, turns)
 {
-    private int _remainingTurnEnds = Math.Max(1, turns);
-    public override int Magnitude => _remainingTurnEnds;
-
-    public void AddTurns(int turns = 1) =>
-        _remainingTurnEnds += Math.Max(1, turns);
-
-    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
-    {
-        if (context.State.ActivePlayerId != owner.PlayerId)
-            return;
-
-        _remainingTurnEnds--;
-        Expired = _remainingTurnEnds <= 0;
-    }
-
     public override void ModifyIncomingDamage(GameEngineContext context, CharacterState owner, DamagePacket packet)
     {
         if (Expired
@@ -510,8 +493,8 @@ public sealed class RageStatus(Guid sourceCharacterId, Guid ownerPlayerId)
     }
 }
 
-public sealed class TremblingStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("trembling", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+public sealed class TremblingStatus(Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    : TurnDurationStatus("trembling", false, sourceCharacterId, turns)
 {
 }
 
@@ -694,8 +677,15 @@ public sealed class AbyssalBargainStatus(Guid sourceCharacterId, int absoluteDam
 }
 
 public sealed class ArchivedStatus(Guid sourceCharacterId, Guid expirePlayerId)
-    : TurnLimitedStatus("archived", false, sourceCharacterId, expireOnTurnEndPlayerId: expirePlayerId)
+    : StatusEffect("archived", false, sourceCharacterId)
 {
+    public Guid ExpirePlayerId { get; } = expirePlayerId;
+
+    public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
+    {
+        if (context.State.ActivePlayerId == ExpirePlayerId)
+            Expired = true;
+    }
 }
 
 public sealed class GloryRoarStatus(Guid sourceCharacterId, Guid ownerPlayerId)

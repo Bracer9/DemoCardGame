@@ -5423,7 +5423,6 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
 }
 .relic-overview {
   position:fixed;
-  z-index:220;
   left:var(--relic-overview-left);
   top:var(--relic-overview-top);
   width:var(--relic-overview-button-size);
@@ -5478,7 +5477,7 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
   position:absolute;
   left:0;
   bottom:calc(100% + 14px);
-  z-index:1;
+  z-index:96;
   width:var(--relic-overview-detail-width);
   max-height:0;
   overflow:hidden;

@@ -10,8 +10,8 @@
 | --- | --- | --- | --- |
 | `cleric` | `field-medic` | HP+2，低血目标护咒更久 | `mend` |
 | `shieldmaiden` | `shield-drill` | HP+2，物防+1，强化坚守延长 | `aegis-formation` |
-| `duelist` | `duel-sense` | HP+1，对多 debuff 目标强攻更久 | `crimson-lunge` |
-| `arcanist` | `arcane-resonance` | HP+2，魔防+1，Role Action 触发时咏唱更多 | `astral-focus` |
+| `duelist` | `duel-sense` | HP+1，首次主动 HP 伤害后追加绝对伤害 | `crimson-lunge` |
+| `arcanist` | `arcane-resonance` | HP+2，魔防+1，Role Action 触发时魔涌持续更久 | `astral-focus` |
 
 所有士兵效果复用既有通用状态，不新增士兵专属状态。
 

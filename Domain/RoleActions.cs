@@ -182,15 +182,15 @@ public sealed class RoleActionRegistry
             new(new RoleActionMetadata(
                 "crimson-lunge",
                 RoleActionActivationMode.Targeted,
-                [RoleActionTargetKind.EnemyCard],
+                [RoleActionTargetKind.AllyCard],
                 1,
-                ["trembling", "vulnerable", "physical"])),
+                ["mighty-strike", "physical", "support"])),
             new(new RoleActionMetadata(
                 "astral-focus",
                 RoleActionActivationMode.Targeted,
-                [RoleActionTargetKind.AllyCard, RoleActionTargetKind.EnemyCard],
+                [RoleActionTargetKind.AllyCard],
                 1,
-                ["chant", "void", "magic"])),
+                ["chant", "magic", "support"])),
 
             new(new RoleActionMetadata("miracle-standard", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["heal", "cleanse", "shield", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("edict-of-victory", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["command", "extra-attack", "absolute", "rank3"], CooldownTurns: 1)),

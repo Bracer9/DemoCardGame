@@ -212,6 +212,12 @@
       "fallback": "唱",
       "tone": "arcane"
     },
+    "status.magic-surge": {
+      "category": "status",
+      "source": "statuses/chant.png",
+      "fallback": "涌",
+      "tone": "arcane"
+    },
     "status.attack-sealed": {
       "category": "status",
       "source": null,
@@ -259,6 +265,12 @@
       "source": "statuses/strong-attack.png",
       "fallback": "↑",
       "tone": "physical"
+    },
+    "status.mighty-strike": {
+      "category": "status",
+      "source": "statuses/strong-attack.png",
+      "fallback": "猛",
+      "tone": "physical"
     }
   },
   "bindings": {
@@ -302,11 +314,13 @@
       "fortify": "status.fortify",
       "guard-oath": "status.guard-oath",
       "chant": "status.chant",
+      "magic-surge": "status.magic-surge",
       "attack-sealed": "status.attack-sealed",
       "trembling": "status.trembling",
       "chant-pending": "status.chant-pending",
       "spell-ward": "status.spell-ward",
       "strong-attack": "status.strong-attack",
+      "mighty-strike": "status.mighty-strike",
       "edict-of-victory": "trait.saints-prayer",
       "astral-alignment": "trait.stargazers-aegis",
       "militia-call": "trait.spring-harvest",

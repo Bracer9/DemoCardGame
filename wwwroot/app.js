@@ -2366,7 +2366,7 @@ async function endTurn() {
     const endingPlayer = game.players.find(player => player.id === game.viewerPlayerId);
     const bpRecoveryAmount = Math.max(0, Number(endingPlayer?.battlePoints?.gainedThisTurn || 0));
     const payload = await gameApi('/game/end-turn', { method: 'POST', body: '{}' });
-    await animateBpRecoveryToHp(bpRecoveryAmount);
+    await animateBpRecoveryToHp(bpRecoveryAmount, payload.data);
     game = payload.data; lastGameJson = JSON.stringify(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     await playTurnCurtain(game.activePlayerName, true);
     await playNewLogEvents(game);
@@ -3303,6 +3303,12 @@ async function playLogEntry(entry, state) {
     case 'note.strongAttack':
       sound.emit('status.buff-applied');
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'strong-attack', magnitude: 0 }).name, secondaryIconId: art.forStatus('strong-attack'), tone: 'physical' }); break;
+    case 'note.mightyStrikePhysical':
+      sound.emit('status.buff-applied');
+      await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'mighty-strike', magnitude: 0 }).name, secondaryIconId: art.forStatus('mighty-strike'), tone: 'physical' }); break;
+    case 'note.magicSurge':
+      sound.emit('status.magic-bonus');
+      await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'magic-surge', magnitude: 0 }).name, secondaryIconId: art.forStatus('magic-surge'), tone: 'magic' }); break;
     case 'note.voidMagic':
       sound.emit('status.magic-bonus');
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'void', magnitude: amount }).name, secondaryIconId: art.forStatus('void'), tone: 'magic' }); break;
@@ -3370,8 +3376,8 @@ async function playLogEntry(entry, state) {
       await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.heal, { title: i18n.roleAction('mend').name, amount: `+${amount}`, tone: 'heal' }); break;
     case 'log.statusApplied':
       if (status?.value === 'burning') sound.emit('status.burning-applied');
-      if (status?.value === 'chant') sound.emit('status.magic-bonus');
-      if (status?.value === 'spell-ward' || status?.value === 'fortify' || status?.value === 'strong-attack') sound.emit('status.buff-applied');
+      if (status?.value === 'chant' || status?.value === 'magic-surge') sound.emit('status.magic-bonus');
+      if (status?.value === 'spell-ward' || status?.value === 'fortify' || status?.value === 'strong-attack' || status?.value === 'mighty-strike') sound.emit('status.buff-applied');
       if (status?.value === 'exhaustion' || status?.value === 'erosion' || status?.value === 'void' || status?.value === 'trembling' || status?.value === 'vulnerable') sound.emit('status.debuff-applied');
       if (status?.value === 'beast-rage') {
         sound.emit('status.beast-rage');
@@ -3381,12 +3387,12 @@ async function playLogEntry(entry, state) {
     case 'log.deputyTriggered': {
       const deputy = logArgObject(entry, 'deputy');
       const deputyName = deputy?.kind === 'deputy' ? i18n.deputy(deputy.value).name : i18n.t('deputyTitle');
-      if (status?.value === 'chant') sound.emit('status.magic-bonus');
+      if (status?.value === 'chant' || status?.value === 'magic-surge') sound.emit('status.magic-bonus');
       else sound.emit('status.buff-applied');
       await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.trait, {
         title: deputyName,
         secondaryIconId: art.forStatus(status?.value),
-        tone: status?.value === 'chant' ? 'magic' : status?.value === 'strong-attack' ? 'physical' : 'trait'
+        tone: status?.value === 'chant' || status?.value === 'magic-surge' ? 'magic' : status?.value === 'strong-attack' ? 'physical' : 'trait'
       });
       break;
     }
@@ -3423,9 +3429,9 @@ async function playLogEntry(entry, state) {
     }
     case 'log.crimsonLunge':
       sound.emit('combat.trait-damage');
-      sound.emit('status.debuff-applied');
-      await roleActionBurst('crimson-lunge', characterElementFromLog(state, entry, 'actor'), { secondaryIconId: art.forStatus('trembling'), tone: 'physical', hold: 240 });
-      await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.status, { title: i18n.roleAction('crimson-lunge').name, secondaryIconId: art.forStatus('trembling'), tone: 'status' }); break;
+      sound.emit('status.buff-applied');
+      await roleActionBurst('crimson-lunge', characterElementFromLog(state, entry, 'actor'), { secondaryIconId: art.forStatus('mighty-strike'), tone: 'physical', hold: 240 });
+      await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.status, { title: i18n.status({ id: 'mighty-strike', magnitude: 0 }).name, secondaryIconId: art.forStatus('mighty-strike'), tone: 'physical' }); break;
     case 'log.traitFailed':
       if (trait?.value === 'weakening-spores') sound.emit('status.debuff-applied');
       await eventBurst(target, eventIcon.trait, { title: effectLabel(trait), secondaryIconId: art.forTrait(trait?.value), amount: '×', tone: 'trait' }); break;
@@ -3567,6 +3573,12 @@ function updatePendingVisualHp(card, currentHp) {
   if (baseline) baseline.currentHp = currentHp;
 }
 
+function updatePendingVisualMorale(card, morale) {
+  const id = card?.dataset?.id;
+  const baseline = id && pendingVisualBaselines?.get(String(id));
+  if (baseline) baseline.morale = morale;
+}
+
 function animateHpOrbLoss(card, amount) {
   if (!card) return;
   const orb = card.querySelector('.stat-orb.hp');
@@ -3638,7 +3650,7 @@ function shieldBlock(target, amount, remaining) {
   }
   setTimeout(() => text.remove(), 920);
 }
-function animateBpRecoveryToHp(amount) {
+function animateBpRecoveryToHp(amount, finalState = null) {
   const value = Math.max(0, Number(amount || 0));
   if (!value || !ui.fx) return Promise.resolve();
   const source = ui.activeBpTurnGain?.classList.contains('active') ? ui.activeBpTurnGain : ui.activeBpValue;
@@ -3685,7 +3697,9 @@ function animateBpRecoveryToHp(amount) {
     token.style.setProperty('--delay', `${index * staggerMs}ms`);
     ui.fx.appendChild(token);
     window.setTimeout(() => {
-      animateMoraleRingRecovery(target.closest('.fighter-card'), value);
+      const card = target.closest('.fighter-card');
+      const finalCharacter = characterByIdData(finalState, card?.dataset?.id);
+      animateMoraleRingRecovery(card, value, { finalMorale: finalCharacter?.morale });
       target.classList.remove('bp-recovery-hit');
       void target.offsetWidth;
       target.classList.add('bp-recovery-hit');
@@ -3699,20 +3713,24 @@ function animateBpRecoveryToHp(amount) {
   return wait(totalMs + 120);
 }
 
-function animateMoraleRingRecovery(card, amount) {
+function animateMoraleRingRecovery(card, amount, options = {}) {
   if (!card) return;
   const ring = card.querySelector('.morale-ring');
   const maxMorale = Math.max(0, Number(card.dataset.maxMorale || 0));
   const currentMorale = Math.max(0, Number(card.dataset.morale || 0));
   const recovery = Math.max(0, Number(amount || 0));
   if (!ring || !maxMorale || !recovery) return;
-  const nextMorale = Math.min(maxMorale, currentMorale + recovery);
+  const finalMorale = options.finalMorale === undefined ? null : Number(options.finalMorale);
+  const nextMorale = Number.isFinite(finalMorale)
+    ? Math.max(0, Math.min(maxMorale, finalMorale))
+    : Math.min(maxMorale, currentMorale + recovery);
   if (nextMorale <= currentMorale) return;
   const from = Math.max(0, Math.min(1, currentMorale / maxMorale));
   const to = Math.max(0, Math.min(1, nextMorale / maxMorale));
   const durationMs = 360;
   const startedAt = performance.now();
   card.dataset.morale = String(nextMorale);
+  updatePendingVisualMorale(card, nextMorale);
   ring.title = `Morale ${nextMorale}/${maxMorale}`;
   ring.classList.remove('morale-recovering');
   void ring.offsetWidth;

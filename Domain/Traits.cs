@@ -178,7 +178,7 @@ public sealed class StargazersAegisTrait : CharacterTrait
             if (GameEngine.GetAttackType(packet.TargetCharacter) == DamageType.Magical)
                 packet.TargetCharacter.Statuses.Add(new ChantStatus(owner.Id));
             else
-                packet.TargetCharacter.Statuses.Add(new SpellWardStatus(owner.Id));
+                GameEngine.AddSpellWard(packet.TargetCharacter, owner.Id);
         }
     }
 }
@@ -228,7 +228,7 @@ public sealed class SpringHarvestTrait : CharacterTrait
                 .ThenBy(character => character.CurrentHp)
                 .FirstOrDefault();
             if (lowHpAlly is not null)
-                lowHpAlly.Statuses.Add(new FortifyStatus(owner.Id));
+                GameEngine.AddFortify(lowHpAlly, owner.Id);
         }
         context.Log(L10n.Text("log.sowing",
             ("character", L10n.Character(owner.Definition.Key)),
@@ -267,10 +267,7 @@ public sealed class SearingMarkTrait : CharacterTrait
 
         GameEngine.AddBurning(exchange.Defender, owner.Id);
         if (HeroRankRules.HasRank2Path(owner, "searing-brand"))
-        {
-            exchange.Defender.Statuses.RemoveAll(status => status.Id == "void");
-            exchange.Defender.Statuses.Add(new VoidStatus(owner.Id, owner.PlayerId));
-        }
+            GameEngine.AddVoid(exchange.Defender, owner.Id);
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
             ("characterId", L10n.Raw(exchange.Defender.Id)),
@@ -319,15 +316,14 @@ public sealed class WeakeningSporesTrait : CharacterTrait
                 ("status", L10n.Status(attackBuff.Id))), "status");
         }
 
-        exchange.Defender.Statuses.RemoveAll(status => status.Id is "exhaustion" or "erosion");
-        exchange.Defender.Statuses.Add(new ExhaustionStatus(owner.Id, exchange.Defender.PlayerId));
-        exchange.Defender.Statuses.Add(new ErosionStatus(owner.Id, exchange.Defender.PlayerId));
+        GameEngine.AddExhaustion(exchange.Defender, owner.Id);
+        GameEngine.AddErosion(exchange.Defender, owner.Id);
         if (!removedBuff && HeroRankRules.HasRank2Path(owner, "weakening-spores-action"))
         {
             if (GameEngine.GetAttackType(exchange.Defender) == DamageType.Physical)
-                exchange.Defender.Statuses.Add(new VulnerableStatus(owner.Id, owner.PlayerId));
+                GameEngine.AddVulnerable(exchange.Defender, owner.Id);
             else
-                exchange.Defender.Statuses.Add(new VoidStatus(owner.Id, owner.PlayerId));
+                GameEngine.AddVoid(exchange.Defender, owner.Id);
         }
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
@@ -372,7 +368,7 @@ public sealed class AftershockAxeTrait : CharacterTrait
         {
             context.DealTraitDamage(target, damage, DamageType.Physical, owner.Id, "aftershock-axe");
             if (HeroRankRules.HasRank2Path(owner, "challenge"))
-                target.Statuses.Add(new TremblingStatus(owner.Id, owner.PlayerId));
+                GameEngine.AddTrembling(target, owner.Id);
         }
     }
 }
@@ -497,7 +493,7 @@ public sealed class InterposingShieldTrait : CharacterTrait
             ("targetId", L10n.Raw(packet.TargetCharacter.Id)),
             ("amount", L10n.Raw(guardDamage))));
         if (HeroRankRules.HasRank2Path(owner, "guard-oath"))
-            packet.TargetCharacter.Statuses.Add(new FortifyStatus(owner.Id));
+            GameEngine.AddFortify(packet.TargetCharacter, owner.Id);
         owner.GuardConsumed = true;
     }
 }
@@ -524,33 +520,30 @@ public sealed class DuelSenseTrait : CharacterTrait
 {
     public override TraitMetadata Metadata { get; } = new(
         "duel-sense",
-        TraitTriggerKind.OnAttackDeclared,
+        TraitTriggerKind.OnAttackResolved,
         TraitScopeKind.Self,
         TraitEffectKind.Status);
 
-    public override void OnAttackDeclared(GameEngineContext context, CharacterState owner, CharacterState target)
+    public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
-        var targetOwner = context.State.FindOwner(target);
         if (owner.PlayerId != context.State.ActivePlayerId
-            || owner.TraitsUsedThisTurn.Contains(Metadata.Id)
-            || targetOwner.SharedShield > 0)
+            || exchange.Attacker.Id != owner.Id
+            || exchange.Defender.PlayerId == owner.PlayerId)
             return;
 
-        var strongAttack = owner.Statuses.OfType<StrongAttackStatus>().FirstOrDefault(status => !status.Expired);
-        if (strongAttack is not null)
-            strongAttack.AddTurns();
-        else
-            owner.Statuses.Add(new StrongAttackStatus(owner.Id, owner.PlayerId));
-        if (owner.SoldierRank >= 1)
+        if (exchange.AttackDamageDealt > 0 && owner.TraitsUsedThisTurn.Add(Metadata.Id))
         {
-            owner.Statuses.RemoveAll(status => status.Id == "duel-sense-strike");
-            owner.Statuses.Add(new DuelSenseStrikeStatus(owner.Id));
+            GameEngine.AddStrongAttack(owner, owner.Id);
+            context.Log(L10n.Text("log.statusApplied",
+                ("character", L10n.Character(owner.Definition.Key)),
+                ("characterId", L10n.Raw(owner.Id)),
+                ("status", L10n.Status("strong-attack"))), "buff");
         }
-        owner.TraitsUsedThisTurn.Add(Metadata.Id);
-        context.Log(L10n.Text("log.statusApplied",
-            ("character", L10n.Character(owner.Definition.Key)),
-            ("characterId", L10n.Raw(owner.Id)),
-            ("status", L10n.Status("strong-attack"))), "buff");
+
+        if (owner.SoldierRank >= 1
+            && exchange.Defender.IsAlive
+            && owner.TraitsUsedThisTurn.Add("duel-sense-absolute"))
+            context.DealAbsoluteDamage(exchange.Defender, DuelSenseStrikeStatus.AbsoluteDamage, owner.Id, "duel-sense");
     }
 }
 

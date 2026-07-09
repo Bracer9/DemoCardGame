@@ -59,164 +59,182 @@
 - Stage II 以后，若队伍已有对应标签角色或状态来源，提高相关遗物权重。
 - Stage III 遗物若完全无对应 build，应降低出现率，避免玩家看到“很强但用不了”的死选项。
 
-## 4. 当前 build 缺口
+## 4. 体系遗物设计原则
 
-| Build | 已有支点 | 当前缺口 |
-|---|---|---|
-| 圣疗 / 防线 | Princess 祈祷路线、Cleric、Shieldmaiden、Knight | 治疗只修 HP，不影响士气；需要通过共享盾、护咒、BP 间接形成稳定防线。 |
-| 盾墙 / 守护 | Knight、Shieldmaiden、共享盾、坚守、守护誓约 | 容易只变成拖延；需要破盾后反击、盾量转化或 AP/BP 回报。 |
-| 魔法 / 咏唱 / 燃烧 | Mage、Oracle、Arcanist、咏唱、燃烧、空虚、星读魔力 | 前期缺稳定起手；燃烧本体伤害低且受魔防影响，缺少把层数一次性兑现的结算机制；中期需要“只打士气也有推进感”的状态收益。 |
-| Debuff / 控制 | Druid、Mage 刻印路线、Duelist、Barbarian 挑衅 | 状态很多，但缺一个把多种 Debuff 串成胜利条件的引擎。 |
-| 物理节奏 / 再行动 | War Queen、Barbarian、Duelist、Peasant 民兵 | 爆发窗口强，但需要避免只看 +Attack；应围绕无盾目标、战栗、AP debt、额外攻击。 |
-| 士兵团 / 民兵 | Peasant、四类士兵 Rank1 Aura、Rank2 Role Action / 副官 | 士兵数量本身还缺奖励回报；需要让“招募士兵”成为 build，而不是只当副官素材。 |
-| 猎物 / 绝对伤害 / 献祭 | Monster、Predatory Gaze、Dark Pact、Nightmare、Abyssal Bargain | 绝对伤害绕过士气很强，遗物必须给条件和节奏，不宜直接无脑加伤害。 |
-| 士气 / BP 指挥 | BP 上限、每 turn 首次 Role Action +1 BP、士气随 BP 回合结束恢复 | 士气已经是外接 HP；遗物应通过 BP 获取、士气压力或共享盾联动，不直接治疗士气。 |
+遗物池按体系组织，而不是按单件效果平铺。Common / Rare 负责铺地基，Epic 负责把同一套地基收束成不同胜法。
 
-## 5. 遗物总表
+- Common：给方向信号，尽量是容易理解的数值、成本或状态入口。
+- Rare：补循环，让已有角色、士兵、Aura、副官开始互相吃到收益。
+- Epic：每个体系至少 2 个，分别代表不同终局方向。Epic 是拼图最后一块，不是角色专属说明书。
+- 玩家可见文本保持短句。需要精确定义的边界放在“实装备注”，不要塞进效果文本。
+- 同一体系的两个 Epic 应共享 Common / Rare 地基，但推动不同打法，例如“层数爆发”和“持续蚕食”。
 
-### 5.1 静态数值遗物
+## 5. 体系遗物设计
 
-这些用于替换当前 dummy 奖励，可以最早落地。
+### 5.1 炎上 / 咏唱 / 魔法
 
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 实装落点 |
-|---|---:|---:|---|---|---|
-| `relic-silver-ward-charm` | I | 3 | common | 我方全体魔防 +1。 | 队伍级 `RelicEffects.ModifyMagicalDefense`。 |
-| `relic-black-iron-rivets` | I | 3 | common | 我方全体物防 +1。 | 队伍级 `RelicEffects.ModifyPhysicalDefense`。 |
-| `relic-apprentice-star-ink` | I | 4 | rare | 我方魔法攻击单位攻击 +1。 | 队伍级 `RelicEffects.ModifyBaseAttack`，限定魔法攻击单位。 |
-| `relic-war-council-banner` | III | 7 | epic | 我方全体攻击 +1。 | 队伍级 `RelicEffects.ModifyBaseAttack`。 |
+构筑目标：用 Mage / Oracle / Arcanist 稳定制造魔法伤害与燃烧层数，最终选择“攒层引爆”或“强化燃烧本体”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-apprentice-star-ink` | 4 | 我方魔法攻击单位攻击 +1。 | 魔法队基础火力。 |
+| Rare | `relic-ember-astrolabe` | 5 | 每回合首次赋予燃烧时，额外 +1 层。 | 燃烧层数地基。 |
+| Rare | `relic-hollow-comet-lens` | 5 | 每回合首次只击伤士气的魔法伤害，赋予空虚。 | 剥士气也有推进。 |
+| Epic A | `relic-ashen-detonator` | 8 | 每回合 1 次，命中 3 层以上燃烧时，引爆燃烧。 | 层数爆发。 |
+| Epic B | `relic-smoldering-censer` | 8 | 燃烧基础伤害 +1。 | 持续蚕食。 |
+
+实装备注：
+
+- `ashen-detonator` 消耗目标全部燃烧，造成等同层数的燃爆魔法伤害；不受魔防，仍先扣士气，不是绝对伤害。
+- `smoldering-censer` 只改燃烧回合结算的基础伤害；仍是魔法伤害，仍先扣士气，仍不算 HP 伤害除非实际溢出到 HP。
+- `hollow-comet-lens` 检查 `MoraleDamage > 0 && HpDamage == 0 && DamageType.Magical`，不引入有效伤害概念。
+
+### 5.2 盾墙 / 守护
+
+构筑目标：用 Knight / Shieldmaiden / 共享盾撑住战线，最终选择“稳定复盾”或“破盾反击”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-black-iron-rivets` | 3 | 我方全体物防 +1。 | 抗物理基础。 |
+| Common | `relic-mason-token` | 3 | 每回合首次部署或强化共享盾时，低 HP 友方获得坚守。 | 防线保护入口。 |
+| Rare | `relic-cracked-shield-bell` | 5 | 每 round 1 次，共享盾被击破后，攻击者获得战栗。 | 破盾惩罚。 |
+| Epic A | `relic-kingwall-standard` | 8 | 回合开始时，若共享盾为 0，获得共享盾 2。 | 稳定复盾。 |
+| Epic B | `relic-bastion-hammer` | 8 | 共享盾被击破时，攻击者受到 3 点士气伤害。 | 盾墙反击。 |
+
+实装备注：
+
+- `kingwall-standard` 不触发“部署共享盾”类遗物，避免自循环。
+- `bastion-hammer` 只打士气，不扣 HP，不触发 HPDamage 相关 Trait / Role Action。
+- 共享盾破碎仍然不穿透到 HP。
+
+### 5.3 圣疗 / 净化
+
+构筑目标：用 Princess 祈祷路线、Cleric、Druid 净化维持 HP 与状态优势，最终选择“护盾化”或“团队回血”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-silver-ward-charm` | 3 | 我方全体魔防 +1。 | 抗魔基础。 |
+| Common | `relic-white-lily-censer` | 3 | 每回合首次主动治疗 HP 时，目标获得护咒。 | 治疗转防护。 |
+| Rare | `relic-cleanse-votive` | 5 | 每回合首次成功净化时，获得 1 BP。 | 净化转经济。 |
+| Epic A | `relic-oath-keystone` | 7 | 每回合第 3 次获得坚守或护咒时，共享盾 +3。 | 防护链收束。 |
+| Epic B | `relic-saint-bell` | 8 | 每回合首次净化后，全队 HP +1。 | 团队续航。 |
+
+实装备注：
+
+- 这些遗物不直接恢复士气。士气仍只通过 BP 回合结束恢复。
+- `white-lily-censer` 只响应主动治疗，避免免费回合开始治疗直接滚雪球。
+- `saint-bell` 是治疗 HP，不恢复士气，不算净化本身造成的 BP。
+
+### 5.4 Debuff / 控制
+
+构筑目标：把 Druid、刻印 Mage、Duelist、Barbarian 的控制状态串起来，最终选择“士气压制”或“弱点斩杀”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-witch-bell` | 3 | 每回合首次赋予敌方 Debuff 时，追加战栗。 | 控制入口。 |
+| Rare | `relic-spore-press` | 5 | 每回合首次驱散敌方 Buff 时，获得 1 BP。 | Druid / 净化经济。 |
+| Rare | `relic-cracked-mask` | 5 | 战栗目标受到的士气伤害 +1。 | 控制转士气压力。 |
+| Epic A | `relic-plague-codex` | 8 | 敌方获得第 3 个 Debuff 时，受到 4 点士气伤害。 | 状态堆叠压制。 |
+| Epic B | `relic-lockjaw-mask` | 8 | 战栗目标受到的第一次 HP 伤害 +2。 | 弱点斩杀。 |
+
+实装备注：
+
+- `plague-codex` 只打士气，不触发 HPDamage 条件。
+- `lockjaw-mask` 只增加真实 HP 伤害；如果本次只打士气，额外值不触发。
+- Debuff 计数应按不同状态 ID 计算，不按层数计算。
+
+### 5.5 物理节奏 / 再行动
+
+构筑目标：用 War Queen、Barbarian、Duelist、物理士兵制造攻击窗口，最终选择“连击经济”或“第三击爆发”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-red-whetstone` | 3 | 我方物理攻击单位攻击 +1。 | 物理队基础火力。 |
+| Rare | `relic-duelist-ticket` | 5 | 每回合首次攻击无盾敌人前，物理攻击者获得强攻。 | 开窗口。 |
+| Rare | `relic-green-standard` | 5 | 每回合首次击破敌方共享盾时，额外获得 1 BP。 | 破盾经济。 |
+| Epic A | `relic-victory-drum` | 8 | 每回合 1 次，额外攻击造成 HP 伤害时，获得 1 BP。 | 连击经济。 |
+| Epic B | `relic-red-hourglass` | 8 | 每回合第 3 次主动攻击伤害 +3。 | 第三击爆发。 |
+
+实装备注：
+
+- `victory-drum` 只看真实 HP 伤害。只打士气不触发。
+- `red-hourglass` 增加的是本次普通伤害，仍先扣士气，不是绝对伤害。
+- `duelist-ticket` 与 Duelist Rank1 物理攻击 Aura 可叠加，成本不宜下调。
+
+### 5.6 士兵团 / 民兵
+
+构筑目标：让招募、保留、升级士兵本身成为 build，最终选择“士兵 Role Action 循环”或“多士兵攻击压制”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-muster-papers` | 3 | 士兵招募成本 -1 BP。 | 扩编入口。 |
+| Rare | `relic-shared-drillbook` | 5 | 若有 2 名以上士兵在场，士兵攻击 +1。 | 保留士兵奖励。 |
+| Rare | `relic-veteran-captain-badge` | 5 | 每回合首次使用士兵 Role Action 后，获得 1 BP。 | 士兵行动经济。 |
+| Epic A | `relic-command-sergeant-seal` | 8 | 每回合首次使用士兵 Role Action 后，返还 1 AP。 | 士兵技能循环。 |
+| Epic B | `relic-company-standard` | 8 | 每回合第 3 次士兵攻击伤害 +3。 | 多士兵压制。 |
+
+实装备注：
+
+- `muster-papers` 只影响士兵招募，不影响英雄招募，且成本最低为 1 BP。
+- `shared-drillbook` 只影响在场士兵；副官保留的 Rank1 Aura 继续通过 Aura 系统生效。
+- `company-standard` 增加的是普通伤害，仍先扣士气。
+
+### 5.7 猎物 / 绝对伤害 / 献祭
+
+构筑目标：给 Monster、Dark Pact、Abyssal Bargain 明确节奏，最终选择“猎物追杀”或“献祭爆发”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-blood-coin` | 3 | 每回合首次支付 HP 后，获得 1 BP。 | 献祭经济。 |
+| Rare | `relic-night-bait` | 5 | 每回合首次造成 0 点 HP 伤害时，赋予猎物。 | 猎物入口。 |
+| Rare | `relic-hunter-fang` | 5 | 每回合首次对猎物造成绝对伤害后，目标获得脆弱。 | 追杀铺垫。 |
+| Epic A | `relic-predator-crown` | 8 | 猎物受到 0 点 HP 伤害时，追加 2 绝对伤害。 | 猎物追杀。 |
+| Epic B | `relic-abyss-contract-seal` | 8 | 每回合 1 次，支付 HP 后，下次攻击附加 2 绝对伤害。 | 献祭爆发。 |
+
+实装备注：
+
+- 绝对伤害直接扣 HP，不走士气。
+- `night-bait` 和 Monster 的“0 点 HP 伤害追击”共享真实 HPDamage 口径；只打士气也算 0 HP 伤害。
+- `abyss-contract-seal` 只响应支付 / 献祭 HP，不响应受到敌方伤害。
+
+### 5.8 BP / 指挥 / 士气
+
+构筑目标：利用 BP 获取、AP 节奏和士气回合结束恢复，最终选择“高费行动循环”或“BP 引擎转 AP”。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-campaign-ledger` | 3 | 回合结束时若 AP 为 0，获得 1 BP。 | 打空 AP 的经济身份。 |
+| Rare | `relic-supply-cart` | 5 | 回合结束时，若本回合获得 3 点以上 BP，共享盾 +2。 | BP 转防线。 |
+| Rare | `relic-brass-order` | 5 | 每回合首次获得第 5 点 BP 时，获得强攻。 | BP 上限奖励。 |
+| Epic A | `relic-command-table` | 8 | 每回合首次使用 2 AP 以上行动后，返还 1 AP。 | 高费行动循环。 |
+| Epic B | `relic-war-room-map` | 8 | 每回合第 3 次获得 BP 时，获得 1 AP。 | BP 引擎转 AP。 |
+
+实装备注：
+
+- BP 获取仍受每 turn 5 点上限限制。
+- `supply-cart` 不恢复士气，只把高 BP 回合转换成共享盾。
+- `war-room-map` 只响应成功获得 BP，不响应被 BP cap 拦下的溢出。
+
+### 5.9 中立静态遗物
+
+这些遗物不定义 build，只作为早期容错或终局泛用选项。权重应低于命中体系的遗物。
+
+| 层级 | ID | 成本 | 效果文本 | 作用 |
+|---|---|---:|---|---|
+| Common | `relic-silver-ward-charm` | 3 | 我方全体魔防 +1。 | 抗魔容错。 |
+| Common | `relic-black-iron-rivets` | 3 | 我方全体物防 +1。 | 抗物理容错。 |
+| Epic | `relic-war-council-banner` | 7 | 我方全体攻击 +1。 | 泛用终局火力。 |
 
 平衡备注：
 
-- `war-council-banner` 不应过早出现。全队攻击 +1 会同时放大普通攻击、Rank3 当前攻击力系行动、绝对伤害取值和部分士兵 Aura。
-- 物防 / 魔防 +1 是良性的 early relic，可以帮助慢速路线活到 Rank2。
-
-### 5.2 圣疗 / 防线遗物
-
-目标：让治疗、净化、护咒不只是“苟住”，而是能转换成共享盾、BP 和反打窗口。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-white-lily-censer` | I | 3 | common | 每回合首次主动治疗 HP 时，目标获得护咒。 | Princess 祈祷、Cleric、Peasant 补给 | 新增 team relic hook：`OnRoleActionHealResolved`，赋予 `SpellWardStatus`。 |
-| `relic-cleanse-votive` | II | 5 | rare | 每回合首次成功净化时，获得 1 BP。 | Saint Queen、Druid 净化、Cleric | `TryGainBp(..., reason: relic-cleanse)`；只看成功移除 Debuff，受 BP 获取上限限制。 |
-| `relic-oath-keystone` | III | 7 | epic | 每回合第 3 次获得坚守或护咒时，共享盾 +3。 | 防线、净化、盾墙 | 监听 `FortifyStatus` / `SpellWardStatus` 应用；队伍级每 turn 计数。 |
-
-注意：
-
-- 这些遗物不直接回复士气。它们通过 BP 与共享盾提高生存，不破坏“士气只通过 BP 回合结束恢复”的当前口径。
-- `white-lily-censer` 只响应 Role Action，不响应 Princess 回合开始治疗，避免免费治疗光环过强。
-
-### 5.3 盾墙 / 守护遗物
-
-目标：让共享盾 build 不只是拖时间，而是能制造破盾惩罚和保护节奏。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-mason-token` | I | 3 | common | 每回合首次部署或强化共享盾时，低 HP 友方获得坚守。 | Knight、Shieldmaiden、Saint Queen | 复用低血选择逻辑，赋予 `FortifyStatus`。 |
-| `relic-cracked-shield-bell` | II | 5 | rare | 每 round 1 次，共享盾被击破后，攻击者获得战栗。 | 盾墙、Raise Bulwark、Aegis Formation | 破盾事件 hook；赋予 `TremblingStatus`。 |
-| `relic-kingwall-standard` | III | 8 | epic | 回合开始时，若共享盾为 0，获得共享盾 2。 | 盾墙、慢速防线 | 队伍级遗物；不触发“部署共享盾”奖励，避免 BP 循环。 |
-
-注意：
-
-- `cracked-shield-bell` 不改变“共享盾破碎不穿透”的核心规则，只增加破盾后的反击窗口。
-- `kingwall-standard` 只能给基础盾，不应吃 `raise-bulwark` 的立即倍率，除非玩家之后主动消耗 AP 继续强化。
-
-### 5.4 魔法 / 咏唱 / 燃烧遗物
-
-目标：让 Mage / Oracle / Arcanist 的魔法链有早期入口、中期士气推进、终局爆点。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-apprentice-star-ink` | I | 4 | rare | 我方魔法攻击单位攻击 +1。 | Mage、Oracle、Druid、Arcanist | 复用 `RewardMagicalAttackStatus`。 |
-| `relic-ember-astrolabe` | II | 5 | rare | 每回合首次赋予燃烧时，额外 +1 层。 | Searing Mark、Searing Brand、Starfall | 在 `AddBurning` 或状态应用后追加 `AddStacks(1)`。 |
-| `relic-ashen-detonator` | II | 6 | rare | 每回合 1 次，命中 3 层以上燃烧时，引爆燃烧。 | 燃烧、咏唱、魔法连击 | 消耗全部燃烧，造成等同层数的燃爆魔法伤害；不受魔防，仍先扣士气。 |
-| `relic-hollow-comet-lens` | III | 8 | epic | 每回合 1 次，魔法伤害只击伤士气时，目标获得空虚。 | Chant、Starfall、Astral Alignment、Archive Formula | Damage resolved hook；检查 `MoraleDamage > 0 && HpDamage == 0 && DamageType.Magical`，赋予 `VoidStatus`。 |
-
-注意：
-
-- `hollow-comet-lens` 让魔法队“剥士气”后仍有推进感，但不把士气伤害伪装成 HP 伤害。
-- `ember-astrolabe` 会放大 Oracle 的星读魔力和燃烧伤害，需要限制每己方 turn 1 次。
-- `ashen-detonator` 是燃烧 build 的层数兑现件。3 层阈值避免刚挂 1-2 层就被自动兑掉；它消耗燃烧，所以玩家需要在“继续堆层”与“现在引爆”之间取舍。燃爆不是绝对伤害，不绕过士气。
-
-### 5.5 Debuff / 控制遗物
-
-目标：把 Druid、Mage 刻印、Duelist、Barbarian 挑衅这几条控制线接起来。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-witch-bell` | I | 3 | common | 每回合首次赋予敌方 Debuff 时，追加战栗。 | Druid、Searing Brand、Challenge、Duelist | 状态应用 hook；通用 Debuff 指 `void/vulnerable/exhaustion/erosion/burning/trembling`。 |
-| `relic-spore-press` | II | 5 | rare | 每回合首次驱散敌方 Buff 时，获得 1 BP。 | Druid 孢子路线、Cleansing Herbs | 只看敌方 Buff 被移除，不看净化友方 Debuff；受 BP 获取上限限制。 |
-| `relic-plague-codex` | III | 8 | epic | 每回合 1 次，敌方同时拥有两类破绽时，受到 2 点士气伤害。 | Weakening Spores + Vulnerable/Void、Crimson Lunge | 两类破绽指 `exhaustion/erosion` 与 `vulnerable/void`。 |
-
-注意：
-
-- `plague-codex` 只打士气，不扣 HP，不触发 HPDamage 相关 Trait / Role Action。
-- `witch-bell` 不应重复延长战栗，否则会过度压制反击。
-
-### 5.6 物理节奏 / 再行动遗物
-
-目标：强化 War Queen、Barbarian、Duelist、Peasant 民兵的“找窗口、连打、兑现 HP 伤害”玩法。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-red-whetstone` | I | 3 | common | 我方物理攻击单位攻击 +1。 | Barbarian、Knight、Monster、Peasant、Duelist | 建议新增 `RewardPhysicalAttackStatus`，与魔法攻击奖励对称。 |
-| `relic-duelist-ticket` | II | 5 | rare | 每回合首次攻击无盾敌人前，物理攻击者获得强攻。 | Duelist Aura、War Queen、Barbarian | 类似 `DuelSenseTrait.OnAttackDeclared`，但全队每 turn 1 次。 |
-| `relic-victory-drum` | III | 8 | epic | 每回合 1 次，额外攻击造成 HP 伤害时，获得 1 BP。 | Edict of Victory、Star Reading、Militia Call、Glory Roar | 给目标挂临时 relic marker；攻击结算看真实 HPDamage。 |
-
-注意：
-
-- `victory-drum` 只看真实 HP 伤害。只打士气不触发。
-- `duelist-ticket` 与 Duelist Rank1 Aura 会叠加到“物理单位攻击 +2 + 强攻窗口”，成本不能太低。
-
-### 5.7 士兵团 / 民兵遗物
-
-目标：让“招募士兵并保留在场”成为 build，不只是拿副官素材。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-muster-papers` | I | 3 | common | 士兵招募成本 -1 BP。 | 士兵团、Peasant | Reward cost modifier；只影响 `soldier-recruit`，不会低于 1 BP。 |
-| `relic-shared-drillbook` | II | 5 | rare | 若有 2 名以上士兵在场，士兵攻击 +1。 | Militia Foreman、Call the Hunt、士兵 Aura | 新增 soldier-only attack aura；不可驱散。 |
-| `relic-veteran-captain-badge` | III | 7 | epic | 每回合首次使用士兵 Role Action 后，获得 1 BP。 | Rank2 士兵、Militia Call | Role Action 结算后检查 actor.CardType == Soldier；受 BP 获取上限限制。 |
-
-注意：
-
-- `shared-drillbook` 不影响副官状态下的士兵本体，但副官保留的 Rank1 Aura 仍照常生效。
-- `muster-papers` 不应降低英雄招募成本，避免所有队伍都走扩编。
-
-### 5.8 猎物 / 绝对伤害 / 献祭遗物
-
-目标：给 Monster 路线和献祭 build 更清楚的节奏，但不直接把绝对伤害堆到失控。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-blood-coin` | I | 3 | common | 每回合首次支付 HP 后，获得 1 BP。 | Dark Pact、Abyssal Bargain | 监听非伤害型 HP loss；不响应敌方造成伤害；受 BP 获取上限限制。 |
-| `relic-hunter-fang` | II | 5 | rare | 每回合首次对猎物造成绝对伤害后，目标获得脆弱。 | Predatory Gaze、Nightmare Stare | 绝对伤害结算后赋予 `VulnerableStatus`。 |
-| `relic-abyss-contract-seal` | III | 8 | epic | 每回合 1 次，支付 HP 后获得护咒，并使下次攻击附加 2 绝对伤害。 | Dark Pact、Abyssal Bargain、Monster | 赋予 `SpellWardStatus` + 可复用或新增一次性 absolute marker。 |
-
-注意：
-
-- `hunter-fang` 的收益在下一次物理攻击或 Soldier 追击上兑现，不直接增加本次绝对伤害。
-- `abyss-contract-seal` 必须限制每己方 turn 1 次，否则献祭链会滚太快。
-
-### 5.9 士气 / BP 指挥遗物
-
-目标：利用 BP 与士气恢复的现有关系，让指挥型队伍有经济身份。
-
-| ID | 阶段 | 成本 | 稀有度 | 效果文本 | 适配 build | 实装落点 |
-|---|---:|---:|---|---|---|---|
-| `relic-campaign-ledger` | I | 3 | common | 回合结束时若 AP 为 0，获得 1 BP。 | 低 Cost 队、Royal Command、士兵团 | EndTurn 前 `TryGainBp`，之后按实际 BP 恢复士气；受 BP 获取上限限制。 |
-| `relic-green-standard` | II | 5 | rare | 每回合首次击破敌方共享盾时，额外获得 1 BP。 | Barbarian、Knight Iron Charge、物理节奏 | 复用破盾 BP 事件；受 BP 获取上限限制。 |
-| `relic-command-table` | III | 8 | epic | 每回合首次使用 2 AP 以上行动后，返还 1 AP。 | 高费行动、指挥、终局技能 | Role Action 支付后结算返还；不要求特定角色。 |
-
-注意：
-
-- 这些遗物不直接恢复士气，而是通过“实际获得 BP → turn end 士气恢复”的既有管线工作。
-- `campaign-ledger` 会鼓励打空 AP，适合低 Cost / 多行动队，但受 BP cap 限制，不会无限刷。
+- `war-council-banner` 不属于任何体系的两个 Epic 分叉；它是保底泛用项，出现权重应低。
+- 全队攻击 +1 会放大当前攻击力系行动、普通攻击与部分 Aura，不应过早出现。
 
 ## 6. 推荐奖励池配置
 
-### Stage I 池
+Stage 池仍按阶段投放，但权重应优先命中玩家已有体系。Epic 展示时，尽量保证同一体系的两个终局方向都有机会出现，而不是只刷一个孤立强牌。
 
-用于 round 4 起，帮助玩家看见方向。
+### Stage I 池
 
 - `relic-silver-ward-charm`
 - `relic-black-iron-rivets`
@@ -231,31 +249,37 @@
 
 ### Stage II 池
 
-用于 round 8 起，开始把单点效果变成循环。
-
-- `relic-cleanse-votive`
-- `relic-cracked-shield-bell`
 - `relic-ember-astrolabe`
-- `relic-ashen-detonator`
+- `relic-hollow-comet-lens`
+- `relic-cracked-shield-bell`
+- `relic-cleanse-votive`
 - `relic-spore-press`
+- `relic-cracked-mask`
 - `relic-duelist-ticket`
-- `relic-shared-drillbook`
-- `relic-hunter-fang`
 - `relic-green-standard`
+- `relic-shared-drillbook`
+- `relic-veteran-captain-badge`
+- `relic-night-bait`
+- `relic-hunter-fang`
+- `relic-supply-cart`
+- `relic-brass-order`
 
-### Stage III 池
+### Stage III 双 Epic 分叉
 
-用于 round 12 起，或队伍已有 Rank2 / Rank3 时提高权重。
+| 体系 | Epic A | Epic B |
+|---|---|---|
+| 炎上 / 魔法 | `relic-ashen-detonator` | `relic-smoldering-censer` |
+| 盾墙 / 守护 | `relic-kingwall-standard` | `relic-bastion-hammer` |
+| 圣疗 / 净化 | `relic-oath-keystone` | `relic-saint-bell` |
+| Debuff / 控制 | `relic-plague-codex` | `relic-lockjaw-mask` |
+| 物理节奏 | `relic-victory-drum` | `relic-red-hourglass` |
+| 士兵团 | `relic-command-sergeant-seal` | `relic-company-standard` |
+| 猎物 / 献祭 | `relic-predator-crown` | `relic-abyss-contract-seal` |
+| BP / 指挥 | `relic-command-table` | `relic-war-room-map` |
+
+泛用 Epic：
 
 - `relic-war-council-banner`
-- `relic-oath-keystone`
-- `relic-kingwall-standard`
-- `relic-hollow-comet-lens`
-- `relic-plague-codex`
-- `relic-victory-drum`
-- `relic-veteran-captain-badge`
-- `relic-abyss-contract-seal`
-- `relic-command-table`
 
 ## 7. 权重规则建议
 
@@ -289,7 +313,7 @@ public sealed record RelicDefinition(
 
 状态与触发建议：
 
-- 静态数值遗物可以继续复用 `Reward*Status`，挂到全队角色上。
+- 静态数值遗物继续走 `RelicEffects` 队伍级修正，不挂角色普通 Buff。
 - 触发型遗物建议挂在 `PlayerState.Relics` 或类似队伍级容器里，不作为角色普通 Buff。
 - 遗物触发计数应按 `turn` 或 `round` 存在队伍级 state 中，避免靠 status 堆在角色身上难以同步。
 - 遗物说明文本进入 `wwwroot/locales/*.json`，C# 只保留稳定英文 ID。
@@ -308,11 +332,12 @@ public sealed record RelicDefinition(
 
 ## 9. 第一批落地优先级
 
-如果先做最小可玩版本，建议按以下顺序：
+如果先做最小可玩版本，不建议一次把全部体系铺开。先选 3 个体系做完整 common / rare / 双 epic 闭环，再扩展其余体系。
 
 1. 替换 dummy 奖励：银护符、黑铁铆钉、见习星墨、军议战旗。
-2. 做 4 个 Stage I build 信号：白百合香炉、石匠令、红磨刀石、募兵文书。
-3. 做 5 个 Stage II 引擎：余烬星盘、灰烬引爆器、孢子压榨器、决斗券、碎盾铃。
-4. 最后做 Stage III：空心彗镜、胜利鼓、瘟疫法典、指挥桌。
+2. 先落地炎上体系：见习星墨、余烬星盘、空心彗镜、灰烬引爆器、余燃香炉。
+3. 同步落地盾墙体系：黑铁铆钉、石匠令、碎盾铃、王墙军旗、壁垒锤。
+4. 再落地物理节奏体系：红磨刀石、决斗券、绿旗、胜利鼓、红沙漏。
+5. 确认 hook、日志、预测、奖励权重稳定后，再补圣疗、Debuff、士兵团、猎物和 BP 指挥体系。
 
-这样第一轮不会一次性引入太多 hook，同时已经能让魔法、盾墙、物理节奏、士兵团、Debuff 五条方向明显成形。
+这样第一批就能验证“同一地基分成两个 Epic 方向”的核心目标，而不是只验证一堆零散遗物能否触发。

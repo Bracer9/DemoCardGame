@@ -25,10 +25,7 @@ public sealed class AttackPreviewService
             : ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(state, attacker),
                 attackerAttackType,
                 DamageSource.ActiveAttack,
-                receivesMagicPowerBonus: true,
-                includePendingDuelSenseStrongAttack: (ShouldForecastDuelSense(state, attacker, defender)
-                        || ShouldForecastDeputyDuelist(state, attacker, defender))
-                    && attacker.Statuses.All(status => status.Id != "strong-attack" || status.Expired));
+                receivesMagicPowerBonus: true);
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
@@ -43,7 +40,9 @@ public sealed class AttackPreviewService
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
             attack = AddDirectHpDamage(attack, rageShieldBreakBonus);
-        var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker, defender);
+        var duelSenseBonus = attackHp.HpDamageMin < defender.CurrentHp
+            ? ForecastDuelSenseAbsoluteBonus(state, attacker, defender)
+            : 0;
         if (duelSenseBonus > 0)
             attack = AddDirectHpDamage(attack, duelSenseBonus);
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
@@ -294,8 +293,7 @@ public sealed class AttackPreviewService
         int amount,
         DamageType type,
         DamageSource damageSource,
-        bool receivesMagicPowerBonus,
-        bool includePendingDuelSenseStrongAttack = false)
+        bool receivesMagicPowerBonus)
     {
         var damage = Math.Max(0, amount);
         foreach (var status in source.Statuses.Where(status => !status.Expired))
@@ -309,14 +307,13 @@ public sealed class AttackPreviewService
                     damage * 2,
                 "strong-attack" when damageSource == DamageSource.ActiveAttack && type == DamageType.Physical =>
                     Math.Max(1, (int)Math.Ceiling(damage * 1.5)),
+                "magic-surge" when damageSource == DamageSource.ActiveAttack && type == DamageType.Magical =>
+                    Math.Max(1, (int)Math.Ceiling(damage * 1.5)),
                 "exhaustion" when type == DamageType.Physical => Math.Max(1, damage / 2),
                 "erosion" when type == DamageType.Magical => Math.Max(1, damage / 2),
                 _ => damage
             };
         }
-
-        if (includePendingDuelSenseStrongAttack && damageSource == DamageSource.ActiveAttack && type == DamageType.Physical && damage > 0)
-            damage = Math.Max(1, (int)Math.Ceiling(damage * 1.5));
 
         if (type == DamageType.Magical
             && damageSource == DamageSource.ActiveAttack
@@ -327,20 +324,18 @@ public sealed class AttackPreviewService
         return Math.Max(0, damage);
     }
 
-    private static bool ShouldForecastDuelSense(GameState state, CharacterState attacker, CharacterState defender) =>
-        attacker.Definition.Key != "duelist"
-            || attacker.TraitsUsedThisTurn.Contains("duel-sense")
-            ? false
-            : state.FindOwner(defender).SharedShield <= 0;
+    private static bool ShouldForecastDuelSenseAbsolute(CharacterState attacker) =>
+        attacker.Definition.Key == "duelist"
+        && attacker.SoldierRank >= 1
+        && !attacker.TraitsUsedThisTurn.Contains("duel-sense-absolute");
 
-    private static bool ShouldForecastDeputyDuelist(GameState state, CharacterState attacker, CharacterState defender) =>
+    private static bool ShouldForecastDeputyDuelistStrike(GameState state, CharacterState attacker) =>
         attacker.DeputyEffectId == "deputy-duelist"
-        && !state.FindOwner(attacker).DeputyPassivesUsedThisTurn.Contains($"{attacker.Id:N}:deputy-duelist")
-        && state.FindOwner(defender).SharedShield <= 0;
+        && !state.FindOwner(attacker).DeputyPassivesUsedThisTurn.Contains($"{attacker.Id:N}:deputy-duelist");
 
     private static int ForecastDuelSenseAbsoluteBonus(GameState state, CharacterState attacker, CharacterState defender) =>
-        (ShouldForecastDuelSense(state, attacker, defender) && attacker.SoldierRank >= 1)
-            || ShouldForecastDeputyDuelist(state, attacker, defender)
+        ShouldForecastDuelSenseAbsolute(attacker)
+            || ShouldForecastDeputyDuelistStrike(state, attacker)
             ? DuelSenseStrikeStatus.AbsoluteDamage
             : 0;
 

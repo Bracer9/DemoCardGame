@@ -67,7 +67,7 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 骑士 | `interposing-shield` | 替身之盾 | OnDamaged | Ally | 对骑士以外我方角色受到的主动物理攻击，全队共享 1 次：我方将受到 1 点及以上主动物理伤害时，骑士承担目标受到伤害的 1/3，向上取整；该承担伤害会再受骑士自身物防影响。 | Aura / 反应规则 |
 | 修女 | `field-medic` | 战地医护 | ManualCheck | Ally | 我方主动治疗或净化成功时，目标获得护咒。Rank1 后，若目标当前 HP 低于一半，额外回复 3 HP。 | 护咒 / 治疗 |
 | 盾姬 | `shield-drill` | 盾阵训练 | ManualCheck | Ally | 每个己方 turn 1 次，我方共享盾增加或我方角色获得坚守时，当前 HP 比例最低的存活友军获得坚守；同率时优先 HP 绝对值最低的英雄。 | 坚守 |
-| 决斗者 | `duel-sense` | 决斗嗅觉 | OnAttackDeclared | Self | 每个己方 turn 1 次，主动攻击没有共有盾的敌人前，自身获得 1 层强攻。Rank1 后，本次攻击额外造成 2 点绝对伤害。 | 强攻 / 绝对伤害 |
+| 决斗者 | `duel-sense` | 决斗嗅觉 | OnAttackResolved | Self | 每个己方 turn 1 次，自身主动攻击第一次对敌人造成 HP 伤害后，获得强攻。Rank1 后，每个己方 turn 1 次，主动攻击后若目标仍存活，对目标追加 2 点绝对伤害。 | 强攻 / 绝对伤害 |
 
 ## 4. Trait 相关状态
 
@@ -105,8 +105,8 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 德鲁伊 | `weakening-spores-action` | 衰弱孢子 | TargetSelect | EnemyCard | 1 AP | No | 0 | 随机移除目标 1 个可驱散 Buff，并施加 2 turn 力竭和磨损。 | 驱散 + 力竭 + 磨损 |
 | 修女 | `mend` | 修补术 | TargetSelect | AllyCard | 1 AP | No | 0 | 治疗目标 3 HP；若目标有可净化 Debuff，先净化 1 个，并使目标获得 2 层护咒。 | 治疗 / 净化 / 护咒 |
 | 盾姬 | `aegis-formation` | 圣盾阵 | Click | OwnShield | 1 AP | No | 0 | 若无共享盾则获得 1 点；若已有共享盾则 +2。 | 盾规则 |
-| 决斗者 | `crimson-lunge` | 绯红突刺 | TargetSelect | EnemyCard | 1 AP | No | 0 | 目标获得战栗；若已有通用 Debuff，再获得脆弱。 | 战栗 / 脆弱 |
-| 秘术士 | `astral-focus` | 星界聚焦 | TargetSelect | AllyCard, EnemyCard | 1 AP | No | 0 | 我方目标获得 1 层咏唱；敌方目标获得空虚。 | 咏唱 / 空虚 |
+| 决斗者 | `crimson-lunge` | 致命架势 | TargetSelect | AllyCard | 1 AP | No | 0 | 我方物理单位获得猛击：下一次主动物理伤害 ×2。可以选择自己。 | 猛击 |
+| 秘术士 | `astral-focus` | 星界聚焦 | TargetSelect | AllyCard | 1 AP | No | 0 | 我方魔法单位获得咏唱：下一次魔法伤害 ×2。可以选择自己。 | 咏唱 |
 
 ## 6. Role Action 相关状态
 
@@ -123,7 +123,7 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 命运标记 | 特殊 Debuff | `fate-mark` | 下一次主动攻击我方时随机修正伤害。 |
 | 猎物 | 特殊 Debuff | `predatory-gaze` | 本 turn 0 点 HP 伤害触发绝对伤害。 |
 | 黑暗契约 | 特殊 Buff | `dark-pact` | 下一次主动攻击附加 4 点绝对伤害。 |
-| 决斗追击 | 特殊瞬时 Buff | `duel-sense` Rank1 | 决斗嗅觉触发的本次攻击后，对目标追加 2 点绝对伤害，随后移除。 |
+| 决斗追击 | 特殊瞬时 Buff | `duel-sense` Rank1 / `deputy-duelist` | 主动攻击后，若目标仍存活，对目标追加 2 点绝对伤害，随后移除。 |
 | 护咒 | 通用 Buff | `field-medic`, `mend` | 受到魔法伤害 ×0.5；己方 turn 结束时消耗 1 层。 |
 
 ## 7. 后端实现位置

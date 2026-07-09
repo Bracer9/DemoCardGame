@@ -7,6 +7,7 @@ const gameState = fs.readFileSync('Domain/GameState.cs', 'utf8');
 const gameEngine = fs.readFileSync('Domain/GameEngine.cs', 'utf8');
 const gameDtos = fs.readFileSync('Api/GameDtos.cs', 'utf8');
 const appSource = fs.readFileSync('wwwroot/app.js', 'utf8');
+const stylesSource = fs.readFileSync('wwwroot/styles.css', 'utf8');
 
 test('relic rewards use a top-level category and a pending child menu', () => {
   assert.match(rewardDefinitions, /RelicChoice/);
@@ -34,4 +35,6 @@ test('relic rewards use a top-level category and a pending child menu', () => {
   assert.match(appSource, /function renderRelicOverview\(player\)/);
   assert.match(appSource, /ui\.relicOverviewButton\.innerHTML/);
   assert.doesNotMatch(appSource, /inspector-relics/);
+  assert.doesNotMatch(stylesSource, /\.relic-overview\s*\{[\s\S]*?z-index\s*:\s*220/);
+  assert.match(stylesSource, /\.relic-overview-detail\s*\{[\s\S]*?z-index\s*:\s*96/);
 });

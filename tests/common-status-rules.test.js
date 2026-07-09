@@ -23,9 +23,17 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   const harvestStatus = classBody(statusSource, 'HarvestStatus');
   const pendingHarvestStatus = classBody(statusSource, 'PendingHarvestStatus');
   const guardOathStatus = classBody(statusSource, 'GuardOathStatus');
+  const strongAttackStatus = classBody(statusSource, 'StrongAttackStatus');
+  const magicSurgeStatus = classBody(statusSource, 'MagicSurgeStatus');
 
   assert.match(statusSource, /class ExhaustionStatus[\s\S]*?DamageType\.Physical[\s\S]*?packet\.Amount = Math\.Max\(1, packet\.Amount \/ 2\)/);
   assert.match(statusSource, /class ErosionStatus[\s\S]*?DamageType\.Magical[\s\S]*?packet\.Amount = Math\.Max\(1, packet\.Amount \/ 2\)/);
+  assert.match(statusSource, /abstract class TurnDurationStatus[\s\S]*?DefaultTurns = 2/);
+  assert.match(statusSource, /RemainingTurns--/);
+  assert.match(strongAttackStatus, /TurnDurationStatus\("strong-attack", true, sourceCharacterId, turns\)/);
+  assert.match(magicSurgeStatus, /TurnDurationStatus\("magic-surge", true, sourceCharacterId, turns\)/);
+  assert.match(magicSurgeStatus, /DamageType\.Magical/);
+  assert.match(magicSurgeStatus, /Math\.Ceiling\(packet\.Amount \* 1\.5\)/);
   assert.doesNotMatch(statusSource, /class WeaknessStatus/);
   assert.doesNotMatch(statusSource, /class PendingWeaknessStatus/);
   assert.match(statusSource, /virtual bool IsAttackBuff => false/);
@@ -55,6 +63,10 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(appSource, /if \(value > 0\) animateHpOrbLoss\(target, value\);/);
   assert.match(appSource, /function animateHpOrbLoss\(card, amount\)/);
   assert.match(appSource, /updatePendingVisualHp\(card, nextHp\)/);
+  assert.match(appSource, /await animateBpRecoveryToHp\(bpRecoveryAmount, payload\.data\);/);
+  assert.match(appSource, /function updatePendingVisualMorale\(card, morale\)/);
+  assert.match(appSource, /animateMoraleRingRecovery\(card, value, \{ finalMorale: finalCharacter\?\.morale \}\)/);
+  assert.match(appSource, /updatePendingVisualMorale\(card, nextMorale\)/);
   assert.doesNotMatch(appSource, /force: true, label: 'HP'/);
   assert.equal(appSource.includes("attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`"), true);
   assert.equal(appSource.includes("moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`"), true);
@@ -65,8 +77,9 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(traitSource, /status\.IsBuff[\s\S]*?status\.IsDispellable/);
   assert.match(traitSource, /context\.Next\(attackBuffs\.Count\)/);
   assert.match(traitSource, /Statuses\.Remove\(attackBuff\)/);
-  assert.match(traitSource, /new ExhaustionStatus\(owner\.Id, exchange\.Defender\.PlayerId\)/);
-  assert.match(traitSource, /new ErosionStatus\(owner\.Id, exchange\.Defender\.PlayerId\)/);
+  assert.match(traitSource, /GameEngine\.AddExhaustion\(exchange\.Defender, owner\.Id\)/);
+  assert.match(traitSource, /GameEngine\.AddErosion\(exchange\.Defender, owner\.Id\)/);
+  assert.match(engineSource, /internal static void AddTrembling[\s\S]*?RefreshTurns\(turns\)/);
   assert.match(traitSource, /status\.Id == "magic-power"/);
   assert.match(guardOathStatus, /StatusEffect\("guard-oath", true, sourceCharacterId\)/);
   assert.match(guardOathStatus, /public int Stacks/);
@@ -74,9 +87,12 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.doesNotMatch(guardOathStatus, /IsDispellable => false/);
   assert.match(previewSource, /ForecastOutgoingDamage/);
   assert.match(previewSource, /"chant" when type == DamageType\.Magical => damage \* 2/);
+  assert.match(previewSource, /"magic-surge" when damageSource == DamageSource\.ActiveAttack && type == DamageType\.Magical/);
   assert.match(previewSource, /"guard-oath" when source == DamageSource\.ActiveAttack && type == DamageType\.Physical/);
   assert.doesNotMatch(previewSource, /weaknessEnragedMonster/);
   assert.equal(assetManifest.bindings.statuses['magic-power'], 'status.magic-power');
+  assert.equal(assetManifest.bindings.statuses['magic-surge'], 'status.magic-surge');
+  assert.equal(assetManifest.bindings.statuses['mighty-strike'], 'status.mighty-strike');
   assert.equal(assetManifest.bindings.statuses.exhaustion, 'status.exhaustion');
   assert.equal(assetManifest.bindings.statuses.erosion, 'status.erosion');
   assert.equal(assetManifest.bindings.statuses['guard-oath'], 'status.guard-oath');

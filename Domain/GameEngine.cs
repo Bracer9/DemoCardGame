@@ -555,7 +555,6 @@ public sealed class GameEngine
         var context = new GameEngineContext(this, state);
         var attackerTrait = _traits.Get(attacker.Definition.TraitId);
         attackerTrait.OnAttackDeclared(context, attacker, defender);
-        TriggerDeputyDuelistBeforeActiveAttack(state, attacker, defender);
         var counterBlocked = IsCounterAttackBlocked(defender);
         var counterDamageBeforeShieldResolution = GetCounterAttack(state, defender);
         var monsterPrincessAttack = IsMonsterPrincessAttack(attacker, defender);
@@ -653,6 +652,7 @@ public sealed class GameEngine
             TriggerArcaneResonance(state, attacker, fromRoleAction: false);
             TriggerDeputyArcanist(state, attacker, fromRoleAction: false);
         }
+        TriggerDeputyDuelistAfterActiveAttack(state, attacker, actualAttackTarget, attackPacket.Amount);
 
         var exchange = new AttackExchange(
             attacker,
@@ -1904,7 +1904,7 @@ public sealed class GameEngine
                 UseAegisFormation(state, actor);
                 break;
             case "crimson-lunge":
-                UseCrimsonLunge(state, actor, RequireEnemyTarget(state, actor, targetCharacterId));
+                UseCrimsonLunge(state, actor, RequireAllyTarget(state, actor, targetCharacterId));
                 break;
             case "astral-focus":
                 UseAstralFocus(state, actor, targetCharacterId);
@@ -2096,8 +2096,7 @@ public sealed class GameEngine
     private void UseSearingBrand(GameState state, CharacterState actor, CharacterState target)
     {
         AddBurning(target, actor.Id);
-        target.Statuses.RemoveAll(status => status.Id == "void");
-        target.Statuses.Add(new VoidStatus(actor.Id, actor.PlayerId));
+        AddVoid(target, actor.Id);
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
             ("characterId", L10n.Raw(target.Id)),
@@ -2162,9 +2161,8 @@ public sealed class GameEngine
                 ("targetId", L10n.Raw(target.Id))), "status");
         }
 
-        target.Statuses.RemoveAll(status => status.Id is "exhaustion" or "erosion");
-        target.Statuses.Add(new ExhaustionStatus(actor.Id, target.PlayerId));
-        target.Statuses.Add(new ErosionStatus(actor.Id, target.PlayerId));
+        AddExhaustion(target, actor.Id);
+        AddErosion(target, actor.Id);
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
             ("characterId", L10n.Raw(target.Id)),
@@ -2179,8 +2177,7 @@ public sealed class GameEngine
 
     private void UseChallenge(GameState state, CharacterState actor, CharacterState target)
     {
-        target.Statuses.RemoveAll(status => status.Id == "trembling");
-        target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
+        AddTrembling(target, actor.Id);
         Log(state, L10n.Text("log.challenge",
             ("actor", L10n.Character(actor.Definition.Key)),
             ("actorId", L10n.Raw(actor.Id)),
@@ -2331,19 +2328,14 @@ public sealed class GameEngine
 
     private void UseCrimsonLunge(GameState state, CharacterState actor, CharacterState target)
     {
-        var hadCommonDebuff = HasCommonDebuff(target);
-        target.Statuses.RemoveAll(status => status.Id == "trembling");
-        target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
-        if (hadCommonDebuff)
-        {
-            target.Statuses.RemoveAll(status => status.Id == "vulnerable");
-            target.Statuses.Add(new VulnerableStatus(actor.Id, actor.PlayerId));
-        }
-        Log(state, L10n.Text("log.crimsonLunge",
-            ("actor", L10n.Character(actor.Definition.Key)),
-            ("actorId", L10n.Raw(actor.Id)),
-            ("target", L10n.Character(target.Definition.Key)),
-            ("targetId", L10n.Raw(target.Id))), "debuff");
+        if (!CanReceiveMightyStrike(actor, target))
+            throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
+
+        AddMightyStrike(target, actor.Id);
+        Log(state, L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("mighty-strike"))), "buff");
     }
 
     private void UseAstralFocus(GameState state, CharacterState actor, Guid? targetCharacterId)
@@ -2351,31 +2343,14 @@ public sealed class GameEngine
         if (targetCharacterId is null)
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
         var target = state.FindCharacter(targetCharacterId.Value);
-        if (!target.IsAlive || IsDeploying(target))
+        if (!CanReceiveChant(actor, target))
             throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
-        if (target.PlayerId == actor.PlayerId)
-        {
-            var chant = target.Statuses.OfType<ChantStatus>().FirstOrDefault(status => !status.Expired);
-            if (chant is null)
-                target.Statuses.Add(new ChantStatus(actor.Id));
-            else
-                chant.AddStacks();
-            Log(state, L10n.Text("log.statusApplied",
-                ("character", L10n.Character(target.Definition.Key)),
-                ("characterId", L10n.Raw(target.Id)),
-                ("status", L10n.Status("chant"))), "buff");
-            TriggerArcaneResonance(state, actor, fromRoleAction: true);
-            TriggerDeputyArcanist(state, actor, fromRoleAction: true);
-            return;
-        }
 
-        target.Statuses.RemoveAll(status => status.Id == "void");
-        target.Statuses.Add(new VoidStatus(actor.Id, actor.PlayerId));
+        AddChant(target, actor.Id);
         Log(state, L10n.Text("log.statusApplied",
             ("character", L10n.Character(target.Definition.Key)),
             ("characterId", L10n.Raw(target.Id)),
-            ("status", L10n.Status("void"))), "debuff");
-        TriggerArcaneResonance(state, actor, fromRoleAction: true);
+            ("status", L10n.Status("chant"))), "buff");
         TriggerDeputyArcanist(state, actor, fromRoleAction: true);
     }
 
@@ -2457,8 +2432,7 @@ public sealed class GameEngine
         if (target.Morale <= 0 && target.IsAlive)
         {
             DealRoleActionDamage(state, target, GetActiveAttack(state, actor), DamageType.Magical, actor.Id, "thread-cut");
-            target.Statuses.RemoveAll(status => status.Id == "trembling");
-            target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
+            AddTrembling(target, actor.Id);
         }
     }
 
@@ -2490,7 +2464,7 @@ public sealed class GameEngine
         if (GetAttackType(target) == DamageType.Physical)
             AddStrongAttack(target, actor.Id);
         else
-            AddChant(target, actor.Id);
+            AddMagicSurge(target, actor.Id);
         target.BonusAttackUsesThisTurn++;
         var bonus = GetActiveAttack(state, actor) + (target.Definition.CardType == CardType.Soldier ? target.SoldierRank : 0);
         target.Statuses.RemoveAll(status => status.Id == "militia-call");
@@ -2585,8 +2559,7 @@ public sealed class GameEngine
             enemy.Statuses.RemoveAll(status => status.Id == "nightmare-prey");
             enemy.Statuses.Add(new NightmarePreyStatus(actor.Id, actor.PlayerId, GetActiveAttack(state, actor)));
         }
-        target.Statuses.RemoveAll(status => status.Id == "erosion");
-        target.Statuses.Add(new ErosionStatus(actor.Id, actor.PlayerId));
+        AddErosion(target, actor.Id);
         TriggerArcaneResonance(state, actor, fromRoleAction: true);
         TriggerDeputyArcanist(state, actor, fromRoleAction: true);
     }
@@ -2624,8 +2597,7 @@ public sealed class GameEngine
             throw new GameRuleException(L10n.Text("error.roleActionRequiresShield"));
         owner.SharedShield = 0;
         var hpDamage = DealRoleActionDamage(state, target, consumed + GetActiveAttack(state, actor), DamageType.Physical, actor.Id, "iron-charge");
-        target.Statuses.RemoveAll(status => status.Id == "trembling");
-        target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
+        AddTrembling(target, actor.Id);
         if (hpDamage > 0)
             owner.SharedShield += Math.Max(1, (int)Math.Ceiling(hpDamage / 2.0));
     }
@@ -2681,7 +2653,7 @@ public sealed class GameEngine
         }
     }
 
-    private static void AddSpellWard(CharacterState target, Guid sourceCharacterId, int turns = 1)
+    internal static void AddSpellWard(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
     {
         var ward = target.Statuses.OfType<SpellWardStatus>().FirstOrDefault(status => !status.Expired);
         if (ward is not null)
@@ -2690,13 +2662,58 @@ public sealed class GameEngine
             target.Statuses.Add(new SpellWardStatus(sourceCharacterId, turns));
     }
 
-    private static void AddFortify(CharacterState target, Guid sourceCharacterId, int turns = 1)
+    internal static void AddFortify(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
     {
         var fortify = target.Statuses.OfType<FortifyStatus>().FirstOrDefault(status => !status.Expired);
         if (fortify is not null)
             fortify.AddTurns(turns);
         else
             target.Statuses.Add(new FortifyStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddVoid(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var status = target.Statuses.OfType<VoidStatus>().FirstOrDefault(status => !status.Expired);
+        if (status is not null)
+            status.AddTurns(turns);
+        else
+            target.Statuses.Add(new VoidStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddVulnerable(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var status = target.Statuses.OfType<VulnerableStatus>().FirstOrDefault(status => !status.Expired);
+        if (status is not null)
+            status.AddTurns(turns);
+        else
+            target.Statuses.Add(new VulnerableStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddExhaustion(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var status = target.Statuses.OfType<ExhaustionStatus>().FirstOrDefault(status => !status.Expired);
+        if (status is not null)
+            status.AddTurns(turns);
+        else
+            target.Statuses.Add(new ExhaustionStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddErosion(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var status = target.Statuses.OfType<ErosionStatus>().FirstOrDefault(status => !status.Expired);
+        if (status is not null)
+            status.AddTurns(turns);
+        else
+            target.Statuses.Add(new ErosionStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddTrembling(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var status = target.Statuses.OfType<TremblingStatus>().FirstOrDefault(status => !status.Expired);
+        if (status is not null)
+            status.RefreshTurns(turns);
+        else
+            target.Statuses.Add(new TremblingStatus(sourceCharacterId, turns));
     }
 
     private void TriggerShieldDrill(GameState state, CharacterState? source)
@@ -2745,16 +2762,43 @@ public sealed class GameEngine
         if (arcanist is null)
             return;
 
-        var chant = arcanist.Statuses.OfType<ChantStatus>().FirstOrDefault(status => !status.Expired);
-        if (chant is not null)
-            chant.AddStacks(fromRoleAction && arcanist.SoldierRank >= 1 ? 2 : 1);
-        else
-            arcanist.Statuses.Add(new ChantStatus(arcanist.Id, fromRoleAction && arcanist.SoldierRank >= 1 ? 2 : 1));
+        var turns = fromRoleAction && arcanist.SoldierRank >= 1
+            ? 3
+            : TurnDurationStatus.DefaultTurns;
+        var targets = SelectArcaneResonanceTargets(state, owner, arcanist).ToArray();
+        if (targets.Length == 0)
+            return;
+
         arcanist.TraitsUsedThisTurn.Add("arcane-resonance");
-        Log(state, L10n.Text("log.statusApplied",
-            ("character", L10n.Character(arcanist.Definition.Key)),
-            ("characterId", L10n.Raw(arcanist.Id)),
-            ("status", L10n.Status("chant"))), "buff");
+        foreach (var target in targets)
+        {
+            AddMagicSurge(target, arcanist.Id, turns);
+            Log(state, L10n.Text("log.statusApplied",
+                ("character", L10n.Character(target.Definition.Key)),
+                ("characterId", L10n.Raw(target.Id)),
+                ("status", L10n.Status("magic-surge"))), "buff");
+        }
+    }
+
+    private IEnumerable<CharacterState> SelectArcaneResonanceTargets(
+        GameState state,
+        PlayerState owner,
+        CharacterState arcanist)
+    {
+        var magicalUnits = owner.Characters
+            .Where(character => character.IsInBattle
+                && character.IsAlive
+                && !IsDeploying(character)
+                && GetAttackType(character) == DamageType.Magical);
+
+        if (arcanist.SoldierRank >= 1)
+            return magicalUnits.OrderBy(character => character.Slot);
+
+        return magicalUnits
+            .Where(character => character.Definition.CardType == CardType.Hero)
+            .OrderByDescending(character => GetActiveAttack(state, character))
+            .ThenBy(character => character.Slot)
+            .Take(1);
     }
 
     private bool TryUseDeputyPassive(GameState state, CharacterState host, string deputyEffectId)
@@ -2814,15 +2858,17 @@ public sealed class GameEngine
         LogDeputyTriggered(state, host, "deputy-shieldmaiden", "fortify", target);
     }
 
-    private void TriggerDeputyDuelistBeforeActiveAttack(GameState state, CharacterState host, CharacterState target)
+    private void TriggerDeputyDuelistAfterActiveAttack(GameState state, CharacterState host, CharacterState target, int hpDamage)
     {
-        if (state.FindOwner(target).SharedShield > 0 || !TryUseDeputyPassive(state, host, "deputy-duelist"))
+        if (host.PlayerId == target.PlayerId || !target.IsAlive || !TryUseDeputyPassive(state, host, "deputy-duelist"))
             return;
 
-        AddStrongAttack(host, host.Id);
-        host.Statuses.RemoveAll(status => status.Id == "duel-sense-strike");
-        host.Statuses.Add(new DuelSenseStrikeStatus(host.Id));
-        LogDeputyTriggered(state, host, "deputy-duelist", "strong-attack", host);
+        if (hpDamage > 0)
+        {
+            AddStrongAttack(host, host.Id);
+            LogDeputyTriggered(state, host, "deputy-duelist", "strong-attack", host);
+        }
+        DealAbsoluteDamage(state, target, DuelSenseStrikeStatus.AbsoluteDamage, host.Id, L10n.Trait("duel-sense"));
     }
 
     private void TriggerDeputyArcanist(GameState state, CharacterState host, bool fromRoleAction)
@@ -2830,18 +2876,36 @@ public sealed class GameEngine
         if (!TryUseDeputyPassive(state, host, "deputy-arcanist"))
             return;
 
-        AddChant(host, host.Id, fromRoleAction ? 2 : 1);
+        AddMagicSurge(host, host.Id, fromRoleAction ? 3 : TurnDurationStatus.DefaultTurns);
         host.BonusAttackUsesThisTurn++;
-        LogDeputyTriggered(state, host, "deputy-arcanist", "chant", host);
+        LogDeputyTriggered(state, host, "deputy-arcanist", "magic-surge", host);
     }
 
-    private static void AddStrongAttack(CharacterState target, Guid sourceCharacterId, int turns = 1)
+    internal static void AddStrongAttack(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
     {
         var strongAttack = target.Statuses.OfType<StrongAttackStatus>().FirstOrDefault(status => !status.Expired);
         if (strongAttack is not null)
             strongAttack.AddTurns(turns);
         else
-            target.Statuses.Add(new StrongAttackStatus(sourceCharacterId, target.PlayerId, turns));
+            target.Statuses.Add(new StrongAttackStatus(sourceCharacterId, turns));
+    }
+
+    internal static void AddMagicSurge(CharacterState target, Guid sourceCharacterId, int turns = TurnDurationStatus.DefaultTurns)
+    {
+        var magicSurge = target.Statuses.OfType<MagicSurgeStatus>().FirstOrDefault(status => !status.Expired);
+        if (magicSurge is not null)
+            magicSurge.AddTurns(turns);
+        else
+            target.Statuses.Add(new MagicSurgeStatus(sourceCharacterId, turns));
+    }
+
+    private static void AddMightyStrike(CharacterState target, Guid sourceCharacterId, int stacks = 1)
+    {
+        var mightyStrike = target.Statuses.OfType<MightyStrikeStatus>().FirstOrDefault(status => !status.Expired);
+        if (mightyStrike is not null)
+            mightyStrike.AddStacks(stacks);
+        else
+            target.Statuses.Add(new MightyStrikeStatus(sourceCharacterId, stacks));
     }
 
     private static void AddChant(CharacterState target, Guid sourceCharacterId, int stacks = 1)
@@ -3166,12 +3230,11 @@ public sealed class GameEngine
                 RequireAllyTarget(state, actor, targetCharacterId);
                 break;
             case "crimson-lunge":
-                RequireEnemyTarget(state, actor, targetCharacterId);
+                if (targetCharacterId is null || !CanReceiveMightyStrike(actor, state.FindCharacter(targetCharacterId.Value)))
+                    throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
                 break;
             case "astral-focus":
-                if (targetCharacterId is null
-                    || !state.FindCharacter(targetCharacterId.Value).IsAlive
-                    || IsDeploying(state.FindCharacter(targetCharacterId.Value)))
+                if (targetCharacterId is null || !CanReceiveChant(actor, state.FindCharacter(targetCharacterId.Value)))
                     throw new GameRuleException(L10n.Text("error.roleActionInvalidTarget"));
                 break;
             case "miracle-standard":
@@ -3215,6 +3278,18 @@ public sealed class GameEngine
         && target.AttackUsesThisTurn > 0
         && target.HasActed
         && !IsActiveAttackBlocked(target);
+
+    private static bool CanReceiveMightyStrike(CharacterState actor, CharacterState target) =>
+        target.PlayerId == actor.PlayerId
+        && target.IsAlive
+        && !IsDeploying(target)
+        && GetAttackType(target) == DamageType.Physical;
+
+    private static bool CanReceiveChant(CharacterState actor, CharacterState target) =>
+        target.PlayerId == actor.PlayerId
+        && target.IsAlive
+        && !IsDeploying(target)
+        && GetAttackType(target) == DamageType.Magical;
 
     private int DealRoleActionDamage(
         GameState state,
@@ -3313,9 +3388,8 @@ public sealed class GameEngine
 
     private static void ApplyTremblingAndVulnerable(CharacterState target, CharacterState actor)
     {
-        target.Statuses.RemoveAll(status => status.Id is "trembling" or "vulnerable");
-        target.Statuses.Add(new TremblingStatus(actor.Id, actor.PlayerId));
-        target.Statuses.Add(new VulnerableStatus(actor.Id, actor.PlayerId));
+        AddTrembling(target, actor.Id);
+        AddVulnerable(target, actor.Id);
     }
 
     private void ResolvePreyZeroDamage(GameState state, DamagePacket packet)

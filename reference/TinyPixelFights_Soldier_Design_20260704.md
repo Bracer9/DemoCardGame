@@ -171,15 +171,15 @@
 |---|---|
 | ID | `duel-sense` |
 | 名称 | 决斗嗅觉 |
-| Trigger | 每个己方 turn 第一次 Duelist 主动攻击没有共有盾保护的敌人时 |
+| Trigger | 每个己方 turn 第一次 Duelist 主动攻击对敌人造成 HP 伤害后 |
 | Scope | Self |
-| Effect | Duelist 在伤害计算前获得 1 turn 强攻 |
+| Effect | Duelist 获得 1 turn 强攻 |
 | Limit | 每个己方 turn 1 次 |
 
 ### Rank1
 
 - HP +1。
-- `duel-sense` 触发的本次攻击额外造成 2 点绝对伤害。
+- 每个己方 turn 1 次，Duelist 主动攻击后，若目标仍存活，对目标追加 2 点绝对伤害。
 - 持续光环：只要 Duelist 存活并在战场，我方物理攻击单位攻击 +2。
 
 ### Rank2
@@ -191,23 +191,23 @@
 | Field | Value |
 |---|---|
 | ID | `crimson-lunge` |
-| 名称 | 绯红突刺 |
+| 名称 | 致命架势 |
 | Input | TargetSelect |
-| Target | EnemyCard |
+| Target | Allied physical unit, including self |
 | Cost | 1 AP |
 | Repeatable | No |
 | Cooldown | 0 |
-| Tags | physical, pressure, soldier |
-| Effect | 目标获得 1 turn 战栗；若目标在发动前已有通用 Debuff，额外获得 1 turn 脆弱 |
+| Tags | physical, mighty-strike, support, soldier |
+| Effect | 目标获得 `mighty-strike`（下一次主动物理伤害 ×2） |
 
 ### 明确联动
 
 | 对象 | 联动点 |
 |---|---|
-| Knight / Shield 系 | 敌方共有盾被打空后，Duelist 获得强攻与绝对伤害窗口。 |
-| Druid `weakening-spores-action` / `weakening-spores` | 力竭 / 磨损降低敌方输出，让 Duelist 更安全地进入无盾目标。 |
-| Mage `searing-brand` / `searing-mark` | 燃烧 / 空虚压低敌方血线，配合 Duelist 的无盾收割。 |
-| Barbarian `challenge` | 战栗让 Duelist 可以攻击无盾目标而不吃反击。 |
+| Knight / Shield 系 | 敌方共有盾被打空后，Duelist 获得强攻与绝对伤害窗口；`crimson-lunge` 可把猛击交给物理主攻兑现。 |
+| Druid `weakening-spores-action` / `weakening-spores` | 力竭 / 磨损降低敌方输出，让物理单位更安全地等待猛击窗口。 |
+| Mage `searing-brand` / `searing-mark` | 燃烧 / 空虚压低敌方血线，配合物理单位用猛击收割。 |
+| Barbarian `challenge` | 战栗创造安全进攻窗口，便于物理单位兑现猛击。 |
 
 ## 8. Arcanist / Astral Arcanist
 
@@ -224,14 +224,15 @@
 | ID | `arcane-resonance` |
 | 名称 | 秘术共鸣 |
 | Trigger | 每个己方 turn 第一次我方 Hero 造成魔法伤害，或赋予燃烧 / 空虚 / 力竭 / 磨损后 |
-| Scope | Self |
-| Effect | Arcanist 获得 1 层咏唱 |
+| Scope | Rank0: highest-attack allied magical Hero; Rank1+: all allied magical units |
+| Effect | 魔攻最高的我方魔法英雄获得 `magic-surge`（主动魔法伤害 ×1.5，向上取整） |
 | Limit | 每个己方 turn 1 次 |
 
 ### Rank1
 
 - HP +2。
-- `arcane-resonance` 若由 Role Action 触发，咏唱层数 +1。
+- `arcane-resonance` 的目标扩展为我方全体魔法单位。
+- `arcane-resonance` 若由 Role Action 触发，`magic-surge` 持续时间 +1 turn。
 - 持续光环：只要 Arcanist 存活并在战场，我方魔法攻击单位攻击 +2。
 
 ### Rank2
@@ -245,19 +246,19 @@
 | ID | `astral-focus` |
 | 名称 | 星界聚焦 |
 | Input | TargetSelect |
-| Target | AllyCard, EnemyCard |
+| Target | Allied magical unit, including self |
 | Cost | 1 AP |
 | Repeatable | No |
 | Cooldown | 0 |
-| Tags | magic, charge, mark, soldier |
-| Effect | 选择我方：目标获得 1 层咏唱。选择敌方：目标获得 1 turn 空虚 |
+| Tags | magic, chant, support, soldier |
+| Effect | 目标获得 `chant`（下一次魔法伤害 ×2） |
 
 ### 明确联动
 
 | 对象 | 联动点 |
 |---|---|
-| Mage `searing-brand` / `arcane-channel` | Mage 赋予燃烧 / 空虚或造成魔法伤害，触发 `arcane-resonance`。 |
-| Oracle `star-reading` | 让已经攻击过的 Arcanist 或 Mage 再行动，扩大咏唱兑现窗口。 |
+| Mage `searing-brand` / `arcane-channel` | Mage 赋予燃烧 / 空虚或造成魔法伤害，触发 `arcane-resonance`，获得持续魔法增伤窗口；`astral-focus` 提供咏唱爆发。 |
+| Oracle `star-reading` | 让已经攻击过的 Mage 等魔法单位再行动，扩大 `magic-surge` 与咏唱兑现窗口。 |
 | Druid `weakening-spores-action` | 赋予力竭 / 磨损，触发 Arcanist 共鸣。 |
 | Princess `royal-command` | AP 前借让 Arcanist 有空间同时使用 `astral-focus` 与攻击。 |
 
@@ -282,4 +283,4 @@
 4. `shield-drill` 必须防止自身赋予坚守后递归触发。
 5. `duel-sense` 第一版只认通用 Debuff，不认命运标记、猎物、黑暗契约等特殊状态。
 6. `arcane-resonance` 需要通用事件 hook：魔法伤害造成、燃烧 / 空虚 / 力竭 / 磨损赋予成功。
-7. 预测 UI 需要显示强攻、咏唱、脆弱、空虚对本次伤害的影响。
+7. 预测 UI 需要显示强攻、猛击、魔涌、咏唱、脆弱、空虚对本次伤害的影响。
