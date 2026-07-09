@@ -4196,6 +4196,8 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
 .persistent-team-shield.opponent-facing::before { top:auto; bottom:5px; border-top:0; border-bottom:1px solid #d4fbff99; border-radius:0 0 50% 50% / 0 0 100% 100%; }
 .persistent-team-shield.active { opacity:.92; visibility:visible; }
 .persistent-team-shield.active { pointer-events:auto; }
+#app.dragging-attack .persistent-team-shield.active,
+body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
 .persistent-team-shield.reinforced { border-top-width:5px; border-inline-width:2px; background:linear-gradient(180deg,#a3f7ff42,#59d9e919 56%,transparent 90%); box-shadow:0 -2px 13px #d4fcff,0 -9px 32px #43d9edaa,inset 0 9px 22px #71ecf144; }
 .persistent-team-shield.reinforced::after { content:""; position:absolute; left:7%; right:7%; top:11px; height:24px; border-top:2px solid #83efffd1; border-radius:50% 50% 0 0 / 100% 100% 0 0; box-shadow:0 -3px 10px #5ce5f277; }
 .persistent-team-shield.opponent-facing.reinforced { border-top-width:0; border-bottom-width:5px; background:linear-gradient(0deg,#a3f7ff42,#59d9e919 56%,transparent 90%); box-shadow:0 2px 13px #d4fcff,0 9px 32px #43d9edaa,inset 0 -9px 22px #71ecf144; }

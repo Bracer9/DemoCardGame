@@ -121,10 +121,20 @@ function touchPoint(event) {
   return { clientX: event.clientX, clientY: event.clientY, ...clientToStage(event.clientX, event.clientY) };
 }
 
+function targetAtClientPoint(clientX, clientY, selector, validator = null) {
+  if (!selector) return null;
+  const elements = typeof document.elementsFromPoint === 'function'
+    ? document.elementsFromPoint(clientX, clientY)
+    : [document.elementFromPoint(clientX, clientY)];
+  for (const element of elements) {
+    const target = element instanceof Element ? element.closest(selector) : null;
+    if (target && (!validator || validator(target))) return target;
+  }
+  return null;
+}
+
 function targetUnderPointer(event, selector, validator = null) {
-  const element = document.elementFromPoint(event.clientX, event.clientY);
-  const target = element instanceof Element && selector ? element.closest(selector) : null;
-  return target && (!validator || validator(target)) ? target : null;
+  return targetAtClientPoint(event.clientX, event.clientY, selector, validator);
 }
 
 function beginTouchAttack(card, event) {
@@ -1458,27 +1468,38 @@ function bindCards() {
       document.body.classList.remove('dragging-attack');
       finishAttackArrow();
     });
-    if (card.dataset.side === 'opponent' && !card.classList.contains('defeated') && !card.classList.contains('deploying')) {
-      card.addEventListener('mouseenter', () => showOpponentHoverInspector(card));
-      card.addEventListener('mouseleave', () => hideOpponentHoverInspector(card));
-      card.addEventListener('dragover', event => {
-        if (roleActionDragActive) return;
-        if (selectedAttacker) {
-          event.preventDefault();
-          card.classList.add('drop-ready');
-          const point = clientToStage(event.clientX, event.clientY);
-          updateAttackArrow(point.x, point.y, card);
-        }
-      });
-      card.addEventListener('dragleave', () => card.classList.remove('drop-ready'));
-      card.addEventListener('drop', event => {
-        if (roleActionDragActive) return;
+    card.addEventListener('mouseenter', () => {
+      if (card.dataset.side === 'opponent' && !card.classList.contains('defeated') && !card.classList.contains('deploying'))
+        showOpponentHoverInspector(card);
+    });
+    card.addEventListener('mouseleave', () => {
+      if (card.dataset.side === 'opponent') hideOpponentHoverInspector(card);
+    });
+    card.addEventListener('dragover', event => {
+      if (roleActionDragActive
+        || card.dataset.side !== 'opponent'
+        || card.classList.contains('defeated')
+        || card.classList.contains('deploying')) return;
+      if (selectedAttacker) {
         event.preventDefault();
-        card.classList.remove('drop-ready');
-        finishAttackArrow(card);
-        chooseDefender(card.dataset.id);
-      });
-    }
+        card.classList.add('drop-ready');
+        const point = clientToStage(event.clientX, event.clientY);
+        updateAttackArrow(point.x, point.y, card);
+      }
+    });
+    card.addEventListener('dragleave', () => {
+      if (card.dataset.side === 'opponent') card.classList.remove('drop-ready');
+    });
+    card.addEventListener('drop', event => {
+      if (roleActionDragActive
+        || card.dataset.side !== 'opponent'
+        || card.classList.contains('defeated')
+        || card.classList.contains('deploying')) return;
+      event.preventDefault();
+      card.classList.remove('drop-ready');
+      finishAttackArrow(card);
+      chooseDefender(card.dataset.id);
+    });
     card.addEventListener('dragover', event => {
       if (!roleActionDragActive || !pendingRoleAction || !canRoleActionTargetCard(pendingRoleAction, card)) return;
       event.preventDefault();
@@ -4429,9 +4450,38 @@ document.addEventListener('dragover', event => {
   const selector = roleActionDragActive
     ? roleActionCardTargetSelector(pendingRoleAction)
     : '.fighter-card[data-side="opponent"]:not(.defeated):not(.deploying)';
-  const target = event.target instanceof Element && selector ? event.target.closest(selector) : null;
+  const target = targetAtClientPoint(event.clientX, event.clientY, selector, candidate =>
+    !roleActionDragActive || canRoleActionTargetCard(pendingRoleAction, candidate));
+  if (target) {
+    event.preventDefault();
+    document.querySelectorAll('.drop-ready').forEach(element => {
+      if (element !== target) element.classList.remove('drop-ready');
+    });
+    target.classList.add('drop-ready');
+  }
   const point = clientToStage(event.clientX, event.clientY);
   updateAttackArrow(point.x, point.y, target);
+});
+document.addEventListener('drop', event => {
+  if (event.defaultPrevented || !dragArrowOrigin) return;
+  const selector = roleActionDragActive
+    ? roleActionCardTargetSelector(pendingRoleAction)
+    : '.fighter-card[data-side="opponent"]:not(.defeated):not(.deploying)';
+  const target = targetAtClientPoint(event.clientX, event.clientY, selector, candidate =>
+    !roleActionDragActive || canRoleActionTargetCard(pendingRoleAction, candidate));
+  if (!target) return;
+  event.preventDefault();
+  target.classList.remove('drop-ready');
+  if (roleActionDragActive && pendingRoleAction) {
+    const action = pendingRoleAction;
+    finishAttackArrow(target);
+    useRoleAction(action.characterId, action.roleActionId, target.dataset.id);
+    return;
+  }
+  if (!roleActionDragActive && selectedAttacker) {
+    finishAttackArrow(target);
+    chooseDefender(target.dataset.id);
+  }
 });
 window.addEventListener('resize', () => {
   resizeGameStage();
