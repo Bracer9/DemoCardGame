@@ -650,7 +650,9 @@ function render() {
   renderHeroDraftWindow();
   renderRewardChildBack();
   const activeSharedShield = active?.sharedShield || 0;
-  const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && activeSharedShield > 0;
+  const shieldActionIsReinforce = game.nextShieldCost === 1 && activeSharedShield > 0;
+  const shieldActionIsOpen = game.nextShieldCost === 2 && activeSharedShield <= 0;
+  const canReinforceShield = game.canDeployShield && shieldActionIsReinforce;
   const localControls = canUseLocalControls();
   const shieldUnavailable = !game.canDeployShield || !localControls || dealing || Boolean(game.pendingRoleActionUpgrade) || Boolean(game.heroDraft) || Boolean(game.pendingRelicReward);
   ui.shieldButton.disabled = shieldUnavailable;
@@ -659,11 +661,11 @@ function render() {
   ui.shieldButton.classList.toggle('deployed', me.sharedShield > 0);
   ui.shieldButton.classList.toggle('reinforce-ready', canReinforceShield);
   ui.shieldButton.classList.toggle('reinforced', me.sharedShield > 2);
-  if (!canReinforceShield && game.shieldDeploymentsThisTurn < 2) {
+  if (shieldActionIsOpen) {
     ui.shieldButton.innerHTML = `${art.icon('event.shield', { size: 'md', label: i18n.t('defenseFormation'), className: 'command-icon' })}<span>${game.nextShieldCost} AP / SHIELD 2</span><b>${i18n.t('defenseFormation')}</b>`;
     ui.shieldButton.setAttribute('aria-label', `${game.nextShieldCost} AP / ${i18n.t('defenseFormation')} / SHIELD 2`);
-  } else if (canReinforceShield) {
-    const nextShield = activeSharedShield + 2;
+  } else if (shieldActionIsReinforce) {
+    const nextShield = Math.min(5, activeSharedShield + 2);
     ui.shieldButton.innerHTML = `${art.icon('event.shield', { size: 'md', label: i18n.t('reinforceFormation'), className: 'command-icon' })}<span>${game.nextShieldCost} AP / SHIELD +2 → ${nextShield}</span><b>${i18n.t('reinforceFormation')}</b>`;
     ui.shieldButton.setAttribute('aria-label', `${game.nextShieldCost} AP / ${i18n.t('reinforceFormation')} / SHIELD +2 / ${nextShield}`);
   } else {
@@ -1142,12 +1144,22 @@ function hasPendingShieldBreakForPlayer(state, player) {
     && characterKeys.has(String(logArg(entry, 'character') || '')));
 }
 
+function teamShieldVisualForPlayer(player) {
+  if (!player || !game) return null;
+  const isViewer = player.id === game.viewerPlayerId;
+  return {
+    dome: isViewer ? ui.activeShieldDome : ui.opponentShieldDome,
+    row: isViewer ? ui.activeCards : ui.opponentCards
+  };
+}
+
 function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBreak = false) {
   const player = typeof playerOrShieldValue === 'object' && playerOrShieldValue !== null ? playerOrShieldValue : null;
   const value = player ? Number(player.sharedShield || 0) : Number(playerOrShieldValue || 0);
   const cards = [...row.querySelectorAll('.fighter-card')];
   const isOpponentShield = dome === ui.opponentShieldDome;
   dome.classList.toggle('opponent-facing', isOpponentShield);
+  if (player?.id) dome.dataset.playerId = String(player.id);
   dome.dataset.shield = String(value);
   dome.dataset.pdef = String(player?.sharedShieldPhysicalDefense || 0);
   dome.dataset.mdef = String(player?.sharedShieldMagicalDefense || 0);
@@ -1466,7 +1478,6 @@ function bindCards() {
       selectedAttacker = card.dataset.id; selectedDefender = null; inspectedCardId = card.dataset.id; closePreview();
       if (!wasAlreadySelected) {
         sound.emit('ui.card-select');
-        emitSelectVoice(card);
       }
       document.querySelectorAll('.fighter-card.selected').forEach(element => element.classList.remove('selected'));
       card.classList.add('selected');
@@ -1948,9 +1959,10 @@ function showShieldInspector() {
   const shield = active?.sharedShield || 0;
   const shieldPhysicalDefense = Number(active?.sharedShieldPhysicalDefense || 0);
   const shieldMagicalDefense = Number(active?.sharedShieldMagicalDefense || 0);
-  const canReinforceShield = game.shieldDeploymentsThisTurn > 0 && shield > 0;
-  const lightState = shield > 0 && shield <= 2 ? 'current' : !canReinforceShield && game.shieldDeploymentsThisTurn < 2 ? 'next' : '';
-  const reinforcedState = shield > 2 ? 'current' : canReinforceShield ? 'next' : '';
+  const shieldActionIsReinforce = game.nextShieldCost === 1 && shield > 0;
+  const shieldActionIsOpen = game.nextShieldCost === 2 && shield <= 0;
+  const lightState = shield > 0 && shield <= 2 ? 'current' : shieldActionIsOpen ? 'next' : '';
+  const reinforcedState = shield > 2 ? 'current' : shieldActionIsReinforce ? 'next' : '';
   const stateLabel = shield > 0 ? i18n.t('shieldCurrent', { value: shield }) : i18n.t('shieldNone');
   ui.shieldInspector.innerHTML = `<header><span>TACTICAL COMMAND</span><strong>${i18n.t('defenseFormation')}</strong><b>${game.nextShieldCost} AP</b></header>
     <p class="shield-rule-lead">${i18n.t('shieldLead')}</p>
@@ -3178,9 +3190,11 @@ function playerFromLog(state, entry) {
 
 function teamVisual(player) {
   if (!player || !game) return null;
+  const visual = teamShieldVisualForPlayer(player);
+  const row = visual?.row;
+  const dome = visual?.dome;
+  if (!row || !dome) return null;
   const isViewer = player.id === game.viewerPlayerId;
-  const row = isViewer ? ui.activeCards : ui.opponentCards;
-  const dome = isViewer ? ui.activeShieldDome : ui.opponentShieldDome;
   const cards = [...row.querySelectorAll('.fighter-card')];
   if (!cards.length) return { point: center(row), dome };
   const first = stageRect(cards[0]), last = stageRect(cards[cards.length - 1]);
@@ -3307,7 +3321,7 @@ async function playLogEntry(entry, state) {
       await eventBurst(target, eventIcon.shield, { amount: `-${amount}`, tone: 'shield' });
       if (!player?.sharedShield) sound.emit('shield.break');
       else sound.emit('shield.hit');
-      if (target) shieldBlock(target, amount, player?.sharedShield || 0);
+      if (target) shieldBlock(target, amount, player?.sharedShield || 0, player);
       await wait(player?.sharedShield > 0 ? 160 : 560);
       break;
     }
@@ -3658,12 +3672,23 @@ function playShieldFormationAnimation(dome) {
   dome.classList.remove('forming'); void dome.offsetWidth; dome.classList.add('forming');
   return wait(620).then(() => dome.classList.remove('forming'));
 }
-function shieldBlock(target, amount, remaining) {
+function shieldBlock(target, amount, remaining, player = null) {
   const p = center(target), text = document.createElement('b');
   target.classList.add('shield-block'); setTimeout(() => target.classList.remove('shield-block'), 520);
   text.className = 'shield-float'; text.textContent = `SHIELD -${amount}`; text.style.left = `${p.x}px`; text.style.top = `${p.y}px`; ui.fx.appendChild(text);
-  const dome = target.dataset.side === 'active' ? ui.activeShieldDome : ui.opponentShieldDome;
-  if (remaining <= 0) breakShieldDome(dome);
+  const visual = teamShieldVisualForPlayer(player);
+  const dome = visual?.dome || (target.dataset.side === 'active' ? ui.activeShieldDome : ui.opponentShieldDome);
+  if (visual?.row && player) {
+    const visualValue = remaining > 0
+      ? remaining
+      : Number(dome.dataset.visualShieldValue || dome.dataset.shield || amount || 1);
+    renderPersistentShield(dome, visual.row, visualValue, false);
+  }
+  if (remaining <= 0) {
+    dome.dataset.pendingBreak = 'true';
+    dome.classList.add('pending-break');
+    breakShieldDome(dome);
+  }
   else {
     dome.classList.remove('hit'); void dome.offsetWidth; dome.classList.add('hit');
     setTimeout(() => dome.classList.remove('hit'), 430);

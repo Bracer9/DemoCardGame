@@ -65,7 +65,8 @@ public sealed class GameEngine
     public const int ReinforcedShieldCost = 1;
     public const int FirstShieldValue = 2;
     public const int ReinforcedShieldBonus = 2;
-    public const int MaxShieldDeploymentsPerTurn = 2;
+    public const int DefenseCommandReinforcedShieldCap = 5;
+    public const int MaxDefenseCommandReinforceSourceShield = 3;
     public const int CounterAttackPenalty = 1;
     public const int InitialBattlePoints = 5;
     public const int MaxBattlePoints = 20;
@@ -691,18 +692,23 @@ public sealed class GameEngine
         EnsureNoPendingRoleActionUpgrade(state);
         EnsureNoPendingHeroDraft(state);
         var player = state.ActivePlayer;
-        if (player.ShieldDeploymentsThisTurn >= MaxShieldDeploymentsPerTurn)
-            throw new GameRuleException(L10n.Text("error.shieldMaxed"));
         var isReinforcing = CanReinforceShield(player);
-        var shieldCost = GetShieldCost(player.ShieldDeploymentsThisTurn, player.SharedShield);
+        if (player.SharedShield > 0 && !isReinforcing)
+            throw new GameRuleException(L10n.Text("error.shieldMaxed"));
+        var shieldCost = GetShieldCost(player);
         if (state.ActionPoints < shieldCost)
             throw new GameRuleException(L10n.Text("error.notEnoughAp"));
 
         state.ActionPoints -= shieldCost;
         player.ShieldDeploymentsThisTurn++;
-        player.SharedShield = isReinforcing
-            ? player.SharedShield + ReinforcedShieldBonus
-            : FirstShieldValue;
+        if (isReinforcing)
+        {
+            player.SharedShield = Math.Min(DefenseCommandReinforcedShieldCap, player.SharedShield + ReinforcedShieldBonus);
+        }
+        else
+        {
+            player.SharedShield = FirstShieldValue;
+        }
         var logKey = isReinforcing ? "log.shieldReinforced" : "log.shieldDeployed";
         Log(state, L10n.Text(logKey,
             ("player", L10n.Player(player.Name)),
@@ -710,15 +716,22 @@ public sealed class GameEngine
         TriggerShieldDrill(state, player.Characters.FirstOrDefault(character =>
             character.IsAlive && character.Definition.TraitId == "shield-drill"));
         TriggerMasonToken(state, player);
-        if (isReinforcing && player.ShieldDeploymentsThisTurn >= MaxShieldDeploymentsPerTurn)
+        if (isReinforcing && player.SharedShield >= DefenseCommandReinforcedShieldCap)
             TryGainBp(state, player, 1, BpReasonShieldFullyDeployed);
     }
 
     public static bool CanReinforceShield(PlayerState player) =>
-        player.ShieldDeploymentsThisTurn > 0 && player.SharedShield > 0;
+        player.SharedShield > 0 && player.SharedShield <= MaxDefenseCommandReinforceSourceShield;
 
-    public static int GetShieldCost(int deploymentsThisTurn, int sharedShield) =>
-        deploymentsThisTurn > 0 && sharedShield > 0 ? ReinforcedShieldCost : FirstShieldCost;
+    public static bool CanDeployShield(GameState state)
+    {
+        var player = state.ActivePlayer;
+        return state.ActionPoints >= GetShieldCost(player)
+            && (player.SharedShield <= 0 || CanReinforceShield(player));
+    }
+
+    public static int GetShieldCost(PlayerState player) =>
+        CanReinforceShield(player) ? ReinforcedShieldCost : FirstShieldCost;
 
     public void EndTurn(GameState state)
     {
@@ -1317,11 +1330,20 @@ public sealed class GameEngine
         packet.BlockedBySharedShield = true;
         packet.ShieldAbsorbed += absorbed;
         targetOwner.SharedShield -= absorbed;
+        ClearShieldLayerIfBroken(targetOwner);
         packet.Notes.Add(L10n.Text("note.shieldAbsorb",
             ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
             ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
             ("damageType", L10n.Damage(packet.DamageType)),
             ("amount", L10n.Raw(absorbed))));
+    }
+
+    private static void ClearShieldLayerIfBroken(PlayerState player)
+    {
+        if (player.SharedShield > 0)
+            return;
+
+        player.SharedShield = 0;
     }
 
     private static void ApplyShieldTypeDefense(PlayerState targetOwner, DamagePacket packet)
@@ -2571,8 +2593,11 @@ public sealed class GameEngine
             var before = targetOwner.SharedShield;
             targetOwner.SharedShield = Math.Max(0, targetOwner.SharedShield - GetActiveAttack(state, actor));
             if (before > 0 && targetOwner.SharedShield == 0)
+            {
+                ClearShieldLayerIfBroken(targetOwner);
                 foreach (var enemy in GetEnemiesInArea(targetOwner, target))
                     ApplyTremblingAndVulnerable(enemy, actor);
+            }
             return;
         }
 
@@ -2624,6 +2649,7 @@ public sealed class GameEngine
         if (consumed <= 0)
             throw new GameRuleException(L10n.Text("error.roleActionRequiresShield"));
         owner.SharedShield = 0;
+        ClearShieldLayerIfBroken(owner);
         var hpDamage = DealRoleActionDamage(state, target, consumed + GetActiveAttack(state, actor), DamageType.Physical, actor.Id, "iron-charge");
         AddTrembling(target, actor.Id);
         if (hpDamage > 0)

@@ -5423,6 +5423,7 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
 }
 .relic-overview {
   position:fixed;
+  z-index:23;
   left:var(--relic-overview-left);
   top:var(--relic-overview-top);
   width:var(--relic-overview-button-size);
@@ -5430,6 +5431,11 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
   pointer-events:auto;
 }
 .relic-overview[hidden] { display:none; }
+body:not(.touch-mode) .relic-overview:hover,
+body:not(.touch-mode) .relic-overview:focus-within,
+.relic-overview.expanded {
+  z-index:240;
+}
 .relic-overview-button {
   position:relative;
   z-index:2;
@@ -5484,6 +5490,7 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
   scrollbar-width:none;
   padding:0 18px;
   color:var(--inspector-ink);
+  font-family:var(--font-hand);
   pointer-events:none;
   opacity:0;
   visibility:hidden;
@@ -5531,16 +5538,16 @@ body:not(.touch-mode) .relic-overview:focus-within .relic-overview-detail,
 .relic-overview-detail header span {
   display:inline-block;
   color:var(--inspector-gold-ink);
-  font-family:var(--font-display);
+  font-family:var(--font-hand);
   font-size:var(--inspector-kicker-size);
   font-weight:900;
-  letter-spacing:.18em;
+  letter-spacing:.10em;
 }
 .relic-overview-detail header strong {
   display:block;
   margin-top:4px;
   color:var(--inspector-ink);
-  font-family:var(--font-display);
+  font-family:var(--font-hand);
   font-size:var(--inspector-effect-name-size);
 }
 .relic-overview-detail header b {
@@ -5548,7 +5555,7 @@ body:not(.touch-mode) .relic-overview:focus-within .relic-overview-detail,
   right:2px;
   bottom:10px;
   color:#7a552b;
-  font-family:var(--font-display);
+  font-family:var(--font-hand);
   font-size:18px;
 }
 .relic-overview-detail ul {
@@ -5582,21 +5589,22 @@ body:not(.touch-mode) .relic-overview:focus-within .relic-overview-detail,
 }
 .relic-overview-detail li b {
   color:var(--inspector-ink);
-  font-family:var(--font-display);
+  font-family:var(--font-hand);
   font-size:var(--inspector-effect-name-size);
   line-height:1.22;
 }
 .relic-overview-detail li em {
   color:var(--inspector-gold-ink);
-  font-family:var(--font-display);
+  font-family:var(--font-hand);
   font-size:10px;
   font-style:normal;
   font-weight:900;
-  letter-spacing:.12em;
+  letter-spacing:.08em;
 }
 .relic-overview-detail li p {
   margin:5px 0 0;
   color:var(--inspector-ink);
+  font-family:var(--font-hand);
   font-size:var(--inspector-effect-body-size);
   line-height:1.55;
 }
@@ -5793,6 +5801,57 @@ body:not(.touch-mode) .relic-overview:focus-within .relic-overview-detail,
 .shield-tier p {
   font-family:var(--font-hand);
   font-weight:800;
+}
+
+.reward-window,
+.reward-card,
+.reward-control,
+.hero-draft-window,
+.hero-draft-card,
+.hero-draft-recruit-confirm,
+.hero-draft-upgrade-confirm,
+.hero-draft-confirm-card,
+.relic-overview-detail {
+  font-family:var(--font-hand);
+}
+
+.reward-header small,
+.reward-header h2,
+.reward-header p,
+.reward-waiting,
+.reward-card small,
+.reward-card strong,
+.reward-card p,
+.reward-card b,
+.reward-card em,
+.reward-control span,
+.reward-control b,
+.hero-draft-header small,
+.hero-draft-header h2,
+.hero-draft-header p,
+.hero-draft-waiting,
+.hero-draft-card strong,
+.hero-draft-card em,
+.hero-draft-confirm-card,
+.relic-overview-detail header span,
+.relic-overview-detail header strong,
+.relic-overview-detail header b,
+.relic-overview-detail li b,
+.relic-overview-detail li em,
+.relic-overview-detail li p {
+  font-family:var(--font-hand);
+}
+
+.reward-header small,
+.reward-card small,
+.hero-draft-header small {
+  letter-spacing:.14em;
+}
+
+.reward-card em,
+.hero-draft-card em,
+.relic-overview-detail li em {
+  letter-spacing:.08em;
 }
 
 @keyframes pulse { 50% { opacity:.35; transform:scale(.8); } }

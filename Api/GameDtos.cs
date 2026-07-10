@@ -168,9 +168,8 @@ public sealed class GameViewFactory
             state.Phase == GamePhase.Playing && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
                 && state.PendingHeroDraft is null
                 && state.PendingRelicReward is null
-                && state.ActionPoints >= GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield)
-                && state.ActivePlayer.ShieldDeploymentsThisTurn < GameEngine.MaxShieldDeploymentsPerTurn,
-            GameEngine.GetShieldCost(state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayer.SharedShield),
+                && GameEngine.CanDeployShield(state),
+            GameEngine.GetShieldCost(state.ActivePlayer),
             state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayerId, state.ActivePlayer.Name,
             state.Phase.ToString(), state.WinnerPlayerId, state.IsDraw, viewerPlayerId,
             state.Phase == GamePhase.Playing && state.ActivePlayerId == viewerPlayerId

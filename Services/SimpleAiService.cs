@@ -305,10 +305,10 @@ public sealed class SimpleAiService
     private bool CanDeployUsefulShield(GameState state)
     {
         var owner = state.ActivePlayer;
-        if (owner.ShieldDeploymentsThisTurn >= GameEngine.MaxShieldDeploymentsPerTurn)
-            return false;
-        var cost = GameEngine.GetShieldCost(owner.ShieldDeploymentsThisTurn, owner.SharedShield);
+        var cost = GameEngine.GetShieldCost(owner);
         if (state.ActionPoints < cost)
+            return false;
+        if (!GameEngine.CanDeployShield(state))
             return false;
         return owner.SharedShield <= 2 || owner.Characters.Any(character => character.IsAlive && character.CurrentHp * 2 <= _engine.GetMaxHp(character));
     }

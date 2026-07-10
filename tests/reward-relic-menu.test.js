@@ -36,7 +36,12 @@ test('relic rewards use a top-level category and a pending child menu', () => {
   assert.match(appSource, /ui\.relicOverviewButton\.innerHTML/);
   assert.doesNotMatch(appSource, /inspector-relics/);
   assert.doesNotMatch(stylesSource, /\.relic-overview\s*\{[\s\S]*?z-index\s*:\s*220/);
+  assert.match(stylesSource, /\.relic-overview\s*\{[\s\S]*?z-index\s*:\s*23/);
+  assert.match(stylesSource, /body:not\(\.touch-mode\) \.relic-overview:hover,[\s\S]*?\.relic-overview\.expanded\s*\{[\s\S]*?z-index\s*:\s*240/);
   assert.match(stylesSource, /\.relic-overview-detail\s*\{[\s\S]*?z-index\s*:\s*96/);
+  assert.match(stylesSource, /\.relic-overview-detail\s*\{[\s\S]*?font-family\s*:\s*var\(--font-hand\)/);
+  assert.match(stylesSource, /\.relic-overview-detail header span,[\s\S]*?\.relic-overview-detail li p\s*\{[\s\S]*?font-family\s*:\s*var\(--font-hand\)/);
+  assert.match(stylesSource, /\.reward-window,[\s\S]*?\.relic-overview-detail\s*\{[\s\S]*?font-family\s*:\s*var\(--font-hand\)/);
 });
 
 test('formal relic pool is wired into reward choices', () => {

@@ -24,6 +24,25 @@ test('card drag handlers use current card state instead of first render state', 
   assert.match(appSource, /card\.addEventListener\('drop', event => \{\s*if \(roleActionDragActive\s*\|\| card\.dataset\.side !== 'opponent'\s*\|\| card\.classList\.contains\('defeated'\)\s*\|\| card\.classList\.contains\('deploying'\)\) return;/);
 });
 
+test('direct attack dragging does not play select voice', () => {
+  const dragStartBlock = appSource.slice(
+    appSource.indexOf("card.addEventListener('dragstart'"),
+    appSource.indexOf("card.addEventListener('dragend'")
+  );
+  assert.match(dragStartBlock, /sound\.emit\('ui\.card-select'\)/);
+  assert.doesNotMatch(dragStartBlock, /emitSelectVoice/);
+  assert.match(appSource, /function onCardClick\(element\)[\s\S]*if \(isSelecting\) \{[\s\S]*emitSelectVoice\(element\)/);
+});
+
 test('persistent team shield does not intercept attack drag targeting', () => {
   assert.match(stylesSource, /#app\.dragging-attack \.persistent-team-shield\.active,\s*body\.dragging-attack \.persistent-team-shield\.active \{ pointer-events:none; \}/);
+});
+
+test('shield hit animation is anchored by owning player instead of card side', () => {
+  assert.match(appSource, /function teamShieldVisualForPlayer\(player\)/);
+  assert.match(appSource, /shieldBlock\(target, amount, player\?\.sharedShield \|\| 0, player\)/);
+  assert.match(appSource, /function shieldBlock\(target, amount, remaining, player = null\)/);
+  assert.match(appSource, /const visual = teamShieldVisualForPlayer\(player\)/);
+  assert.match(appSource, /renderPersistentShield\(dome, visual\.row, visualValue, false\)/);
+  assert.match(appSource, /dome\.dataset\.pendingBreak = 'true'/);
 });

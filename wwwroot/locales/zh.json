@@ -816,7 +816,7 @@
     "preview.trait.harvestActive": "丰收回合不能播种。",
     "preview.trait.sowing": "进行播种，下个己方回合获得丰收（攻击+2）。",
     "preview.trait.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
-    "preview.trait.burningBoosted": "50%赋予1层燃烧（回合伤害）；受星读加护时每层造成2点魔法伤害。",
+    "preview.trait.burningBoosted": "50%赋予1层燃烧（回合伤害）。",
     "preview.trait.burning": "50%赋予1层燃烧（回合伤害）。",
     "preview.trait.sporesGuaranteed": "造成HP伤害：100%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
     "preview.trait.sporesChance": "未造成HP伤害：50%发动，随机移除1个增益，并赋予力竭（物理伤害降低）和磨损（魔法伤害降低）。",
@@ -1050,7 +1050,7 @@
     },
     "searing-mark": {
       "name": "灼热刻印",
-      "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
+      "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害。",
       "card": "进攻时50%赋予燃烧（回合伤害）。",
       "ranks": {
         "2": {
@@ -1058,11 +1058,11 @@
           "card": "Rank2路线强化：燃烧更稳定，或追加空虚。",
           "paths": {
             "arcane-channel": {
-              "description": "进攻时赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。",
+              "description": "进攻时赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害。",
               "card": "进攻时必定赋予燃烧（回合伤害）。"
             },
             "searing-brand": {
-              "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害，星读加护使其+1。灼热刻印触发时，额外赋予空虚。",
+              "description": "进攻时50%赋予燃烧（回合伤害）。目标下回合开始时受到1点魔法伤害。灼热刻印触发时，额外赋予空虚。",
               "card": "进攻时50%赋予燃烧；触发时额外赋予空虚。"
             }
           }
