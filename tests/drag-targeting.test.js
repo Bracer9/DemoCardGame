@@ -38,11 +38,23 @@ test('persistent team shield does not intercept attack drag targeting', () => {
   assert.match(stylesSource, /#app\.dragging-attack \.persistent-team-shield\.active,\s*body\.dragging-attack \.persistent-team-shield\.active \{ pointer-events:none; \}/);
 });
 
-test('shield hit animation is anchored by owning player instead of card side', () => {
-  assert.match(appSource, /function teamShieldVisualForPlayer\(player\)/);
-  assert.match(appSource, /shieldBlock\(target, amount, player\?\.sharedShield \|\| 0, player\)/);
-  assert.match(appSource, /function shieldBlock\(target, amount, remaining, player = null\)/);
-  assert.match(appSource, /const visual = teamShieldVisualForPlayer\(player\)/);
-  assert.match(appSource, /renderPersistentShield\(dome, visual\.row, visualValue, false\)/);
+test('shield hit animation does not re-anchor persistent shield geometry', () => {
+  assert.match(appSource, /shieldBlock\(target, amount, player\?\.sharedShield \|\| 0\)/);
+  assert.match(appSource, /function shieldBlock\(target, amount, remaining\)/);
+  const shieldBlockSource = appSource.slice(
+    appSource.indexOf('function shieldBlock('),
+    appSource.indexOf('function animateBpRecoveryToHp(')
+  );
+  assert.match(shieldBlockSource, /const dome = target\.dataset\.side === 'active' \? ui\.activeShieldDome : ui\.opponentShieldDome/);
+  assert.doesNotMatch(shieldBlockSource, /renderPersistentShield/);
+  assert.doesNotMatch(shieldBlockSource, /playerId|expectedPlayerId|teamShieldVisualForPlayer/);
   assert.match(appSource, /dome\.dataset\.pendingBreak = 'true'/);
+});
+
+test('persistent shield geometry reuses stable card bounds during card transitions', () => {
+  assert.match(appSource, /const shieldLayoutCache = new WeakMap\(\)/);
+  assert.match(appSource, /function stableShieldLayout\(dome, cards, force = false\)/);
+  assert.match(appSource, /if \(!force && cached\?\.signature === signature\) return cached/);
+  assert.match(appSource, /const layout = cards\.length > 0 \? stableShieldLayout\(dome, cards, forceLayout\) : null/);
+  assert.match(appSource, /renderPersistentShield\(ui\.activeShieldDome, ui\.activeCards, viewer, false, true\)/);
 });

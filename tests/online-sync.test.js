@@ -4,7 +4,14 @@ const fs = require('node:fs');
 
 const appSource = fs.readFileSync('wwwroot/app.js', 'utf8');
 
-test('an open attack preview does not suspend online state polling', () => {
-  assert.doesNotMatch(appSource, /dealing\s*\|\|\s*preview\s*\|\|\s*!hasStarted/);
-  assert.match(appSource, /selectedAttacker = null; selectedDefender = null; inspectedCardId = null; hideAttackArrow\(\); closePreview\(\); render\(\);/);
+test('online polling continues with an open attack preview and closes stale previews after state changes', () => {
+  const pollSource = appSource.slice(
+    appSource.indexOf('async function pollOnlineState()'),
+    appSource.indexOf('function startPolling()')
+  );
+  const pollingGuard = pollSource.slice(0, pollSource.indexOf('eventPlayback = true'));
+
+  assert.doesNotMatch(pollingGuard, /\bpreview\b/);
+  assert.match(pollSource, /selectedAttacker = null; selectedDefender = null; inspectedCardId = null;/);
+  assert.match(pollSource, /closePreview\(\); render\(\);/);
 });

@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..');
+const projectFile = fs.readFileSync(path.join(projectRoot, 'TinyPixelFights.csproj'), 'utf8');
 const projectAudioManifest = JSON.parse(fs.readFileSync(path.join(projectRoot, 'wwwroot/config/audio.json'), 'utf8'));
 
 class FakeAudio {
@@ -137,6 +138,10 @@ test('runtime audio manifest does not depend on the source library', () => {
   for (const [trackId, definition] of Object.entries(projectAudioManifest.tracks)) {
     assert.ok(!definition.source.includes('/audio_library/'), `${trackId} points at source library: ${definition.source}`);
   }
+});
+
+test('source audio library is excluded from build and publish output', () => {
+  assert.ok(projectFile.includes('Exclude="assets\\audio_library\\**\\*"'));
 });
 
 test('sound effect filenames use portable English kebab-case names', () => {

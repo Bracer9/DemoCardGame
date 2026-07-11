@@ -1144,22 +1144,31 @@ function hasPendingShieldBreakForPlayer(state, player) {
     && characterKeys.has(String(logArg(entry, 'character') || '')));
 }
 
-function teamShieldVisualForPlayer(player) {
-  if (!player || !game) return null;
-  const isViewer = player.id === game.viewerPlayerId;
-  return {
-    dome: isViewer ? ui.activeShieldDome : ui.opponentShieldDome,
-    row: isViewer ? ui.activeCards : ui.opponentCards
+const shieldLayoutCache = new WeakMap();
+
+function stableShieldLayout(dome, cards, force = false) {
+  const signature = `${stageScale.toFixed(6)}:${dealing ? 'dealing' : 'ready'}:${cards.map(card => card.dataset.id || '').join('|')}`;
+  const cached = shieldLayoutCache.get(dome);
+  if (!force && cached?.signature === signature) return cached;
+  const firstRect = stageRect(cards[0]);
+  const lastRect = stageRect(cards[cards.length - 1]);
+  const layout = {
+    signature,
+    first: { left: firstRect.left, top: firstRect.top, bottom: firstRect.bottom },
+    last: { right: lastRect.right }
   };
+  shieldLayoutCache.set(dome, layout);
+  return layout;
 }
 
-function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBreak = false) {
+function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBreak = false, forceLayout = false) {
   const player = typeof playerOrShieldValue === 'object' && playerOrShieldValue !== null ? playerOrShieldValue : null;
   const value = player ? Number(player.sharedShield || 0) : Number(playerOrShieldValue || 0);
   const cards = [...row.querySelectorAll('.fighter-card')];
+  const layout = cards.length > 0 ? stableShieldLayout(dome, cards, forceLayout) : null;
+  if (!layout) shieldLayoutCache.delete(dome);
   const isOpponentShield = dome === ui.opponentShieldDome;
   dome.classList.toggle('opponent-facing', isOpponentShield);
-  if (player?.id) dome.dataset.playerId = String(player.id);
   dome.dataset.shield = String(value);
   dome.dataset.pdef = String(player?.sharedShieldPhysicalDefense || 0);
   dome.dataset.mdef = String(player?.sharedShieldMagicalDefense || 0);
@@ -1167,7 +1176,7 @@ function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBre
     if (preserveUntilBreak && cards.length > 0 && dome.classList.contains('active')) {
       dome.dataset.pendingBreak = 'true';
       dome.classList.add('pending-break');
-      renderPersistentShield(dome, row, Number(dome.dataset.visualShieldValue || 1), false);
+      renderPersistentShield(dome, row, Number(dome.dataset.visualShieldValue || 1), false, forceLayout);
       return;
     }
     dome.classList.remove('active', 'forming', 'breaking', 'pending-break');
@@ -1178,7 +1187,7 @@ function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBre
   }
   dome.dataset.visualShieldValue = String(value);
   dome.setAttribute('aria-hidden', 'false');
-  const first = stageRect(cards[0]), last = stageRect(cards[cards.length - 1]);
+  const { first, last } = layout;
   const height = value > 2 ? 46 : 38;
   const edgeOffset = value > 2 ? 18 : 13;
   const centerOffset = cssPixelVar('--team-shield-center-offset', 0);
@@ -3190,11 +3199,9 @@ function playerFromLog(state, entry) {
 
 function teamVisual(player) {
   if (!player || !game) return null;
-  const visual = teamShieldVisualForPlayer(player);
-  const row = visual?.row;
-  const dome = visual?.dome;
-  if (!row || !dome) return null;
   const isViewer = player.id === game.viewerPlayerId;
+  const row = isViewer ? ui.activeCards : ui.opponentCards;
+  const dome = isViewer ? ui.activeShieldDome : ui.opponentShieldDome;
   const cards = [...row.querySelectorAll('.fighter-card')];
   if (!cards.length) return { point: center(row), dome };
   const first = stageRect(cards[0]), last = stageRect(cards[cards.length - 1]);
@@ -3321,7 +3328,7 @@ async function playLogEntry(entry, state) {
       await eventBurst(target, eventIcon.shield, { amount: `-${amount}`, tone: 'shield' });
       if (!player?.sharedShield) sound.emit('shield.break');
       else sound.emit('shield.hit');
-      if (target) shieldBlock(target, amount, player?.sharedShield || 0, player);
+      if (target) shieldBlock(target, amount, player?.sharedShield || 0);
       await wait(player?.sharedShield > 0 ? 160 : 560);
       break;
     }
@@ -3672,18 +3679,12 @@ function playShieldFormationAnimation(dome) {
   dome.classList.remove('forming'); void dome.offsetWidth; dome.classList.add('forming');
   return wait(620).then(() => dome.classList.remove('forming'));
 }
-function shieldBlock(target, amount, remaining, player = null) {
+function shieldBlock(target, amount, remaining) {
+  const dome = target.dataset.side === 'active' ? ui.activeShieldDome : ui.opponentShieldDome;
+  // render() owns shield geometry; hit playback must never re-anchor against moving cards.
   const p = center(target), text = document.createElement('b');
   target.classList.add('shield-block'); setTimeout(() => target.classList.remove('shield-block'), 520);
   text.className = 'shield-float'; text.textContent = `SHIELD -${amount}`; text.style.left = `${p.x}px`; text.style.top = `${p.y}px`; ui.fx.appendChild(text);
-  const visual = teamShieldVisualForPlayer(player);
-  const dome = visual?.dome || (target.dataset.side === 'active' ? ui.activeShieldDome : ui.opponentShieldDome);
-  if (visual?.row && player) {
-    const visualValue = remaining > 0
-      ? remaining
-      : Number(dome.dataset.visualShieldValue || dome.dataset.shield || amount || 1);
-    renderPersistentShield(dome, visual.row, visualValue, false);
-  }
   if (remaining <= 0) {
     dome.dataset.pendingBreak = 'true';
     dome.classList.add('pending-break');
@@ -4551,8 +4552,8 @@ window.addEventListener('resize', () => {
   if (!game || dealing) return;
   const viewer = game.players.find(player => player.id === game.viewerPlayerId);
   const opponent = game.players.find(player => player.id !== game.viewerPlayerId);
-  renderPersistentShield(ui.activeShieldDome, ui.activeCards, viewer);
-  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent);
+  renderPersistentShield(ui.activeShieldDome, ui.activeCards, viewer, false, true);
+  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent, false, true);
 });
 window.visualViewport?.addEventListener('resize', () => {
   resizeGameStage();
