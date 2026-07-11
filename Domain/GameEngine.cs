@@ -594,7 +594,7 @@ public sealed class GameEngine
             TargetCharacter = defender,
             DamageType = monsterPrincessAttack ? DamageType.Absolute : attackerAttackType,
             Source = DamageSource.ActiveAttack,
-            Amount = GetActiveAttack(state, attacker),
+            Amount = GetEffectiveActiveAttack(state, attacker),
             ReceivesMagicPowerBonus = attackerAttackType == DamageType.Magical,
             IgnoresSharedShield = monsterPrincessAttack,
             IgnoresTargetDefense = monsterPrincessAttack
@@ -859,6 +859,9 @@ public sealed class GameEngine
         return Math.Max(0, damage);
     }
 
+    public int GetEffectiveActiveAttack(GameState state, CharacterState character) =>
+        GetActiveAttack(state, character);
+
     public int GetActiveAttack(CharacterState character)
     {
         var damage = GetBaseAttack(character);
@@ -1032,6 +1035,9 @@ public sealed class GameEngine
             _ => 0
         };
     }
+
+    public int GetAttackAuraBonus(GameState state, CharacterState character) =>
+        GetSoldierAttackAuraBonus(state, character);
 
     private static int GetSoldierDefenseAuraBonus(GameState state, CharacterState character, DamageType damageType)
     {
@@ -2820,7 +2826,7 @@ public sealed class GameEngine
         var hpDamage = DealRoleActionDamage(state, target, consumed + GetActiveAttack(state, actor), DamageType.Physical, actor.Id, "iron-charge");
         ApplyTrembling(state, actor, target);
         if (hpDamage > 0)
-            IncreaseSharedShield(state, owner, Math.Max(1, (int)Math.Ceiling(hpDamage / 2.0)), actor);
+            IncreaseSharedShield(state, owner, hpDamage, actor);
     }
 
     private static StatusEffect? SelectCleansingHerbsDebuff(CharacterState target)

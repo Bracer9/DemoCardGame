@@ -43,3 +43,12 @@ test('starfall is a 1 AP attack-scaling role action with a systemic chant payoff
   assert.match(zh.roleActions.starfall.description, /当前攻击力/);
   assert.match(ja.roleActions.starfall.description, /現在攻撃力/);
 });
+
+test('iron charge restores shared shield equal to actual HP damage', () => {
+  const ironCharge = methodBody(engineSource, 'void UseIronCharge');
+
+  assert.match(ironCharge, /IncreaseSharedShield\(state, owner, hpDamage, actor\)/);
+  assert.doesNotMatch(ironCharge, /Ceiling\(hpDamage \/ 2\.0\)/);
+  assert.match(zh.roleActions['iron-charge'].description, /等同该HP伤害/);
+  assert.match(ja.roleActions['iron-charge'].description, /同じ値/);
+});

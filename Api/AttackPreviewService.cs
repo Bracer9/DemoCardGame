@@ -47,7 +47,7 @@ public sealed class AttackPreviewService
             && !attackerOwner.RelicsUsedThisTurn.Contains("relic-red-hourglass")
                 ? _engine.GetActiveAttack(state, attacker)
                 : 0;
-        var attackPacketBase = _engine.GetActiveAttack(state, attacker)
+        var attackPacketBase = _engine.GetEffectiveActiveAttack(state, attacker)
             + companyStandardBonus
             + redHourglassBonus;
         var attackBase = monsterPrincessAttack
@@ -247,7 +247,7 @@ public sealed class AttackPreviewService
         {
             var prismBase = ForecastOutgoingDamage(
                 attacker,
-                _engine.GetActiveAttack(state, attacker),
+                _engine.GetEffectiveActiveAttack(state, attacker),
                 DamageType.Magical,
                 DamageSource.Trait,
                 receivesMagicPowerBonus: false,

@@ -28,7 +28,7 @@ public sealed record BattlePointView(
     string? LastReasonId);
 
 public sealed record CharacterView(
-    Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack,
+    Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack, int AttackAuraBonus,
     string CardType, int SoldierRank, int HeroRank, string? HeroPathRoleActionId, bool CanHeroRankUpgrade,
     string AttackType, int PhysicalDefense, int BasePhysicalDefense, int MagicalDefense, int BaseMagicalDefense,
     int CurrentHp, int MaxHp, int Morale, int MaxMorale,
@@ -282,7 +282,8 @@ public sealed class GameViewFactory
         Guid viewerPlayerId)
     {
         var trait = _engine.GetTrait(character);
-        var currentAttack = _engine.GetActiveAttack(state, character);
+        var currentAttack = _engine.GetEffectiveActiveAttack(state, character);
+        var attackAuraBonus = _engine.GetAttackAuraBonus(state, character);
         var attackType = GameEngine.GetAttackType(character);
         if (attackType == DamageType.Magical
             && character.Statuses.Any(status => status.Id == "magic-power" && !status.Expired))
@@ -382,7 +383,7 @@ public sealed class GameViewFactory
         return new CharacterView(
             character.Id, character.Definition.Key, $"/assets/{character.Definition.AssetFile}",
             $"/assets/{GetColoredAssetFile(character)}",
-            character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(state, character),
+            character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(character), attackAuraBonus,
             character.Definition.CardType.ToString(), character.SoldierRank,
             character.HeroRank, character.HeroPathRoleActionId,
             state.PendingRoleActionUpgrade is not null

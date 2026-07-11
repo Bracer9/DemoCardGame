@@ -1240,6 +1240,13 @@ function renderBattleCardRow(container, characters, isActiveSide) {
   });
 }
 
+function effectiveCardAttack(card) {
+  const attack = Number(card?.attack || 0);
+  const baseAttack = Number(card?.baseAttack || 0);
+  const auraBonus = Number(card?.attackAuraBonus || 0);
+  return Math.max(attack, baseAttack + auraBonus);
+}
+
 function morphElement(target, source) {
   if (!(target instanceof Element) || !(source instanceof Element) || target.tagName !== source.tagName) {
     target.replaceWith(source);
@@ -1403,6 +1410,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
   const maxMorale = Math.max(0, Number(card.maxMorale ?? 0));
   const moraleRatio = maxMorale > 0 ? Math.max(0, Math.min(1, morale / maxMorale)) : 0;
   const moraleTone = moraleRatio <= .25 ? 'low' : moraleRatio >= .72 ? 'high' : 'mid';
+  const displayedAttack = effectiveCardAttack(card);
   const cardDescription = truncateCardText(localizedTrait.card, 28);
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
   const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}">`;
@@ -1433,7 +1441,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
         <div class="trait-title"><span>${escapeHtml(localizedTrait.name)}</span><b class="trait-kind">${escapeHtml(localizedTrait.kind)}</b></div>
         <p class="trait-description">${escapeHtml(cardDescription)}</p>
       </div>
-      <div class="stat-orb attack"><span>ATK</span><strong>${card.attack}</strong><em class="attack-type-label">${escapeHtml(damageTypeGlyph(card.attackType))}</em></div>
+       <div class="stat-orb attack"><span>ATK</span><strong>${displayedAttack}</strong><em class="attack-type-label">${escapeHtml(damageTypeGlyph(card.attackType))}</em></div>
       <div class="stat-orb defense"><span>物防</span>${defenseMarkup(card.physicalDefense)}<span>魔防</span>${defenseMarkup(card.magicalDefense)}</div>
       <i class="morale-ring morale-${moraleTone}" aria-hidden="true" title="Morale ${morale}/${maxMorale}"></i>
       <div class="stat-orb hp${hpEmpty}" style="--hp-ratio:${hpRatio.toFixed(3)}"><span>HP</span><strong class="${over}">${visualCurrentHp}<small>/${card.maxHp}</small></strong></div>
@@ -1704,8 +1712,9 @@ function showCharacterInspector(element) {
   const statusMarkup = visibleStatusMarkup || auraMarkup
     ? `${visibleStatusMarkup}${auraMarkup}`
     : `<li class="empty-status">${i18n.t('noEffects')}</li>`;
-  const attackDelta = card.attack - card.baseAttack;
-  const attackDisplay = attackDelta === 0 ? `${card.attack}` : `${card.attack} (${attackDelta > 0 ? '+' : ''}${attackDelta})`;
+  const displayedAttack = effectiveCardAttack(card);
+  const attackDelta = displayedAttack - Number(card.baseAttack || 0);
+  const attackDisplay = attackDelta === 0 ? `${displayedAttack}` : `${displayedAttack} (${attackDelta > 0 ? '+' : ''}${attackDelta})`;
   const morale = Math.max(0, Number(card.morale ?? 0));
   const maxMorale = Math.max(0, Number(card.maxMorale ?? 0));
   const isUpgradeChoiceMode = Boolean(game?.pendingRoleActionUpgrade?.canChoose)
@@ -1766,14 +1775,25 @@ function showCharacterInspector(element) {
   art.hydrate(ui.inspector);
   if (showStatusInspector) art.hydrate(ui.statusInspector);
   positionInspector(ui.inspector, Math.max(16, rect.left - ui.inspector.offsetWidth - 14), rect);
-  if (showStatusInspector) positionInspector(ui.statusInspector, Math.min(STAGE_WIDTH - ui.statusInspector.offsetWidth - 16, rect.right + 14), rect);
+  if (showStatusInspector) {
+    const characterTop = Number.parseFloat(ui.inspector.style.top) - ui.inspector.offsetHeight / 2;
+    positionInspector(
+      ui.statusInspector,
+      Math.min(STAGE_WIDTH - ui.statusInspector.offsetWidth - 16, rect.right + 14),
+      rect,
+      { topEdge: characterTop }
+    );
+  }
 }
 
-function positionInspector(panel, left, targetRect) {
+function positionInspector(panel, left, targetRect, options = {}) {
   const halfHeight = panel.offsetHeight / 2;
-  const top = Math.min(STAGE_HEIGHT - halfHeight - 18, Math.max(halfHeight + 82, targetRect.top + targetRect.height / 2));
+  const centeredTopEdge = targetRect.top + targetRect.height / 2 - halfHeight;
+  const requestedTopEdge = Number.isFinite(options.topEdge) ? options.topEdge : centeredTopEdge;
+  const topEdge = Math.max(18, Math.min(STAGE_HEIGHT - panel.offsetHeight - 18, requestedTopEdge));
+  panel.style.maxHeight = `${Math.max(220, STAGE_HEIGHT - topEdge - 18)}px`;
   panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
+  panel.style.top = `${topEdge + panel.offsetHeight / 2}px`;
 }
 
 function hideCharacterInspector() {

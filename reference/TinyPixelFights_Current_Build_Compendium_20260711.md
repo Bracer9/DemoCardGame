@@ -647,7 +647,7 @@
 
 - Rank1 `raise-bulwark`：我方有共享盾时可发动，共享盾 x1.5 向上取整，并给共享盾物防 +2。
 - Rank2：MaxHp +3、Attack +1；我方共享盾每己方 turn 首次被击破后，Knight 获得强攻。
-- Rank3 `iron-charge`：消耗我方全部共享盾，对敌方 1 体造成消耗盾值 + Knight 当前 Attack 的物理伤害并施加战栗；若造成 HP 伤害，返还该 HPDamage 一半的共享盾。
+- Rank3 `iron-charge`：消耗我方全部共享盾，对敌方 1 体造成消耗盾值 + Knight 当前 Attack 的物理伤害并施加战栗；若造成 HP 伤害，返还等同该 HPDamage 的共享盾。
 
 推荐组合：
 
