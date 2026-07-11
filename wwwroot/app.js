@@ -786,8 +786,13 @@ function renderRewardWindow() {
       const disabled = !reward.canChoose || !option.canAfford;
       const isCategory = option.kind === 'RelicChoice';
       const costLabel = isCategory ? i18n.t('rewardOpenRelics') : `${option.cost} BP`;
-      return `<button class="reward-card ${option.canAfford ? '' : 'unaffordable'}" type="button" data-reward-instance="${escapeHtml(option.instanceId)}" data-index="${index}" ${disabled ? 'disabled' : ''}>
+      const isRelic = option.kind !== 'RelicChoice' && String(option.rewardId || '').startsWith('relic-');
+      const iconMarkup = isRelic
+        ? `<span class="reward-relic-art">${art.icon(relicIconId(option.rewardId), { size: 'lg', label: localized.name })}</span>`
+        : '';
+      return `<button class="reward-card ${isRelic ? 'relic-reward-card' : ''} ${option.canAfford ? '' : 'unaffordable'}" type="button" data-reward-instance="${escapeHtml(option.instanceId)}" data-index="${index}" ${disabled ? 'disabled' : ''}>
         <small>${escapeHtml(option.rarity || 'COMMON')}</small>
+        ${iconMarkup}
         <strong>${escapeHtml(localized.name)}</strong>
         <p>${escapeHtml(localized.description)}</p>
         <b>${escapeHtml(costLabel)}</b>
@@ -1078,27 +1083,13 @@ function clearBpTurnGainDisplay() {
 }
 
 function relicIconId(relicId) {
+  if (String(relicId || '').startsWith('relic-')) {
+    return `relic.${String(relicId).slice('relic-'.length)}`;
+  }
   return {
     'dummy-reward-a': 'status.spell-ward',
     'dummy-reward-b': 'status.chant',
     'dummy-reward-c': 'status.strong-attack',
-    'relic-silver-ward-charm': 'status.spell-ward',
-    'relic-black-iron-rivets': 'status.fortify',
-    'relic-apprentice-star-ink': 'status.chant',
-    'relic-mason-token': 'status.team-shield',
-    'relic-red-whetstone': 'status.strong-attack',
-    'relic-ember-astrolabe': 'status.burning',
-    'relic-hollow-comet-lens': 'status.void',
-    'relic-cracked-shield-bell': 'status.trembling',
-    'relic-duelist-ticket': 'trait.duel-sense',
-    'relic-green-standard': 'event.shield',
-    'relic-ashen-detonator': 'status.burning',
-    'relic-smoldering-censer': 'status.burning',
-    'relic-kingwall-standard': 'status.team-shield',
-    'relic-bastion-hammer': 'event.shield',
-    'relic-victory-drum': 'event.physical',
-    'relic-red-hourglass': 'status.strong-attack',
-    'relic-war-council-banner': 'event.trait'
   }[relicId] || 'event.trait';
 }
 

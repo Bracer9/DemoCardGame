@@ -4,6 +4,11 @@ namespace TinyPixelFights.Api;
 
 public sealed class AttackPreviewService
 {
+    private sealed record RelicDamageForecast(
+        DamageForecast Forecast,
+        bool AstralPrism,
+        bool AshenDetonator);
+
     private readonly GameEngine _engine;
     public AttackPreviewService(GameEngine engine) => _engine = engine;
 
@@ -20,38 +25,80 @@ public sealed class AttackPreviewService
         var monsterPrincessAttack = attacker.Definition.Key == "monster" && defender.Definition.Key == "princess";
         var attackerAttackType = GameEngine.GetAttackType(attacker);
         var defenderAttackType = GameEngine.GetAttackType(defender);
+        var attackerOwner = state.FindOwner(attacker);
+        var defenderOwner = state.FindOwner(defender);
+        var duelistTicketWillTrigger = !monsterPrincessAttack
+            && attackerAttackType == DamageType.Physical
+            && defenderOwner.SharedShield <= 0
+            && RelicEffects.HasRelic(attackerOwner, "relic-duelist-ticket")
+            && !attackerOwner.RelicsUsedThisTurn.Contains("relic-duelist-ticket");
+        var companyStandardBonus = attacker.Definition.CardType == CardType.Soldier
+            && RelicEffects.HasRelic(attackerOwner, "relic-company-standard")
+                ? attackerOwner.Characters.Count(character =>
+                    character.Definition.CardType == CardType.Soldier
+                    && character.IsAlive
+                    && character.IsInBattle
+                    && !GameEngine.IsDeploying(character))
+                : 0;
+        var redHourglassBonus = !monsterPrincessAttack
+            && attackerAttackType == DamageType.Physical
+            && state.PhysicalActiveAttacksTakenThisTurn == 2
+            && RelicEffects.HasRelic(attackerOwner, "relic-red-hourglass")
+            && !attackerOwner.RelicsUsedThisTurn.Contains("relic-red-hourglass")
+                ? _engine.GetActiveAttack(state, attacker)
+                : 0;
+        var attackPacketBase = _engine.GetActiveAttack(state, attacker)
+            + companyStandardBonus
+            + redHourglassBonus;
         var attackBase = monsterPrincessAttack
-            ? _engine.GetActiveAttack(state, attacker)
-            : ForecastOutgoingDamage(attacker, _engine.GetActiveAttack(state, attacker),
+            ? ForecastAbsoluteDamage(state, attacker, defender, attackPacketBase)
+            : ForecastOutgoingDamage(attacker, attackPacketBase,
                 attackerAttackType,
                 DamageSource.ActiveAttack,
-                receivesMagicPowerBonus: true);
+                receivesMagicPowerBonus: true,
+                grantStrongAttack: duelistTicketWillTrigger);
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
         attack = ForecastDamageLanding(defender, attack);
         var attackHp = attack;
-        attack = ApplyPreyForecast(defender, attack);
+        var chantRelicForecast = ForecastChantAndBurningRelics(state, attacker, defender, attackHp);
+        attack = chantRelicForecast.Forecast;
+        attack = ApplyPreyForecast(state, attacker, defender, attack);
         var pactBonus = attacker.Statuses.Any(status => status.Id == "pact" && !status.Expired)
             ? PactStatus.AbsoluteDamage
             : 0;
         if (pactBonus > 0)
-            attack = AddDirectHpDamage(attack, pactBonus);
+            attack = AddDirectHpDamage(attack, ForecastAbsoluteDamage(state, attacker, defender, pactBonus));
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
-            attack = AddDirectHpDamage(attack, rageShieldBreakBonus);
+            attack = AddDirectHpDamage(attack, ForecastAbsoluteDamage(state, attacker, defender, rageShieldBreakBonus));
         var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker);
         var duelSenseBefore = attack;
         if (duelSenseBonus > 0)
-            attack = AddDirectHpDamageIfTargetSurvives(defender, attack, duelSenseBonus);
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack,
+                ForecastAbsoluteDamage(state, attacker, defender, duelSenseBonus));
         var duelSenseWillTrigger = duelSenseBonus > 0
             && (attack.HpDamageMin != duelSenseBefore.HpDamageMin || attack.HpDamageMax != duelSenseBefore.HpDamageMax);
+        var nightBaitWillTrigger = attackHp.HpDamageMax == 0
+            && (attackHp.Max > 0 || attackHp.ShieldWillAbsorb)
+            && RelicEffects.HasRelic(attackerOwner, "relic-night-bait")
+            && !attackerOwner.RelicsUsedThisTurn.Contains("relic-night-bait");
+        var greenStandardWillTrigger = defenderOwner.SharedShield > 0
+            && attackHp.ShieldAbsorb >= defenderOwner.SharedShield
+            && RelicEffects.HasRelic(attackerOwner, "relic-green-standard")
+            && !attackerOwner.RelicsUsedThisTurn.Contains("relic-green-standard");
+        var echoCrystalWillTrigger = attackerAttackType == DamageType.Magical
+            && attacker.Statuses.Any(status => status.Id == "chant" && !status.Expired)
+            && attackPacketBase > 0
+            && RelicEffects.HasRelic(attackerOwner, "relic-echo-crystal")
+            && !attackerOwner.RelicsUsedThisTurn.Contains("relic-echo-crystal");
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defenderAttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
         var counter = ForecastDamage(state, attacker, counterBase, defenderAttackType, DamageSource.CounterAttack);
         counter = ForecastDamageLanding(attacker, counter);
         var counterHp = counter;
-        counter = ApplyPreyForecast(attacker, counter);
+        counter = ApplyPreyForecast(state, defender, attacker, counter);
         var trait = _engine.GetTrait(attacker);
         var (possible, traitText) = ForecastTrait(state, attacker, defender, attackHp);
 
@@ -63,6 +110,22 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.targetForesight", ("chance", L10n.Raw(attack.ReductionChancePercent))));
         if (counter.ReductionChancePercent > 0)
             notes.Add(L10n.Text("preview.attackerForesight", ("chance", L10n.Raw(counter.ReductionChancePercent))));
+        if (duelistTicketWillTrigger)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-duelist-ticket"))));
+        if (companyStandardBonus > 0)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-company-standard"))));
+        if (redHourglassBonus > 0)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-red-hourglass"))));
+        if (chantRelicForecast.AstralPrism)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-astral-prism"))));
+        if (chantRelicForecast.AshenDetonator)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-ashen-detonator"))));
+        if (nightBaitWillTrigger)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-night-bait"))));
+        if (greenStandardWillTrigger)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-green-standard"))));
+        if (echoCrystalWillTrigger)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-echo-crystal"))));
         if (attack.DefenseReduction > 0)
             notes.Add(L10n.Text("preview.targetDefense",
                 ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
@@ -140,16 +203,22 @@ public sealed class AttackPreviewService
             attack, counter, trait.Metadata.Id, possible, traitText, notes);
     }
 
-    private static DamageForecast ApplyPreyForecast(CharacterState target, DamageForecast forecast)
+    private static DamageForecast ApplyPreyForecast(
+        GameState state,
+        CharacterState source,
+        CharacterState target,
+        DamageForecast forecast)
     {
         if (target.Statuses.All(status => status.Id != "prey" || status.Expired) || forecast.HpDamageMin > 0)
             return forecast;
 
-        if (forecast.HpDamageMax == 0)
-            return AddDirectHpDamage(forecast, PreyStatus.AbsoluteDamage);
+        var preyDamage = ForecastAbsoluteDamage(state, source, target, PreyStatus.AbsoluteDamage);
 
-        var triggeredTotal = forecast.Min + PreyStatus.AbsoluteDamage;
-        var triggeredHp = forecast.HpDamageMin + PreyStatus.AbsoluteDamage;
+        if (forecast.HpDamageMax == 0)
+            return AddDirectHpDamage(forecast, preyDamage);
+
+        var triggeredTotal = forecast.Min + preyDamage;
+        var triggeredHp = forecast.HpDamageMin + preyDamage;
         return forecast with
         {
             Min = Math.Min(triggeredTotal, forecast.Max),
@@ -157,6 +226,104 @@ public sealed class AttackPreviewService
             HpDamageMin = Math.Min(triggeredHp, forecast.HpDamageMax),
             HpDamageMax = Math.Max(triggeredHp, forecast.HpDamageMax)
         };
+    }
+
+    private RelicDamageForecast ForecastChantAndBurningRelics(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender,
+        DamageForecast baseForecast)
+    {
+        var owner = state.FindOwner(attacker);
+        var result = baseForecast;
+        var baseCanHit = baseForecast.Max > 0 && baseForecast.HpDamageMin < defender.CurrentHp;
+        var baseAlwaysHits = baseForecast.Min > 0 && baseForecast.HpDamageMin < defender.CurrentHp;
+        var astralPrism = baseCanHit
+            && GameEngine.GetAttackType(attacker) == DamageType.Magical
+            && attacker.Statuses.Any(status => status.Id == "chant" && !status.Expired)
+            && RelicEffects.HasRelic(owner, "relic-astral-prism")
+            && !owner.RelicsUsedThisTurn.Contains("relic-astral-prism");
+        if (astralPrism)
+        {
+            var prismBase = ForecastOutgoingDamage(
+                attacker,
+                _engine.GetActiveAttack(state, attacker),
+                DamageType.Magical,
+                DamageSource.Trait,
+                receivesMagicPowerBonus: false,
+                canConsumeChargeStatuses: false);
+            var prism = ForecastDamage(state, defender, prismBase, DamageType.Magical, DamageSource.Trait);
+            result = AppendNormalDamage(defender, result, prism, baseAlwaysHits);
+        }
+
+        var burning = defender.Statuses.OfType<BurningStatus>().FirstOrDefault(status => !status.Expired);
+        var ashenDetonator = baseCanHit
+            && burning is { Stacks: >= 3 }
+            && RelicEffects.HasRelic(owner, "relic-ashen-detonator")
+            && !owner.RelicsUsedThisTurn.Contains("relic-ashen-detonator");
+        if (ashenDetonator)
+        {
+            var detonationBase = ForecastOutgoingDamage(
+                attacker,
+                burning!.Stacks * 2,
+                DamageType.Magical,
+                DamageSource.Trait,
+                receivesMagicPowerBonus: false,
+                canConsumeChargeStatuses: false);
+            var detonation = ForecastDamage(state, defender, detonationBase, DamageType.Magical,
+                DamageSource.Trait, ignoreDefense: true);
+            result = AppendNormalDamage(defender, result, detonation, baseAlwaysHits);
+        }
+
+        return new RelicDamageForecast(result, astralPrism, ashenDetonator);
+    }
+
+    private static DamageForecast AppendNormalDamage(
+        CharacterState target,
+        DamageForecast current,
+        DamageForecast extra,
+        bool guaranteed)
+    {
+        if (Enum.TryParse<DamageType>(current.DamageType, out var currentType)
+            && currentType == DamageType.Absolute)
+        {
+            var landedExtra = ForecastDamageLanding(target, extra);
+            var survivingBaseMax = Math.Min(current.Max, Math.Max(0, target.CurrentHp - 1));
+            return current with
+            {
+                Min = current.Min + (guaranteed ? landedExtra.Min : 0),
+                Max = Math.Max(current.Max, survivingBaseMax + landedExtra.Max),
+                MoraleDamageMin = current.MoraleDamageMin + (guaranteed ? landedExtra.MoraleDamageMin : 0),
+                MoraleDamageMax = Math.Max(current.MoraleDamageMax, landedExtra.MoraleDamageMax),
+                HpDamageMin = current.HpDamageMin + (guaranteed ? landedExtra.HpDamageMin : 0),
+                HpDamageMax = Math.Max(current.HpDamageMax, survivingBaseMax + landedExtra.HpDamageMax)
+            };
+        }
+
+        var survivingNormalBaseMax = Math.Min(
+            current.Max,
+            Math.Max(0, target.Morale + target.CurrentHp - 1));
+        var combined = current with
+        {
+            Min = current.Min + (guaranteed ? extra.Min : 0),
+            Max = Math.Max(current.Max, survivingNormalBaseMax + extra.Max)
+        };
+        return ForecastDamageLanding(target, combined);
+    }
+
+    private static int ForecastAbsoluteDamage(
+        GameState state,
+        CharacterState source,
+        CharacterState target,
+        int amount)
+    {
+        var damage = Math.Max(0, amount);
+        var owner = state.FindOwner(source);
+        return damage > 0
+            && RelicEffects.HasRelic(owner, "relic-predator-crown")
+            && target.Statuses.Any(status => status.Id == "prey" && !status.Expired)
+                ? (int)Math.Ceiling(damage * 1.5)
+                : damage;
     }
 
     private static DamageForecast AddDirectHpDamage(DamageForecast forecast, int amount)
@@ -316,7 +483,9 @@ public sealed class AttackPreviewService
         int amount,
         DamageType type,
         DamageSource damageSource,
-        bool receivesMagicPowerBonus)
+        bool receivesMagicPowerBonus,
+        bool grantStrongAttack = false,
+        bool canConsumeChargeStatuses = true)
     {
         var damage = Math.Max(0, amount);
         foreach (var status in source.Statuses.Where(status => !status.Expired))
@@ -325,7 +494,7 @@ public sealed class AttackPreviewService
                 break;
             damage = status.Id switch
             {
-                "chant" when type == DamageType.Magical => damage * 2,
+                "chant" when canConsumeChargeStatuses && type == DamageType.Magical => damage * 2,
                 "mighty-strike" when damageSource == DamageSource.ActiveAttack && type == DamageType.Physical =>
                     damage * 2,
                 "strong-attack" when damageSource == DamageSource.ActiveAttack && type == DamageType.Physical =>
@@ -337,6 +506,12 @@ public sealed class AttackPreviewService
                 _ => damage
             };
         }
+
+        if (grantStrongAttack
+            && type == DamageType.Physical
+            && damageSource == DamageSource.ActiveAttack
+            && source.Statuses.All(status => status.Id != "strong-attack" || status.Expired))
+            damage = Math.Max(1, (int)Math.Ceiling(damage * 1.5));
 
         if (type == DamageType.Magical
             && damageSource == DamageSource.ActiveAttack

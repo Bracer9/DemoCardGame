@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 6,
   "basePath": "/assets/ui",
   "icons": {
     "event.physical": {
@@ -48,6 +48,156 @@
       "category": "event",
       "source": "events/icon_event_death.png",
       "fallback": "×",
+      "tone": "death"
+    },
+    "relic.muster-papers": {
+      "category": "relic",
+      "source": "relics/relic-muster-papers.png",
+      "fallback": "◆",
+      "tone": "trait"
+    },
+    "relic.mercy-cup": {
+      "category": "relic",
+      "source": "relics/relic-mercy-cup.png",
+      "fallback": "+",
+      "tone": "heal"
+    },
+    "relic.witch-bell": {
+      "category": "relic",
+      "source": "relics/relic-witch-bell.png",
+      "fallback": "◈",
+      "tone": "debuff"
+    },
+    "relic.command-sergeant-seal": {
+      "category": "relic",
+      "source": "relics/relic-command-sergeant-seal.png",
+      "fallback": "◆",
+      "tone": "trait"
+    },
+    "relic.night-bait": {
+      "category": "relic",
+      "source": "relics/relic-night-bait.png",
+      "fallback": "◉",
+      "tone": "debuff"
+    },
+    "relic.command-table": {
+      "category": "relic",
+      "source": "relics/relic-command-table.png",
+      "fallback": "◆",
+      "tone": "trait"
+    },
+    "relic.echo-crystal": {
+      "category": "relic",
+      "source": "relics/relic-echo-crystal.png",
+      "fallback": "✦",
+      "tone": "magic"
+    },
+    "relic.blood-coin": {
+      "category": "relic",
+      "source": "relics/relic-blood-coin.png",
+      "fallback": "⬡",
+      "tone": "shield"
+    },
+    "relic.apprentice-star-ink": {
+      "category": "relic",
+      "source": "relics/relic-apprentice-star-ink.png",
+      "fallback": "✦",
+      "tone": "arcane"
+    },
+    "relic.mason-token": {
+      "category": "relic",
+      "source": "relics/relic-mason-token.png",
+      "fallback": "◆",
+      "tone": "shield"
+    },
+    "relic.red-whetstone": {
+      "category": "relic",
+      "source": "relics/relic-red-whetstone.png",
+      "fallback": "⚔",
+      "tone": "physical"
+    },
+    "relic.ember-astrolabe": {
+      "category": "relic",
+      "source": "relics/relic-ember-astrolabe.png",
+      "fallback": "♨",
+      "tone": "fire"
+    },
+    "relic.hollow-comet-lens": {
+      "category": "relic",
+      "source": "relics/relic-hollow-comet-lens.png",
+      "fallback": "◉",
+      "tone": "arcane"
+    },
+    "relic.white-lily-censer": {
+      "category": "relic",
+      "source": "relics/relic-white-lily-censer.png",
+      "fallback": "✧",
+      "tone": "holy"
+    },
+    "relic.duelist-ticket": {
+      "category": "relic",
+      "source": "relics/relic-duelist-ticket.png",
+      "fallback": "⚔",
+      "tone": "physical"
+    },
+    "relic.green-standard": {
+      "category": "relic",
+      "source": "relics/relic-green-standard.png",
+      "fallback": "⚑",
+      "tone": "nature"
+    },
+    "relic.astral-prism": {
+      "category": "relic",
+      "source": "relics/relic-astral-prism.png",
+      "fallback": "✦",
+      "tone": "arcane"
+    },
+    "relic.ashen-detonator": {
+      "category": "relic",
+      "source": "relics/relic-ashen-detonator.png",
+      "fallback": "♨",
+      "tone": "fire"
+    },
+    "relic.plague-codex": {
+      "category": "relic",
+      "source": "relics/relic-plague-codex.png",
+      "fallback": "☠",
+      "tone": "debuff"
+    },
+    "relic.predator-crown": {
+      "category": "relic",
+      "source": "relics/relic-predator-crown.png",
+      "fallback": "♛",
+      "tone": "death"
+    },
+    "relic.red-hourglass": {
+      "category": "relic",
+      "source": "relics/relic-red-hourglass.png",
+      "fallback": "⌛",
+      "tone": "physical"
+    },
+    "relic.kingwall-standard": {
+      "category": "relic",
+      "source": "relics/relic-kingwall-standard.png",
+      "fallback": "⚑",
+      "tone": "shield"
+    },
+    "relic.saint-chalice": {
+      "category": "relic",
+      "source": "relics/relic-saint-chalice.png",
+      "fallback": "✧",
+      "tone": "holy"
+    },
+    "relic.company-standard": {
+      "category": "relic",
+      "source": "relics/relic-company-standard.png",
+      "fallback": "⚑",
+      "tone": "physical"
+    },
+    "relic.funeral-coin": {
+      "category": "relic",
+      "source": "relics/relic-funeral-coin.png",
+      "fallback": "◉",
       "tone": "death"
     },
     "status.blessing": {

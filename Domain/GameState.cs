@@ -140,6 +140,8 @@ public sealed class GameState
     public required int ActionPoints { get; set; }
     public int ActionsTakenThisTurn { get; set; }
     public int ActiveAttacksTakenThisTurn { get; set; }
+    public int PhysicalActiveAttacksTakenThisTurn { get; set; }
+    public int PendingRelicActionPointRefunds { get; set; }
     public GamePhase Phase { get; set; } = GamePhase.Playing;
     public Guid? WinnerPlayerId { get; set; }
     public bool IsDraw { get; set; }

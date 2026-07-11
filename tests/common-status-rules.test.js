@@ -79,14 +79,14 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(traitSource, /Statuses\.Remove\(attackBuff\)/);
   assert.match(traitSource, /GameEngine\.AddExhaustion\(exchange\.Defender, owner\.Id\)/);
   assert.match(traitSource, /GameEngine\.AddErosion\(exchange\.Defender, owner\.Id\)/);
-  assert.match(engineSource, /internal static void AddTrembling[\s\S]*?RefreshTurns\(turns\)/);
+  assert.match(engineSource, /internal static bool AddTrembling[\s\S]*?RefreshTurns\(turns\)/);
   assert.match(traitSource, /status\.Id == "magic-power"/);
   assert.match(guardOathStatus, /StatusEffect\("guard-oath", true, sourceCharacterId\)/);
   assert.match(guardOathStatus, /public int Stacks/);
   assert.match(guardOathStatus, /packet\.Source != DamageSource\.ActiveAttack/);
   assert.doesNotMatch(guardOathStatus, /IsDispellable => false/);
   assert.match(previewSource, /ForecastOutgoingDamage/);
-  assert.match(previewSource, /"chant" when type == DamageType\.Magical => damage \* 2/);
+  assert.match(previewSource, /"chant" when canConsumeChargeStatuses && type == DamageType\.Magical => damage \* 2/);
   assert.match(previewSource, /"magic-surge" when damageSource == DamageSource\.ActiveAttack && type == DamageType\.Magical/);
   assert.match(previewSource, /"guard-oath" when source == DamageSource\.ActiveAttack && type == DamageType\.Physical/);
   assert.doesNotMatch(previewSource, /weaknessEnragedMonster/);

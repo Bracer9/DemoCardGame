@@ -18,8 +18,8 @@ test('shield costs depend on whether a shared shield still exists', () => {
   assert.match(engineSource, /CanReinforceShield\(PlayerState player\)/);
   assert.match(engineSource, /public static bool CanReinforceShield\(PlayerState player\) =>\s*player\.SharedShield > 0 && player\.SharedShield <= MaxDefenseCommandReinforceSourceShield;/);
   assert.match(engineSource, /player\.SharedShield = Math\.Min\(DefenseCommandReinforcedShieldCap, player\.SharedShield \+ ReinforcedShieldBonus\)/);
-  assert.match(engineSource, /isReinforcing && player\.SharedShield >= DefenseCommandReinforcedShieldCap/);
-  assert.match(engineSource, /player\.SharedShield = 2;\s*LogRelicTriggered\(state, player, "relic-kingwall-standard"\)/);
+  assert.match(engineSource, /isReinforcing && !CanReinforceShield\(player\)/);
+  assert.match(engineSource, /highestPhysicalDefense[\s\S]*?highestMagicalDefense[\s\S]*?IncreaseSharedShield\(state, player, shield, triggerResponses: false\)/);
   assert.doesNotMatch(gameStateSource, /SharedShieldReinforcedThisTurn/);
   assert.doesNotMatch(engineSource, /SharedShieldReinforcedThisTurn/);
   assert.match(engineSource, /ClearShieldLayerIfBroken\(PlayerState player\)/);

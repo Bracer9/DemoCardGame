@@ -171,12 +171,14 @@ public sealed class ChantStatus(Guid sourceCharacterId, int stacks = 1)
         if (Expired
             || packet.SourceCharacter.Id != owner.Id
             || packet.DamageType != DamageType.Magical
+            || !packet.CanConsumeChargeStatuses
             || packet.Amount <= 0)
             return;
 
         var before = packet.Amount;
         packet.Amount *= 2;
         Stacks--;
+        packet.ConsumedChant = true;
         if (Stacks <= 0)
             Expired = true;
         packet.Notes.Add(L10n.Text("note.chantMagic",

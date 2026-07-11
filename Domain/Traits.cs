@@ -14,6 +14,9 @@ public sealed class DamagePacket
     public required DamageSource Source { get; init; }
     public required int Amount { get; set; }
     public bool ReceivesMagicPowerBonus { get; init; }
+    public bool CanConsumeChargeStatuses { get; init; } = true;
+    public bool ConsumedChant { get; set; }
+    public bool PredatorCrownApplied { get; set; }
     public bool IgnoresSharedShield { get; set; }
     public bool IgnoresTargetDefense { get; set; }
     public bool BlockedBySharedShield { get; set; }
@@ -265,9 +268,15 @@ public sealed class SearingMarkTrait : CharacterTrait
         if (!guaranteed && !context.Roll(0.50))
             return;
 
-        GameEngine.AddBurning(exchange.Defender, owner.Id, state: context.State);
+        var burningWasNew = GameEngine.AddBurning(exchange.Defender, owner.Id, state: context.State);
+        context.NotifyDebuffApplied(owner, exchange.Defender, "burning", burningWasNew);
+        if (!exchange.Defender.IsAlive)
+            return;
         if (HeroRankRules.HasRank2Path(owner, "searing-brand"))
-            GameEngine.AddVoid(exchange.Defender, owner.Id);
+        {
+            var voidWasNew = GameEngine.AddVoid(exchange.Defender, owner.Id);
+            context.NotifyDebuffApplied(owner, exchange.Defender, "void", voidWasNew);
+        }
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
             ("characterId", L10n.Raw(exchange.Defender.Id)),
@@ -316,14 +325,26 @@ public sealed class WeakeningSporesTrait : CharacterTrait
                 ("status", L10n.Status(attackBuff.Id))), "status");
         }
 
-        GameEngine.AddExhaustion(exchange.Defender, owner.Id);
-        GameEngine.AddErosion(exchange.Defender, owner.Id);
+        var exhaustionWasNew = GameEngine.AddExhaustion(exchange.Defender, owner.Id);
+        context.NotifyDebuffApplied(owner, exchange.Defender, "exhaustion", exhaustionWasNew);
+        if (!exchange.Defender.IsAlive)
+            return;
+        var erosionWasNew = GameEngine.AddErosion(exchange.Defender, owner.Id);
+        context.NotifyDebuffApplied(owner, exchange.Defender, "erosion", erosionWasNew);
+        if (!exchange.Defender.IsAlive)
+            return;
         if (!removedBuff && HeroRankRules.HasRank2Path(owner, "weakening-spores-action"))
         {
             if (GameEngine.GetAttackType(exchange.Defender) == DamageType.Physical)
-                GameEngine.AddVulnerable(exchange.Defender, owner.Id);
+            {
+                var vulnerableWasNew = GameEngine.AddVulnerable(exchange.Defender, owner.Id);
+                context.NotifyDebuffApplied(owner, exchange.Defender, "vulnerable", vulnerableWasNew);
+            }
             else
-                GameEngine.AddVoid(exchange.Defender, owner.Id);
+            {
+                var voidWasNew = GameEngine.AddVoid(exchange.Defender, owner.Id);
+                context.NotifyDebuffApplied(owner, exchange.Defender, "void", voidWasNew);
+            }
         }
         context.Log(L10n.Text("log.statusApplied",
             ("character", L10n.Character(exchange.Defender.Definition.Key)),
@@ -367,8 +388,11 @@ public sealed class AftershockAxeTrait : CharacterTrait
         foreach (var target in neighbours)
         {
             context.DealTraitDamage(target, damage, DamageType.Physical, owner.Id, "aftershock-axe");
-            if (HeroRankRules.HasRank2Path(owner, "challenge"))
-                GameEngine.AddTrembling(target, owner.Id);
+            if (target.IsAlive && HeroRankRules.HasRank2Path(owner, "challenge"))
+            {
+                var tremblingWasNew = GameEngine.AddTrembling(target, owner.Id);
+                context.NotifyDebuffApplied(owner, target, "trembling", tremblingWasNew);
+            }
         }
     }
 }

@@ -12,5 +12,5 @@ test('healing does not lower hp that is already above the normal cap', () => {
 });
 
 test('mend uses the shared healing helper for its hp recovery', () => {
-  assert.match(engineSource, /private void UseMend[\s\S]*var healed = Heal\(target, 3\);[\s\S]*L10n\.Raw\(healed\)/);
+  assert.match(engineSource, /private void UseMend[\s\S]*HealFromRoleAction\(target, 3\)[\s\S]*L10n\.Raw\(healed\)/);
 });

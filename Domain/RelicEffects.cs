@@ -15,7 +15,7 @@ public static class RelicEffects
     public static int ModifyBaseAttack(PlayerState owner, CharacterState character, int attack)
     {
         var result = attack;
-        if (HasRelic(owner, "dummy-reward-c") || HasRelic(owner, "relic-war-council-banner"))
+        if (HasRelic(owner, "dummy-reward-c"))
             result++;
         if ((HasRelic(owner, "dummy-reward-b") || HasRelic(owner, "relic-apprentice-star-ink"))
             && GameEngine.GetAttackType(character) == DamageType.Magical)
@@ -28,7 +28,7 @@ public static class RelicEffects
     public static int ModifyPhysicalDefense(PlayerState owner, int defense)
     {
         var result = defense;
-        if (HasRelic(owner, "dummy-reward-physical-defense") || HasRelic(owner, "relic-black-iron-rivets"))
+        if (HasRelic(owner, "dummy-reward-physical-defense"))
             result++;
         return result;
     }
@@ -36,7 +36,7 @@ public static class RelicEffects
     public static int ModifyMagicalDefense(PlayerState owner, int defense)
     {
         var result = defense;
-        if (HasRelic(owner, "dummy-reward-a") || HasRelic(owner, "relic-silver-ward-charm"))
+        if (HasRelic(owner, "dummy-reward-a"))
             result++;
         return result;
     }

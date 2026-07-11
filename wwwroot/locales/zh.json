@@ -229,9 +229,7 @@
     "role-action-cleanse": "职业行动净化成功",
     "role-action-dark-pact": "黑暗契约濒危",
     "first-role-action": "首次职业行动",
-    "rank3-kill": "最终职业行动击败",
-    "relic-green-standard": "绿旗",
-    "relic-victory-drum": "胜利鼓"
+    "rank3-kill": "最终职业行动击败"
   },
   "deputies": {
     "deputy-cleric": {
@@ -268,25 +266,29 @@
       "name": "王家勋章",
       "description": "我方全体获得攻击+1。临时遗物效果。"
     },
-    "relic-silver-ward-charm": {
-      "name": "银护符",
-      "description": "我方全体魔防+1。"
-    },
-    "relic-black-iron-rivets": {
-      "name": "黑铁铆钉",
-      "description": "我方全体物防+1。"
-    },
     "relic-apprentice-star-ink": {
       "name": "见习星墨",
       "description": "我方魔法攻击单位攻击+1。"
     },
     "relic-mason-token": {
       "name": "石匠令",
-      "description": "每回合首次部署或强化共享盾时，低HP友方获得坚守。"
+      "description": "每回合首次增加共有盾时，HP比例最低的我方单位获得坚守。"
     },
     "relic-red-whetstone": {
       "name": "红磨刀石",
       "description": "我方物理攻击单位攻击+1。"
+    },
+    "relic-muster-papers": {
+      "name": "征募令",
+      "description": "士兵招募成本-1 BP，最低1 BP。"
+    },
+    "relic-mercy-cup": {
+      "name": "慈悲杯",
+      "description": "每回合首次产生过量治疗时，将其中最多等同治疗者当前攻击力的数值转化为共有盾。"
+    },
+    "relic-witch-bell": {
+      "name": "女巫铃",
+      "description": "每回合首次成功赋予敌方debuff时，追加战栗。"
     },
     "relic-ember-astrolabe": {
       "name": "余烬星盘",
@@ -296,45 +298,73 @@
       "name": "空心彗镜",
       "description": "每回合首次只击伤士气的魔法伤害，赋予空虚。"
     },
-    "relic-cracked-shield-bell": {
-      "name": "碎盾铃",
-      "description": "每回合1次，共享盾被击破后，攻击者获得战栗。"
+    "relic-white-lily-censer": {
+      "name": "白百合香炉",
+      "description": "每回合首次主动治疗实际回复HP时，治疗量最高的目标获得护咒。"
     },
     "relic-duelist-ticket": {
       "name": "决斗券",
-      "description": "每回合首次攻击无盾敌人前，物理攻击者获得强攻。"
+      "description": "每回合首次攻击无共有盾保护的敌人前，物理攻击者获得强攻。"
+    },
+    "relic-command-sergeant-seal": {
+      "name": "军士指挥印",
+      "description": "每回合首次使用士兵职业行动后，返还1 AP。"
+    },
+    "relic-night-bait": {
+      "name": "夜饵",
+      "description": "每回合首次对敌人造成0点HP伤害时，赋予猎物。"
+    },
+    "relic-command-table": {
+      "name": "指挥桌",
+      "description": "每回合首次使用2 AP职业行动后，返还1 AP。"
+    },
+    "relic-echo-crystal": {
+      "name": "回声水晶",
+      "description": "每回合首次消耗咏唱后，在本次伤害结算完毕时重新获得1层咏唱。"
     },
     "relic-green-standard": {
       "name": "绿旗",
-      "description": "每回合首次击破敌方共享盾时，额外获得1 BP。"
+      "description": "每回合首次击破敌方共有盾后，返还1 AP。"
+    },
+    "relic-blood-coin": {
+      "name": "血币",
+      "description": "每回合首次支付HP后，获得等同实际支付量的共有盾。"
+    },
+    "relic-astral-prism": {
+      "name": "星界棱镜",
+      "description": "每回合首次消耗咏唱造成魔法伤害时，追加施术者当前攻击力的魔法伤害。"
     },
     "relic-ashen-detonator": {
       "name": "灰烬引爆器",
-      "description": "每回合1次，命中3层以上燃烧时，引爆燃烧。"
+      "description": "每回合1次，命中3层以上燃烧时，消耗全部燃烧并造成层数×2的无视魔防魔法伤害。"
     },
-    "relic-smoldering-censer": {
-      "name": "余燃香炉",
-      "description": "燃烧基础伤害+1。"
+    "relic-plague-codex": {
+      "name": "瘟疫法典",
+      "description": "每回合首次使敌人新增第3种或更多debuff时，造成等同其debuff种类数的绝对伤害。"
     },
-    "relic-kingwall-standard": {
-      "name": "王墙军旗",
-      "description": "回合开始时，若共享盾为0，获得共享盾2。"
-    },
-    "relic-bastion-hammer": {
-      "name": "壁垒锤",
-      "description": "共享盾被击破时，攻击者受到3点士气伤害。"
-    },
-    "relic-victory-drum": {
-      "name": "胜利鼓",
-      "description": "每回合1次，额外攻击造成HP伤害时，获得1 BP。"
+    "relic-predator-crown": {
+      "name": "掠食者王冠",
+      "description": "我方对猎物造成的绝对伤害×1.5，向上取整。"
     },
     "relic-red-hourglass": {
       "name": "红沙漏",
-      "description": "每回合第3次主动攻击伤害+3。"
+      "description": "每回合第3次物理主动攻击，伤害+攻击者当前攻击力。"
     },
-    "relic-war-council-banner": {
-      "name": "军议战旗",
-      "description": "我方全体攻击+1。"
+    "relic-kingwall-standard": {
+      "name": "王墙军旗",
+      "description": "己方回合开始时，若共有盾为0，获得等同我方最高物防+最高魔防的共有盾。"
+    },
+    "relic-saint-chalice": {
+      "name": "圣徒圣杯",
+      "description": "每回合首次主动治疗HP后，治疗量最高的目标恢复等量士气；共有盾增加其实际恢复的HP与士气之和。"
+    },
+    "relic-company-standard": {
+      "name": "连队军旗",
+      "description": "士兵主动攻击伤害+我方在场士兵数。"
+    },
+    "relic-funeral-coin": {
+      "name": "丧仪金币",
+      "description": "公主阵亡且我方怪物存活时，AP上限+2。"
     },
     "relic-choice": {
       "name": "遗物获取",
@@ -813,6 +843,7 @@
     "preview.targetShield": "目标方共有盾：受到伤害-{value}。",
     "preview.attackerShield": "进攻方共有盾：正数反击伤害-{value}。",
     "preview.guard": "守护可能发动，骑士承担部分物理伤害。",
+    "preview.relicTrigger": "{relic}会在本次进攻中触发。",
     "preview.trait.harvestActive": "丰收回合不能播种。",
     "preview.trait.sowing": "进行播种，下个己方回合获得丰收（攻击+2）。",
     "preview.trait.notFirstAttack": "并非本回合第一次进攻，因此不会发动。",
@@ -844,6 +875,9 @@
     "log.rewardReset": "{player}刷新奖励（消耗{cost} BP，第{count}次）。",
     "log.rewardSkipped": "{player}跳过奖励，并尝试获得{amount} BP。",
     "log.relicTriggered": "{relic}触发。",
+    "log.relicHealingResolved": "{relic}：{character}实际恢复HP {hp}、士气 {morale}，共有盾+{shield}。",
+    "log.relicShieldGained": "{relic}：共有盾+{amount}。",
+    "log.relicApRefunded": "{relic}返还{amount} AP。",
     "log.effectDamage": "{effect}：{character}受到{amount}点{damageType}伤害。",
     "log.effectDamageWithMorale": "{effect}：{character}受到{amount}点{damageType}伤害（HP {hpAmount} / 士气 {moraleAmount}）。",
     "log.defeated": "{character}已无法战斗。",

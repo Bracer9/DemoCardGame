@@ -229,9 +229,7 @@
     "role-action-cleanse": "ロールアクションで浄化成功",
     "role-action-dark-pact": "闇の契約で瀕死",
     "first-role-action": "初回ロールアクション",
-    "rank3-kill": "最終ロールアクション撃破",
-    "relic-green-standard": "緑旗",
-    "relic-victory-drum": "勝利の太鼓"
+    "rank3-kill": "最終ロールアクション撃破"
   },
   "deputies": {
     "deputy-cleric": {
@@ -268,25 +266,29 @@
       "name": "王家の勲章",
       "description": "味方全体に攻撃+1を付与。仮の遺物効果。"
     },
-    "relic-silver-ward-charm": {
-      "name": "銀の護符",
-      "description": "味方全体の魔防+1。"
-    },
-    "relic-black-iron-rivets": {
-      "name": "黒鉄の鋲",
-      "description": "味方全体の物防+1。"
-    },
     "relic-apprentice-star-ink": {
       "name": "見習い星墨",
       "description": "味方の魔法攻撃ユニットの攻撃+1。"
     },
     "relic-mason-token": {
       "name": "石工の印",
-      "description": "各ターン初めて共有シールドを展開または強化した時、低HPの味方に堅守を付与。"
+      "description": "各ターン初めて共有シールドが増加した時、HP割合が最も低い味方に堅守を付与。"
     },
     "relic-red-whetstone": {
       "name": "赤い砥石",
       "description": "味方の物理攻撃ユニットの攻撃+1。"
+    },
+    "relic-muster-papers": {
+      "name": "徴募令",
+      "description": "兵士招募コスト-1 BP。最低1 BP。"
+    },
+    "relic-mercy-cup": {
+      "name": "慈悲の杯",
+      "description": "各ターン初めて過剰回復が発生した時、治療者の現在攻撃力までを共有シールドへ変換する。"
+    },
+    "relic-witch-bell": {
+      "name": "魔女の鈴",
+      "description": "各ターン初めて敵へのデバフ付与に成功した時、戦慄を追加する。"
     },
     "relic-ember-astrolabe": {
       "name": "残り火の星盤",
@@ -296,45 +298,73 @@
       "name": "空洞彗星レンズ",
       "description": "各ターン初めて士気だけに魔法ダメージを与えた時、空虚を付与。"
     },
-    "relic-cracked-shield-bell": {
-      "name": "ひび割れ盾鈴",
-      "description": "各ターン1回、共有シールドが破壊された後、攻撃者に戦慄を付与。"
+    "relic-white-lily-censer": {
+      "name": "白百合の香炉",
+      "description": "各ターン初めて主動治療でHPを回復した時、回復量が最も高い対象に護咒を付与。"
     },
     "relic-duelist-ticket": {
       "name": "決闘券",
-      "description": "各ターン初めてシールドのない敵を攻撃する前、物理攻撃者が強攻を得る。"
+      "description": "各ターン初めて共有シールドのない敵を攻撃する前、物理攻撃者が強攻を得る。"
+    },
+    "relic-command-sergeant-seal": {
+      "name": "軍曹指揮印",
+      "description": "各ターン初めて兵士のロールアクションを使用した後、1 APを返還する。"
+    },
+    "relic-night-bait": {
+      "name": "夜餌",
+      "description": "各ターン初めて敵に0点のHPダメージを与えた時、獲物を付与する。"
+    },
+    "relic-command-table": {
+      "name": "指揮卓",
+      "description": "各ターン初めて2 APのロールアクションを使用した後、1 APを返還する。"
+    },
+    "relic-echo-crystal": {
+      "name": "反響水晶",
+      "description": "各ターン初めて詠唱を消費した後、そのダメージ解決完了時に詠唱を1層戻す。"
     },
     "relic-green-standard": {
       "name": "緑旗",
-      "description": "各ターン初めて敵の共有シールドを破壊した時、追加で1 BPを得る。"
+      "description": "各ターン初めて敵の共有シールドを破壊した後、1 APを返還する。"
+    },
+    "relic-blood-coin": {
+      "name": "血の硬貨",
+      "description": "各ターン初めてHPを支払った後、実際の支払量と同じ共有シールドを得る。"
+    },
+    "relic-astral-prism": {
+      "name": "星界のプリズム",
+      "description": "各ターン初めて詠唱を消費して魔法ダメージを与えた時、術者の現在攻撃力分の魔法ダメージを追加する。"
     },
     "relic-ashen-detonator": {
       "name": "灰の起爆器",
-      "description": "各ターン1回、3層以上の燃焼を持つ対象に命中した時、燃焼を爆発させる。"
+      "description": "各ターン1回、3層以上の燃焼を持つ対象に命中した時、全燃焼を消費し、層数×2の魔防無視魔法ダメージを与える。"
     },
-    "relic-smoldering-censer": {
-      "name": "燻る香炉",
-      "description": "燃焼の基本ダメージ+1。"
+    "relic-plague-codex": {
+      "name": "疫病法典",
+      "description": "各ターン初めて敵に3種類目以降の新しいデバフを付与した時、デバフ種類数と同じ絶対ダメージを与える。"
     },
-    "relic-kingwall-standard": {
-      "name": "王壁の軍旗",
-      "description": "ターン開始時、共有シールドが0なら共有シールド2を得る。"
-    },
-    "relic-bastion-hammer": {
-      "name": "堡塁ハンマー",
-      "description": "共有シールドが破壊された時、攻撃者に3士気ダメージ。"
-    },
-    "relic-victory-drum": {
-      "name": "勝利の太鼓",
-      "description": "各ターン1回、追加攻撃がHPダメージを与えた時、1 BPを得る。"
+    "relic-predator-crown": {
+      "name": "捕食者の王冠",
+      "description": "味方が獲物へ与える絶対ダメージ×1.5。端数切り上げ。"
     },
     "relic-red-hourglass": {
       "name": "赤い砂時計",
-      "description": "各ターン3回目の主動攻撃のダメージ+3。"
+      "description": "各ターン3回目の物理主動攻撃のダメージに、攻撃者の現在攻撃力を加える。"
     },
-    "relic-war-council-banner": {
-      "name": "軍議の戦旗",
-      "description": "味方全体の攻撃+1。"
+    "relic-kingwall-standard": {
+      "name": "王壁の軍旗",
+      "description": "自分のターン開始時、共有シールドが0なら、味方の最高物防+最高魔防と同じ共有シールドを得る。"
+    },
+    "relic-saint-chalice": {
+      "name": "聖徒の聖杯",
+      "description": "各ターン最初の主動HP治療後、回復量が最も高い対象は同量の士気を回復し、実際に回復したHP+士気分だけ共有シールドを得る。"
+    },
+    "relic-company-standard": {
+      "name": "中隊軍旗",
+      "description": "兵士の主動攻撃ダメージに、味方の戦場にいる兵士数を加える。"
+    },
+    "relic-funeral-coin": {
+      "name": "葬儀の金貨",
+      "description": "姫が撃破され、味方の怪物が生存している間、AP上限+2。"
     },
     "relic-choice": {
       "name": "遺物獲得",
@@ -813,6 +843,7 @@
     "preview.targetShield": "対象側の共有シールド：被ダメージ-{value}。",
     "preview.attackerShield": "攻撃側の共有シールド：正数の反撃を-{value}。",
     "preview.guard": "守護が発動し、騎士が一部の物理ダメージを肩代わりします。",
+    "preview.relicTrigger": "{relic}がこの攻撃で発動します。",
     "preview.trait.harvestActive": "豊穣中は種を蒔けません。",
     "preview.trait.sowing": "種を蒔き、次の自分のターンに豊穣（攻撃+2）。",
     "preview.trait.notFirstAttack": "ターン最初の攻撃ではないため発動しません。",
@@ -844,6 +875,9 @@
     "log.rewardReset": "{player}が報酬をリセット（消費 {cost} BP、{count}回目）。",
     "log.rewardSkipped": "{player}が報酬をスキップし、{amount} BPを得ようとした。",
     "log.relicTriggered": "{relic}が発動。",
+    "log.relicHealingResolved": "{relic}：{character}はHP {hp}、士気 {morale}を実際に回復し、共有シールド+{shield}。",
+    "log.relicShieldGained": "{relic}：共有シールド+{amount}。",
+    "log.relicApRefunded": "{relic}が{amount} APを返還。",
     "log.effectDamage": "{effect}：{character}に{amount}{damageType}ダメージ。",
     "log.effectDamageWithMorale": "{effect}：{character}に{amount}{damageType}ダメージ（HP {hpAmount} / 士気 {moraleAmount}）。",
     "log.defeated": "{character}は戦闘不能。",

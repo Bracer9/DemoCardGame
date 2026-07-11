@@ -185,6 +185,8 @@ public sealed class SimpleAiService
 
         var affordable = reward.Options
             .Where(option => player.BattlePoints.Current >= option.Cost)
+            .Where(option => option.RewardId != "relic-choice"
+                || reward.RelicOptions.Any(relic => player.BattlePoints.Current >= relic.Cost))
             .ToList();
         if (affordable.Count == 0)
         {
@@ -214,10 +216,6 @@ public sealed class SimpleAiService
                 && character.Definition.CardType == CardType.Soldier
                 && character.SoldierRank < 2))
             return -100;
-        if (option.RewardId == "relic-choice"
-            && !RewardCatalog.DummyRewards.Any(reward => player.BattlePoints.Current >= reward.Cost))
-            return -100;
-
         return option.RewardId switch
     {
         "hero-role-action-upgrade" => 100,
