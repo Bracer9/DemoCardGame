@@ -57,6 +57,16 @@ public sealed class AttackPreviewService
                 DamageSource.ActiveAttack,
                 receivesMagicPowerBonus: true,
                 grantStrongAttack: duelistTicketWillTrigger);
+        var jesterTraitWillApply = attacker.Definition.Key == "jester"
+            && attacker.SoldierRank >= 1
+            && !attacker.TraitsUsedThisTurn.Contains("malicious-jest");
+        var jesterAuraBonus = !monsterPrincessAttack
+            && attackerAttackType is DamageType.Physical or DamageType.Magical
+            && GameEngine.HasActiveRank1SoldierAura(attackerOwner, "jester")
+            && (jesterTraitWillApply || defender.Statuses.Any(status => !status.IsBuff && !status.Expired))
+            ? 1
+            : 0;
+        attackBase += jesterAuraBonus;
         var attack = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
@@ -65,6 +75,13 @@ public sealed class AttackPreviewService
         var chantRelicForecast = ForecastChantAndBurningRelics(state, attacker, defender, attackHp);
         attack = chantRelicForecast.Forecast;
         attack = ApplyPreyForecast(state, attacker, defender, attack);
+        var attritionLedgerBonus = ForecastAttritionLedgerBonus(state, attacker, defender);
+        var attritionLedgerBefore = attack;
+        if (attritionLedgerBonus > 0)
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack, attritionLedgerBonus);
+        var attritionLedgerWillTrigger = attritionLedgerBonus > 0
+            && (attack.HpDamageMin != attritionLedgerBefore.HpDamageMin
+                || attack.HpDamageMax != attritionLedgerBefore.HpDamageMax);
         var pactBonus = attacker.Statuses.Any(status => status.Id == "pact" && !status.Expired)
             ? PactStatus.AbsoluteDamage
             : 0;
@@ -116,6 +133,8 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-company-standard"))));
         if (redHourglassBonus > 0)
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-red-hourglass"))));
+        if (jesterAuraBonus > 0)
+            notes.Add(L10n.Text("preview.trait.jesterAura"));
         if (chantRelicForecast.AstralPrism)
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-astral-prism"))));
         if (chantRelicForecast.AshenDetonator)
@@ -126,6 +145,8 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-green-standard"))));
         if (echoCrystalWillTrigger)
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-echo-crystal"))));
+        if (attritionLedgerWillTrigger)
+            notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-attrition-ledger"))));
         if (attack.DefenseReduction > 0)
             notes.Add(L10n.Text("preview.targetDefense",
                 ("damageType", L10n.Damage(Enum.Parse<DamageType>(attack.DamageType))),
@@ -324,6 +345,18 @@ public sealed class AttackPreviewService
             && target.Statuses.Any(status => status.Id == "prey" && !status.Expired)
                 ? (int)Math.Ceiling(damage * 1.5)
                 : damage;
+    }
+
+    private static int ForecastAttritionLedgerBonus(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender)
+    {
+        var owner = state.FindOwner(attacker);
+        var damage = GameEngine.GetAttritionLedgerDamage(defender);
+        return RelicEffects.HasRelic(owner, "relic-attrition-ledger")
+            ? ForecastAbsoluteDamage(state, attacker, defender, damage)
+            : 0;
     }
 
     private static DamageForecast AddDirectHpDamage(DamageForecast forecast, int amount)
@@ -599,8 +632,23 @@ public sealed class AttackPreviewService
             L10n.Text(attack.HpDamageMin >= AftershockAxeTrait.TriggerDamage
                 ? "preview.trait.aftershockGuaranteed" : "preview.trait.aftershockPossible")),
         "monster" => ForecastMonsterTrait(state, attacker, defender, attack),
+        "jester" => ForecastJesterTrait(state, attacker, defender),
         _ => (false, L10n.Text("preview.trait.none"))
     };
+
+    private static (bool, LocalizedText) ForecastJesterTrait(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender)
+    {
+        if (attacker.TraitsUsedThisTurn.Contains("malicious-jest"))
+            return (false, L10n.Text("preview.trait.none"));
+
+        var targetAlreadyHadDebuff = defender.Statuses.Any(status => !status.IsBuff && !status.Expired);
+        return (true, L10n.Text("preview.trait.maliciousJest",
+            ("status", L10n.Status(GameEngine.GetAttackType(defender) == DamageType.Physical ? "exhaustion" : "erosion")),
+            ("spread", L10n.Raw(attacker.SoldierRank >= 1 && targetAlreadyHadDebuff ? 1 : 0))));
+    }
 
     private static (bool, LocalizedText) ForecastDruidTrait(CharacterState defender, DamageForecast attack)
     {

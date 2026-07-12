@@ -1132,7 +1132,8 @@ function hasPendingShieldBreakForPlayer(state, player) {
   return (state.log || []).some(entry =>
     entry.sequence > lastAnimatedLogSequence
     && entry.message?.key === 'note.shieldAbsorb'
-    && characterKeys.has(String(logArg(entry, 'character') || '')));
+    && characterKeys.has(String(logArg(entry, 'character') || ''))
+    && (logArg(entry, 'remaining') === undefined || Number(logArg(entry, 'remaining')) <= 0));
 }
 
 const shieldLayoutCache = new WeakMap();
@@ -1766,7 +1767,6 @@ function showCharacterInspector(element) {
   const visibleStatusCount = visibleStatuses.length + (auraStatuses.length ? 1 : 0);
   ui.statusInspector.innerHTML = `<header><span>${i18n.t('liveEffects')}</span><strong>${i18n.t('effects')}</strong><b>${visibleStatusCount}</b></header>
     <section class="inspector-effects"><ul>${statusMarkup}</ul></section>`;
-  const rect = stageRect(element);
   ui.inspector.classList.add('open');
   ui.inspector.setAttribute('aria-hidden', 'false');
   const showStatusInspector = !game?.heroDraft;
@@ -1774,16 +1774,21 @@ function showCharacterInspector(element) {
   ui.statusInspector.setAttribute('aria-hidden', String(!showStatusInspector));
   art.hydrate(ui.inspector);
   if (showStatusInspector) art.hydrate(ui.statusInspector);
+  positionOpenInspectors(element);
+}
+
+function positionOpenInspectors(element) {
+  if (!element || !ui.inspector?.classList.contains('open')) return;
+  const rect = stageRect(element);
   positionInspector(ui.inspector, Math.max(16, rect.left - ui.inspector.offsetWidth - 14), rect);
-  if (showStatusInspector) {
-    const characterTop = Number.parseFloat(ui.inspector.style.top) - ui.inspector.offsetHeight / 2;
-    positionInspector(
-      ui.statusInspector,
-      Math.min(STAGE_WIDTH - ui.statusInspector.offsetWidth - 16, rect.right + 14),
-      rect,
-      { topEdge: characterTop }
-    );
-  }
+  if (!ui.statusInspector?.classList.contains('open')) return;
+  const characterTop = Number.parseFloat(ui.inspector.style.top) - ui.inspector.offsetHeight / 2;
+  positionInspector(
+    ui.statusInspector,
+    Math.min(STAGE_WIDTH - ui.statusInspector.offsetWidth - 16, rect.right + 14),
+    rect,
+    { topEdge: characterTop }
+  );
 }
 
 function positionInspector(panel, left, targetRect, options = {}) {
@@ -1791,9 +1796,18 @@ function positionInspector(panel, left, targetRect, options = {}) {
   const centeredTopEdge = targetRect.top + targetRect.height / 2 - halfHeight;
   const requestedTopEdge = Number.isFinite(options.topEdge) ? options.topEdge : centeredTopEdge;
   const topEdge = Math.max(18, Math.min(STAGE_HEIGHT - panel.offsetHeight - 18, requestedTopEdge));
-  panel.style.maxHeight = `${Math.max(220, STAGE_HEIGHT - topEdge - 18)}px`;
   panel.style.left = `${left}px`;
   panel.style.top = `${topEdge + panel.offsetHeight / 2}px`;
+}
+
+if (typeof ResizeObserver !== 'undefined') {
+  const inspectorResizeObserver = new ResizeObserver(() => {
+    if (!inspectedCardId) return;
+    const element = characterElementById(inspectedCardId);
+    if (element) positionOpenInspectors(element);
+  });
+  inspectorResizeObserver.observe(ui.inspector);
+  inspectorResizeObserver.observe(ui.statusInspector);
 }
 
 function hideCharacterInspector() {
@@ -3334,13 +3348,17 @@ async function playLogEntry(entry, state) {
       await playExchangeEvent(entry, state); break;
     case 'note.shieldAbsorb': {
       const player = playerForCharacterFromLog(state, entry);
+      const remainingArg = logArg(entry, 'remaining');
+      const remaining = remainingArg === undefined
+        ? Number(player?.sharedShield || 0)
+        : Math.max(0, Number(remainingArg) || 0);
       if (logArg(entry, 'damageType') === 'Physical') sound.emit('combat.shield-block');
       else sound.emit('combat.shield-block-magic');
       await eventBurst(target, eventIcon.shield, { amount: `-${amount}`, tone: 'shield' });
-      if (!player?.sharedShield) sound.emit('shield.break');
+      if (remaining <= 0) sound.emit('shield.break');
       else sound.emit('shield.hit');
-      if (target) shieldBlock(target, amount, player?.sharedShield || 0);
-      await wait(player?.sharedShield > 0 ? 160 : 560);
+      if (target) shieldBlock(target, amount, remaining);
+      await wait(remaining > 0 ? 160 : 560);
       break;
     }
     case 'note.foresightReduction':
@@ -3349,6 +3367,9 @@ async function playLogEntry(entry, state) {
     case 'note.magicBonus':
       sound.emit('status.magic-bonus');
       await eventBurst(target, eventIcon.trait, { title: i18n.trait('stargazers-aegis').name, secondaryIconId: art.forTrait('stargazers-aegis'), amount: `+${amount}`, tone: 'trait' }); break;
+    case 'note.jesterAura':
+      sound.emit('status.debuff-applied');
+      await eventBurst(target, eventIcon.trait, { title: i18n.trait('malicious-jest').name, secondaryIconId: art.forStatus('malicious-jest-aura'), amount: `+${amount}`, tone: 'trait' }); break;
     case 'note.chantMagic':
       sound.emit('status.magic-bonus');
       await eventBurst(target, eventIcon.status, { title: i18n.status({ id: 'chant', magnitude: amount }).name, secondaryIconId: art.forStatus('chant'), tone: 'magic' }); break;
@@ -3399,6 +3420,27 @@ async function playLogEntry(entry, state) {
       emitDamageTakenVoice(characterData || characterKey, hpAmount, state, { source: effect?.kind === 'status' ? 'status' : effect?.kind === 'roleAction' ? 'role-action' : 'trait', damageType: type, traitId: effect?.kind === 'trait' ? effect.value : undefined, statusId: effect?.kind === 'status' ? effect.value : undefined });
       await wait(340); break;
     }
+    case 'log.threadCutDamage': {
+      const hpAmount = Number(logArg(entry, 'hpAmount') || 0);
+      const moraleAmount = Number(logArg(entry, 'moraleAmount') || 0);
+      sound.emit('combat.trait-damage');
+      await eventBurst(characterElementFromLog(state, entry, 'source') || target, eventIcon.trait, {
+        title: effectLabel(effect),
+        secondaryIconId: effectIcon,
+        tone: 'trait'
+      });
+      await eventBurst(target, art.forDamageType('Magical'), {
+        title: i18n.damageType('Magical'),
+        amount: moraleAmount > 0 || hpAmount <= 0 ? null : `-${hpAmount}`,
+        tone: 'magic'
+      });
+      if (target) await playLayeredDamageFloats(target, { moraleAmount, hpAmount, type: 'Magical' });
+      emitDamageTakenVoice(characterData || characterKey, hpAmount, state, {
+        source: 'role-action',
+        damageType: 'Magical'
+      });
+      await wait(340); break;
+    }
     case 'log.moraleDamage': {
       if (effect?.kind === 'roleAction') sound.emit('combat.trait-damage');
       await eventBurst(target, effectIcon || eventIcon.status, { title: effectLabel(effect), secondaryIconId: effectIcon ? eventIcon.status : null, tone: 'status' });
@@ -3439,12 +3481,14 @@ async function playLogEntry(entry, state) {
     case 'log.deputyTriggered': {
       const deputy = logArgObject(entry, 'deputy');
       const deputyName = deputy?.kind === 'deputy' ? i18n.deputy(deputy.value).name : i18n.t('deputyTitle');
+      const isDeputyDebuff = status?.value === 'exhaustion' || status?.value === 'erosion' || status?.value === 'void' || status?.value === 'trembling' || status?.value === 'vulnerable';
       if (status?.value === 'chant' || status?.value === 'magic-surge') sound.emit('status.magic-bonus');
+      else if (isDeputyDebuff) sound.emit('status.debuff-applied');
       else sound.emit('status.buff-applied');
       await eventBurst(characterElementFromLog(state, entry, 'target'), eventIcon.trait, {
         title: deputyName,
         secondaryIconId: art.forStatus(status?.value),
-        tone: status?.value === 'chant' || status?.value === 'magic-surge' ? 'magic' : status?.value === 'strong-attack' ? 'physical' : 'trait'
+        tone: status?.value === 'chant' || status?.value === 'magic-surge' ? 'magic' : isDeputyDebuff ? 'status' : status?.value === 'strong-attack' ? 'physical' : 'trait'
       });
       break;
     }

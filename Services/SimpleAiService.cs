@@ -28,7 +28,8 @@ public sealed class SimpleAiService
         ["shieldmaiden"] = 90,
         ["cleric"] = 82,
         ["duelist"] = 74,
-        ["arcanist"] = 70
+        ["arcanist"] = 70,
+        ["jester"] = 68
     };
 
     private static readonly IReadOnlyDictionary<string, string> PreferredHeroPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

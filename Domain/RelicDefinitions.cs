@@ -48,6 +48,8 @@ public static class RelicCatalog
         new("relic-ashen-detonator", 8, "epic", ["magic", "burning", "debuff"]);
     public static readonly RelicDefinition PlagueCodex =
         new("relic-plague-codex", 8, "epic", ["debuff", "control", "absolute"]);
+    public static readonly RelicDefinition AttritionLedger =
+        new("relic-attrition-ledger", 8, "epic", ["debuff", "control", "morale"]);
     public static readonly RelicDefinition PredatorCrown =
         new("relic-predator-crown", 8, "epic", ["prey", "absolute"]);
     public static readonly RelicDefinition RedHourglass =
@@ -82,6 +84,7 @@ public static class RelicCatalog
         AstralPrism,
         AshenDetonator,
         PlagueCodex,
+        AttritionLedger,
         PredatorCrown,
         RedHourglass,
         KingwallStandard,

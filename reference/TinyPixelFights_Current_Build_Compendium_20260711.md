@@ -1,7 +1,7 @@
 # Tiny Pixel Fights - Current Build Compendium
 
 更新时间：2026-07-11  
-状态：当前源码 + 当前设定文档对齐版；25 件遗物池、全 rarity 候选、宽松英雄 tag 权重与九个 Build 终点均已实装。
+状态：当前源码 + 当前设定文档对齐版；26 件遗物池、全 rarity 候选、宽松英雄 tag 权重与九个 Build 终点均已实装。
 
 主要依据：
 
@@ -67,7 +67,7 @@
 |---|---|---|---|---|---|
 | 魔法蓄力 | Astral Oracle、Stellar Archmage | Arcanist | 见习星墨、回声水晶、指挥桌；星界棱镜收束 | 高 | 需要实测咏唱返还与追加段在多次再行动下的峰值。 |
 | 炎上结算 | Arcane Archivist、Stellar Archmage | Arcanist | 见习星墨、余烬星盘；灰烬引爆器收束 | 高 | 当前引爆伤害仍偏低，需要按层数 x2 调整。 |
-| Debuff 收割 | Fate Dealer、Arcane Archivist、Wildspeaker、Dragon Raider | Arcanist、Duelist | 女巫铃、空心彗镜、夜饵；瘟疫法典收束 | 高 | 需要实测女巫铃帮助达到第 3 种 Debuff 的速度。 |
+| Debuff 收割 | Fate Dealer、Arcane Archivist、Wildspeaker、Dragon Raider | Arcanist、Duelist | 女巫铃、空心彗镜、夜饵；瘟疫法典或蚕食账簿收束 | 高 | 需要实测持续 Debuff 层数达到 9 层以上的速度。 |
 | 绝对伤害 | Nightmare Fiend、War Queen、Abyssal Queen | Duelist | 红磨刀石、决斗券、夜饵；掠食者王冠收束 | 高 | 需要观察猎物覆盖率与多段绝对追击的乘算峰值。 |
 | 物理连击 | War Queen、Radiant Berserker、Dread Cavalier、Dragon Raider | Duelist | 红磨刀石、决斗券、绿旗、指挥桌；红沙漏收束 | 高 | 第 3 次物理攻击已经按当前攻击力成长，主要风险转为再行动爆发上限。 |
 | 共有盾 | Holy Paladin、Dread Cavalier、Quartermaster | Shieldmaiden | 石匠令、慈悲杯、绿旗、指挥桌；王墙军旗收束 | 高 | 动态复盾与治疗转盾可能形成过长防线，需要实测终局回合长度。 |
@@ -263,14 +263,14 @@
 
 - Rank1 `fate-mark`：标记敌人，使其下一次攻击我方时随机减半或 +1。
 - Rank2：MaxHp +2、Attack +1。当前源码未见 `fate-mark` 路线的额外 Trait 强化 hook。
-- Rank3 `thread-cut`：统计目标身上的印记 / 猎物 / 燃烧 / 空虚 / 力竭 / 磨损 / 战栗 / 脆弱等，每个造成 2 点士气伤害；士气归零后再造成 Oracle 当前 Attack 的魔法伤害并施加战栗。
+- Rank3 `thread-cut`：统计目标身上的印记 / 猎物 / 燃烧 / 空虚 / 力竭 / 磨损 / 战栗 / 脆弱等，每个造成 2 点士气伤害，超过当前士气的部分扣 HP；士气归零后再造成 Oracle 当前 Attack 的魔法伤害并施加战栗。
 
 推荐组合：
 
 - 搭配英雄：Arcane Archivist / Wildspeaker 是主要双 Rank3 状态核心；Dragon Raider 提供范围战栗与脆弱，Nightmare Fiend 提供猎物标记和绝对伤害收尾。
 - 士兵：Arcanist 触发魔涌链，Duelist 负责物理收割。
 - 副官：Arcanist 副官适合让 Oracle 自己获得魔涌与再行动；Duelist 副官适合把控制后窗口转成 HP 压力。
-- 遗物：女巫铃、空心彗镜、夜饵、瘟疫法典；若与 Arcane Archivist 组队可借余烬星盘。
+- 遗物：女巫铃、空心彗镜、夜饵、瘟疫法典 / 蚕食账簿；若与 Arcane Archivist 组队可借余烬星盘。
 
 成型方式：
 
@@ -389,7 +389,7 @@
 - 搭配英雄：Fate Dealer / Wildspeaker 是主要双 Rank3 状态组合；Astral Oracle 走魔法再行动，Dragon Raider 补战栗与脆弱。
 - 士兵：Arcanist 必备度最高；Duelist 可负责目标士气击穿后的物理 / 绝对伤害收割。
 - 副官：Arcanist 副官最优，Duelist 副官用于后续收 HP。
-- 遗物：见习星墨、余烬星盘、灰烬引爆器；与 Fate Dealer 组队时借女巫铃、空心彗镜与瘟疫法典。
+- 遗物：见习星墨、余烬星盘、灰烬引爆器；与 Fate Dealer 组队时借女巫铃、空心彗镜与瘟疫法典 / 蚕食账簿。
 
 成型方式：
 
@@ -447,7 +447,7 @@
 - 搭配英雄：Militia Foreman 是最重要的双 Rank3 士兵搭档；Nightmare Fiend 利用猎群攻击制造猎物窗口，Fate Dealer / Arcane Archivist 消费状态数量。
 - 士兵：Duelist、Arcanist，最好至少两名在场。
 - 副官：一般优先保留士兵在场；若只需要 Aura，可把 Rank2 士兵转副官。
-- 遗物：征募令、军士指挥印、连队军旗；Debuff 侧可借女巫铃、空心彗镜与瘟疫法典。
+- 遗物：征募令、军士指挥印、连队军旗；Debuff 侧可借女巫铃、空心彗镜与瘟疫法典 / 蚕食账簿。
 
 成型方式：
 
@@ -505,7 +505,7 @@
 - 搭配英雄：Fate Dealer 是主要双 Rank3 士气压制搭档；Dread Cavalier 组成破盾冲锋，War Queen 负责破盾后收尾，Arcane Archivist 消费战栗 / 脆弱计数。
 - 士兵：Duelist、Shieldmaiden。
 - 副官：Duelist 副官提高 HP 压力；Shieldmaiden 副官提高站场。
-- 遗物：红磨刀石、决斗券、绿旗、红沙漏；状态侧可借女巫铃、空心彗镜与瘟疫法典。
+- 遗物：红磨刀石、决斗券、绿旗、红沙漏；状态侧可借女巫铃、空心彗镜与瘟疫法典 / 蚕食账簿。
 
 成型方式：
 
@@ -516,7 +516,7 @@
 当前问题：
 
 - 对手不使用共享盾时，Dragon Raider 更像单体控制打手。
-- 25 件目标池不为破盾单独设置 Epic；Rare 绿旗负责把首次破盾转成 1 AP，终局仍借物理连击或 Debuff 收割完成。
+- 26 件目标池不为破盾单独设置 Epic；Rare 绿旗负责把首次破盾转成 1 AP，终局仍借物理连击或 Debuff 收割完成。
 
 ### 2.7 Monster
 
@@ -751,7 +751,7 @@
 
 ## 4. 当前已接入遗物索引
 
-当前 `RelicCatalog` 已收束为 25 件。下面只列战斗判断需要的短口径，精确实现边界见 `TinyPixelFights_Relic_Design_20260708.md`。
+当前 `RelicCatalog` 已收束为 26 件。下面只列战斗判断需要的短口径，精确实现边界见 `TinyPixelFights_Relic_Design_20260708.md`。
 
 ### 4.1 Common：方向信号
 
@@ -786,6 +786,7 @@
 | 星界棱镜 | 8 | 首次消耗咏唱造成魔法伤害时，追加施术者当前攻击力的魔法伤害。 | 魔法蓄力。 |
 | 灰烬引爆器 | 8 | 首次命中 3 层以上燃烧时，消耗全部层数并造成层数 x2 的无视魔防魔法伤害。 | 燃烧爆发。 |
 | 瘟疫法典 | 8 | 首次新增第 3 种或更多 Debuff 时，造成种类数绝对伤害。 | Debuff 收割。 |
+| 蚕食账簿 | 8 | 常规 Debuff 总层数大于 8 时，主动攻击追加 1 点绝对伤害；大于 12 时追加 2 点。 | Debuff 蚕食。 |
 | 掠食者王冠 | 8 | 我方对猎物造成的绝对伤害 x1.5，向上取整。 | 猎物、绝对伤害。 |
 | 红沙漏 | 8 | 每回合第 3 次物理主动攻击增加攻击者当前攻击力。 | 多段物理爆发。 |
 | 王墙军旗 | 8 | 己方回合开始且共有盾为 0 时，按最高物防 + 最高魔防复盾。 | 盾墙复盾。 |
@@ -795,11 +796,11 @@
 
 ## 5. 当前实装与 pacing 诊断
 
-### 5.1 25 件目标池中的九个终点
+### 5.1 26 件目标池中的九个体系终点
 
 - 魔法蓄力：星界棱镜。
 - 炎上结算：灰烬引爆器。
-- Debuff 收割：瘟疫法典。
+- Debuff 收割：瘟疫法典（状态种类）或蚕食账簿（持续层数）。
 - 绝对伤害：掠食者王冠。
 - 物理连击：红沙漏。
 - 共有盾：王墙军旗。
@@ -811,9 +812,9 @@
 
 ### 5.2 当前源码状态
 
-25 件迁移已经完成：
+26 件遗物池已经完成：
 
-- 6 件原样保留，4 件保留 ID 并按新设计调整，15 件新增，7 件旧遗物已经退出目录和运行代码。
+- 原 25 件遗物完成迁移后，新增 `relic-attrition-ledger` 作为第 26 件终局遗物。
 - 主动治疗、Debuff 赋予、HP 支付和咏唱消费使用通用事件边界，不依赖某一个英雄的专用判断。
 - 中日文本、HUD 图标、日志、奖励成本、AP 上限与攻击预测已经同步。
 - 当前没有遗物内容缺口，后续工作转为真实对局的出现率、pacing 与数值验证。
@@ -823,7 +824,7 @@
 当前源码中奖励窗口是 round 4 起每 4 round 一次。这会让需要多个奖励阶段的 build 明显变慢：
 
 - 士兵团至少需要招募士兵、升级士兵、再拿英雄 Rank3 或遗物，成型点偏晚。
-- 九个体系的组件与终局遗物都已进入同一个 25 件池；随机权重仍不提供硬保底。
+- 九个体系的组件与终局遗物都已进入同一个 26 件池；Debuff 体系拥有状态种类与持续层数两个终点，随机权重仍不提供硬保底。
 - 宽松权重不会保证刷到当前路线遗物；这是保留转型和随机感的预期结果，不应再加硬保底修正。
 - Epic 从第一次选择就可能出现，但早期 BP 不足时会保持不可购买状态；round 12 后仅提高出现率。
 
@@ -835,7 +836,7 @@
 |---|---|---|---|---|---|
 | 魔法蓄力 | Astral Oracle + Stellar Archmage | Arcanist Rank2 | 见习星墨、回声水晶、指挥桌 | 星界棱镜 | 先给咏唱 / 魔涌；每 turn 首次消耗咏唱后返还 1 层，并追加一段当前 Attack 魔法伤害。 |
 | 炎上结算 | Arcane Archivist + Astral Oracle / Fate Dealer | Arcanist Rank2 | 见习星墨、余烬星盘、空心彗镜 | 灰烬引爆器 | 用 Role Action 与 Debuff 把燃烧叠到 3 层以上，再一次结算层数 x2。 |
-| Debuff 收割 | Fate Dealer + Arcane Archivist / Wildspeaker / Dragon Raider | Arcanist 或 Duelist | 女巫铃、空心彗镜、夜饵 | 瘟疫法典 | 女巫铃补出每 turn 第一个战栗，铺三种以上不同 Debuff；Thread Cut 压士气，法典把状态种类转成绝对伤害。 |
+| Debuff 收割 | Fate Dealer + Arcane Archivist / Wildspeaker / Dragon Raider | Arcanist 或 Duelist | 女巫铃、空心彗镜、夜饵 | 瘟疫法典 / 蚕食账簿 | 瘟疫法典奖励三种以上不同 Debuff；蚕食账簿在持续层数超过 8 / 12 后把每次主动攻击转成 1 / 2 点绝对伤害。 |
 | 绝对伤害 | Nightmare Fiend + War Queen / Fate Dealer | Duelist Rank2 | 红磨刀石、决斗券、夜饵 | 掠食者王冠 | 让共有盾、士气或高防制造 0 HPDamage，再把所有对猎物的既有绝对追击放大至 x1.5。 |
 | 物理连击 | War Queen + Radiant Berserker / Dread Cavalier | Duelist Rank2 | 红磨刀石、决斗券、绿旗 / 指挥桌 | 红沙漏 | 破盾或 2 AP 行动返还 AP，用再行动与低 Cost 物理单位凑第三次主动攻击，再增加攻击者当前 Attack。 |
 | 共有盾 | Holy Paladin + Dread Cavalier / Quartermaster | Shieldmaiden Rank2 | 石匠令、慈悲杯、绿旗 / 指挥桌 | 王墙军旗 | 双防 Aura 提高每 turn 基础盾；治疗溢出继续补盾，Dread Cavalier 可把盾转伤害。 |
@@ -847,7 +848,7 @@
 
 当前已经完成：
 
-1. `RelicCatalog` 收束为 25 件，并完成 16 件共享组件与 9 件唯一 Epic 终点。
+1. `RelicCatalog` 收束为 26 件，并完成 16 件共享组件与 10 件 Epic 终点；Debuff 体系保留两条不同收束方向。
 2. 复用英雄路线 `RelicTags` 单次 x2 加权，不增加 Rank3 判定、状态信号或硬路线过滤。
 3. 所有 rarity 始终可见；round 12 只把 Epic 基础权重从 5 提高到 10。
 4. 遗物继续遵守伤害边界：普通伤害先打士气；绝对伤害直扣 HP；写 HP 伤害的触发只看真实 `HpDamage`。

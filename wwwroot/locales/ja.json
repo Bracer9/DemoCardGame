@@ -211,7 +211,8 @@
     "cleric": "クレリック",
     "shieldmaiden": "シールドメイデン",
     "duelist": "デュエリスト",
-    "arcanist": "アルカニスト"
+    "arcanist": "アルカニスト",
+    "jester": "道化師"
   },
   "damageTypes": {
     "Physical": "物理",
@@ -251,6 +252,11 @@
       "name": "秘術参謀",
       "stat": "魔攻 +2",
       "passive": "自分のターンに1回、宿主が魔法ダメージを与えるか指定デバフを付与した後、魔涌を得て、もう一度主動攻撃できる。"
+    },
+    "deputy-jester": {
+      "name": "幻戯補佐",
+      "stat": "攻撃 +1",
+      "passive": "自分のターンに1回、宿主が敵を主動攻撃するか、敵を対象にロールアクションを成功させた後、対象が生存していれば、対象の攻撃タイプに応じて2ターンの力尽きまたは摩耗を付与。"
     }
   },
   "rewards": {
@@ -342,6 +348,10 @@
       "name": "疫病法典",
       "description": "各ターン初めて敵に3種類目以降の新しいデバフを付与した時、デバフ種類数と同じ絶対ダメージを与える。"
     },
+    "relic-attrition-ledger": {
+      "name": "蚕食の帳簿",
+      "description": "対象の通常Debuffの合計スタックが8を超える時、その対象が味方の主動攻撃を受けるたび1点の絶対ダメージを追加する。12を超える時は2点になる。回数制限なし。"
+    },
     "relic-predator-crown": {
       "name": "捕食者の王冠",
       "description": "味方が獲物へ与える絶対ダメージ×1.5。端数切り上げ。"
@@ -380,7 +390,7 @@
     },
     "soldier-recruit": {
       "name": "兵士招募",
-      "description": "4人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。Rank1で最大HPの50%回復と隊伍オーラ、Rank2でHP全回復と最大HP+5。"
+      "description": "5人の兵士から1人を隊伍に加える。所持済みなら昇格素材にできる。Rank1で最大HPの50%回復と隊伍オーラ、Rank2でHP全回復と最大HP+5。"
     }
   },
   "roleActions": {
@@ -484,6 +494,11 @@
       "description": "味方魔法ユニットに詠唱を付与：次の魔法ダメージ×2。",
       "button": "集中"
     },
+    "mocking-curtain-call": {
+      "name": "偽りの終幕",
+      "description": "敵1体に2ターンの脆弱と空虚を付与。",
+      "button": "終幕"
+    },
     "miracle-standard": {
       "name": "奇跡の軍旗",
       "description": "対象は全デバフを浄化し、聖職者の最大HPの1/4（切り上げ）を回復。隣接味方はそれぞれデバフを1つ浄化し、主回復量の半分（最低1、切り上げ）を回復。浄化数が1以上なら、共有盾を聖職者の現在魔防+対象人数だけ増やす。",
@@ -501,7 +516,7 @@
     },
     "thread-cut": {
       "name": "糸断ち",
-      "description": "対象の印、獲物、狩群の印、炎上、空虚、力尽き、摩耗、戦慄、脆弱を数える。1つにつき2士気ダメージ、数の上限なし。士気ダメージの余剰はHPへ貫通しない。士気が0になれば占い師の現在攻撃力分の魔法ダメージと戦慄を与える。0個なら運命の印を付与。",
+      "description": "対象の印、獲物、狩群の印、炎上、空虚、力尽き、摩耗、戦慄、脆弱を数える。1つにつき2士気ダメージ、数の上限なし。余剰分は士気を貫通してHPに与える。士気が0になれば占い師の現在攻撃力分の魔法ダメージと戦慄を与える。0個なら運命の印を付与。",
       "button": "糸断ち"
     },
     "field-rations": {
@@ -675,6 +690,11 @@
       "name": "秘術オーラ",
       "timing": "Rank1アルカニスト生存中",
       "description": "味方の魔法攻撃ユニットの攻撃+{magnitude}。同名オーラは重複しない。"
+    },
+    "malicious-jest-aura": {
+      "name": "幻戯オーラ",
+      "timing": "Rank1道化師が場にいる、または副官で宿主が生存中",
+      "description": "デバフを持つ敵への味方の主動攻撃ダメージ+{magnitude}。同名オーラは重複しない。"
     },
     "beast-rage": {
       "name": "野獣の怒り",
@@ -920,6 +940,7 @@
     "log.heroRankUp": "{character}がRank {rank}へ昇格し、{roleAction}を得た。",
     "log.rank3RoleAction": "{actor}が{roleAction}を発動。",
     "log.moraleDamage": "{effect}：{character}に{amount}士気ダメージ。",
+    "log.threadCutDamage": "{effect}：{character}に士気{moraleAmount}、HP {hpAmount}のダメージ。",
     "log.deputyAssigned": "{soldier}が{hero}の副官になった：{deputy}。",
     "log.deputyTriggered": "副官「{deputy}」が発動：{target}に{status}を付与。",
     "log.roleActionCleanse": "{character}の{status}を浄化した。",
@@ -952,12 +973,15 @@
     "note.mightyStrikePhysical": "{character}の猛撃：物理ダメージが{before}から{after}へ。",
     "note.spellWardMagical": "{character}の護呪：魔法ダメージが{before}から{after}へ。",
     "note.vulnerablePhysical": "{character}の脆弱：物理ダメージが{before}から{after}へ。",
+    "note.jesterAura": "道化師オーラ：対象にデバフがあるため、この主動攻撃のダメージ+1。",
     "preview.roleAction.arcaneChannel": "詠唱（魔法ダメージ2倍）により魔法ダメージ×{value}。",
     "preview.roleAction.searingBrand": "空虚（受ける魔法ダメージ増加）により対象が受ける魔法ダメージ{value}。",
     "preview.roleAction.searingBrandCounter": "空虚（受ける魔法ダメージ増加）により攻撃側が受ける魔法反撃ダメージ{value}。",
     "preview.roleAction.darkPact": "契約により{value}絶対ダメージを追加。",
     "preview.roleAction.warCryShieldBreak": "戦吼：共有盾を破壊すると追加で{value}絶対ダメージ。",
     "preview.trait.duelSenseBonus": "決闘嗅覚：追加で{value}絶対ダメージ。",
+    "preview.trait.jesterAura": "道化師オーラ：デバフを持つ対象への主動攻撃ダメージ+1。",
+    "preview.trait.maliciousJest": "悪意の冗談：初回攻撃前に{status}を付与。拡散対象数：{spread}。",
     "log.arcaneChannel": "{character}は秘術に集中した。",
     "log.starReading": "{actor}が星を読み、{target}はもう一度主動攻撃できる。",
     "log.fateMark": "{actor}が{target}に運命の印を刻んだ。",
@@ -1228,6 +1252,17 @@
         "1": {
           "description": "自分のターンに1回、味方の魔法ダメージまたは魔法系状態連鎖に反応し、味方の魔法ユニット全体に魔涌を付与。ロールアクションで発動した場合、魔涌の継続ターン+1。自身が生存中、味方の魔法攻撃ユニットの攻撃+2。",
           "card": "魔法連鎖で魔法ユニット全体に魔涌。ロールアクション発動時は長く継続。魔法攻撃+2オーラ。"
+        }
+      }
+    },
+    "malicious-jest": {
+      "name": "悪意の冗談",
+      "description": "自分のターンに1回、初めて主動攻撃する前、対象の攻撃タイプに応じて力尽きまたは摩耗を付与。",
+      "card": "初回主動攻撃前、対象の攻撃タイプに応じて力尽きまたは摩耗。",
+      "ranks": {
+        "1": {
+          "description": "自分のターンに1回、初めて主動攻撃する前、対象の攻撃タイプに応じて力尽きまたは摩耗を付与。発動前から主対象にデバフがあれば、隣接する敵にも各対象の攻撃タイプに応じて付与。自身が生存中、デバフを持つ敵への味方の主動攻撃ダメージ+1。",
+          "card": "デバフ済みの対象から力尽き/摩耗を拡散。デバフ対象への攻撃+1オーラ。"
         }
       }
     }

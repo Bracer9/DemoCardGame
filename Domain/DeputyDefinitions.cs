@@ -23,7 +23,8 @@ public static class DeputyCatalog
         new("deputy-cleric", "cleric", DeputyStatKind.MagicalDefense, 2),
         new("deputy-shieldmaiden", "shieldmaiden", DeputyStatKind.PhysicalDefense, 2),
         new("deputy-duelist", "duelist", DeputyStatKind.PhysicalAttack, 2),
-        new("deputy-arcanist", "arcanist", DeputyStatKind.MagicalAttack, 2)
+        new("deputy-arcanist", "arcanist", DeputyStatKind.MagicalAttack, 2),
+        new("deputy-jester", "jester", DeputyStatKind.Attack, 1)
     ];
 
     public static IReadOnlyList<DeputyDefinition> All => Definitions;

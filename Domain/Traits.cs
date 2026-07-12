@@ -582,6 +582,50 @@ public sealed class ArcaneResonanceTrait : CharacterTrait
         TraitEffectKind.Status);
 }
 
+public sealed class MaliciousJestTrait : CharacterTrait
+{
+    public override TraitMetadata Metadata { get; } = new(
+        "malicious-jest",
+        TraitTriggerKind.OnAttackDeclared,
+        TraitScopeKind.Enemy,
+        TraitEffectKind.Status);
+
+    public override void OnAttackDeclared(GameEngineContext context, CharacterState owner, CharacterState target)
+    {
+        if (owner.PlayerId != context.State.ActivePlayerId
+            || !owner.TraitsUsedThisTurn.Add(Metadata.Id))
+            return;
+
+        var targetAlreadyHadDebuff = target.Statuses.Any(status => !status.IsBuff && !status.Expired);
+        ApplyOutputDebuff(context, owner, target);
+
+        if (owner.SoldierRank < 1 || !targetAlreadyHadDebuff)
+            return;
+
+        var targetOwner = context.State.FindOwner(target);
+        foreach (var adjacent in targetOwner.Characters.Where(character =>
+                     character.IsAlive
+                     && !GameEngine.IsDeploying(character)
+                     && Math.Abs(character.Slot - target.Slot) == 1))
+            ApplyOutputDebuff(context, owner, adjacent);
+    }
+
+    private static void ApplyOutputDebuff(GameEngineContext context, CharacterState source, CharacterState target)
+    {
+        var statusId = GameEngine.GetAttackType(target) == DamageType.Physical
+            ? "exhaustion"
+            : "erosion";
+        var wasNew = statusId == "exhaustion"
+            ? GameEngine.AddExhaustion(target, source.Id)
+            : GameEngine.AddErosion(target, source.Id);
+        context.NotifyDebuffApplied(source, target, statusId, wasNew);
+        context.Log(L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status(statusId))), "debuff");
+    }
+}
+
 public sealed class TraitRegistry
 {
     private readonly IReadOnlyDictionary<string, CharacterTrait> _traits;
@@ -601,7 +645,8 @@ public sealed class TraitRegistry
             new FieldMedicTrait(),
             new ShieldDrillTrait(),
             new DuelSenseTrait(),
-            new ArcaneResonanceTrait()
+            new ArcaneResonanceTrait(),
+            new MaliciousJestTrait()
         ];
 
         _traits = traits.ToDictionary(trait => trait.Metadata.Id);

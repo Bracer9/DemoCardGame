@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 9,
   "basePath": "/assets/ui",
   "icons": {
     "event.physical": {
@@ -164,6 +164,12 @@
       "fallback": "☠",
       "tone": "debuff"
     },
+    "relic.attrition-ledger": {
+      "category": "relic",
+      "source": "relics/relic-attrition-ledger.png",
+      "fallback": "⌁",
+      "tone": "debuff"
+    },
     "relic.predator-crown": {
       "category": "relic",
       "source": "relics/relic-predator-crown.png",
@@ -314,6 +320,12 @@
       "fallback": "❈",
       "tone": "nature"
     },
+    "trait.malicious-jest": {
+      "category": "trait",
+      "source": "traits/malicious-jest.png",
+      "fallback": "戏",
+      "tone": "debuff"
+    },
     "trait.aftershock-axe": {
       "category": "trait",
       "source": "traits/trait_aftershock_axe.png",
@@ -421,6 +433,12 @@
       "source": "statuses/strong-attack.png",
       "fallback": "猛",
       "tone": "physical"
+    },
+    "status.malicious-jest-aura": {
+      "category": "status",
+      "source": "statuses/status_weakness.png",
+      "fallback": "戏",
+      "tone": "trait"
     }
   },
   "bindings": {
@@ -455,6 +473,7 @@
       "shield-drill-aura": "trait.shield-drill",
       "duel-sense-aura": "trait.duel-sense",
       "arcane-resonance-aura": "trait.arcane-resonance",
+      "malicious-jest-aura": "status.malicious-jest-aura",
       "burning": "status.burning",
       "exhaustion": "status.exhaustion",
       "erosion": "status.erosion",
@@ -495,7 +514,8 @@
       "field-medic": "trait.field-medic",
       "shield-drill": "trait.shield-drill",
       "duel-sense": "trait.duel-sense",
-      "arcane-resonance": "trait.arcane-resonance"
+      "arcane-resonance": "trait.arcane-resonance",
+      "malicious-jest": "trait.malicious-jest"
     },
     "roleActions": {
       "saintly-prayer": "trait.saints-prayer",

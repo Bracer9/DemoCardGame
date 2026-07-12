@@ -4246,8 +4246,8 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
   position:fixed;
   z-index:48;
   width:var(--character-inspector-width);
-  max-height:calc(var(--stage-height) - 100px);
-  overflow:hidden auto;
+  max-height:none;
+  overflow:visible;
   padding:var(--inspector-padding-y) var(--inspector-padding-x);
   color:#2f2118;
   pointer-events:none;
@@ -5360,8 +5360,8 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
   position:relative;
   z-index:2;
   width:auto;
-  max-height:0;
-  overflow:hidden;
+  max-height:none;
+  overflow:visible;
   scrollbar-width:none;
   margin:0;
   padding:0 18px;
@@ -5395,14 +5395,13 @@ body.dragging-attack .persistent-team-shield.active { pointer-events:none; }
 }
 .aura-group:hover .aura-detail,
 .aura-group:focus-within .aura-detail {
-  max-height:520px;
   margin:10px 0 2px calc(var(--inspector-status-icon-size) * -1);
   padding:18px 18px 16px;
   opacity:1;
   visibility:visible;
   transform:translateY(0);
   pointer-events:auto;
-  overflow:auto;
+  overflow:visible;
 }
 .aura-detail header {
   position:relative;

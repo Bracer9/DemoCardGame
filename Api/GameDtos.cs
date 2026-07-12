@@ -427,6 +427,8 @@ public sealed class GameViewFactory
             statuses.Add(new StatusView("duel-sense-aura", true, 2, true, false));
         if (attackType == DamageType.Magical && GameEngine.HasActiveRank1SoldierAura(player, "arcanist"))
             statuses.Add(new StatusView("arcane-resonance-aura", true, 2, true, false));
+        if (GameEngine.HasActiveRank1SoldierAura(player, "jester"))
+            statuses.Add(new StatusView("malicious-jest-aura", true, 1, true, false));
     }
 
     private static string GetColoredAssetFile(CharacterState character) =>

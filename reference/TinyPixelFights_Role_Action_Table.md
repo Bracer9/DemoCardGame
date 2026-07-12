@@ -107,6 +107,7 @@ Role Action 是角色被选中后，在左侧 HUD 第三区域显示的职业行
 | 盾姬 | `aegis-formation` | 圣盾阵 | Click | OwnShield | 1 AP | No | 0 | 若无共享盾则获得 1 点；若已有共享盾则 +2。 | 盾规则 |
 | 决斗者 | `crimson-lunge` | 致命架势 | TargetSelect | AllyCard | 1 AP | No | 0 | 我方物理单位获得猛击：下一次主动物理伤害 ×2。可以选择自己。 | 猛击 |
 | 秘术士 | `astral-focus` | 星界聚焦 | TargetSelect | AllyCard | 1 AP | No | 0 | 我方魔法单位获得咏唱：下一次魔法伤害 ×2。可以选择自己。 | 咏唱 |
+| 弄臣 | `mocking-curtain-call` | 虚假谢幕 | TargetSelect | EnemyCard | 1 AP | No | 0 | 敌方1体获得2 turn脆弱和空虚。 | Debuff / 控制 |
 
 ## 6. Role Action 相关状态
 

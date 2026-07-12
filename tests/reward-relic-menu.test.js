@@ -58,6 +58,7 @@ test('formal relic pool is wired into reward choices', () => {
   assert.match(gameEngine, /RelicCatalog\.Find\(reward\.Id\)/);
   assert.match(gameEngine, /relic-ashen-detonator/);
   assert.match(gameEngine, /relic-red-hourglass/);
+  assert.match(gameEngine, /relic-attrition-ledger/);
   assert.equal(uiAssets.icons['relic.funeral-coin'].source, 'relics/relic-funeral-coin.png');
   assert.doesNotMatch(appSource, /relic-silver-ward-charm/);
   assert.match(appSource, /kind === 'reward'/);
@@ -84,7 +85,7 @@ test('AI only enters the relic menu when one of the offered relics is affordable
   assert.doesNotMatch(simpleAiService, /RelicCatalog\.All\.Any/);
 });
 
-test('formal relic catalog contains exactly the designed 25 relics with matching localization', () => {
+test('formal relic catalog contains exactly the designed 26 relics with matching localization', () => {
   const expected = [
     'relic-apprentice-star-ink', 'relic-mason-token', 'relic-red-whetstone',
     'relic-muster-papers', 'relic-mercy-cup', 'relic-witch-bell',
@@ -92,7 +93,7 @@ test('formal relic catalog contains exactly the designed 25 relics with matching
     'relic-duelist-ticket', 'relic-command-sergeant-seal', 'relic-night-bait',
     'relic-command-table', 'relic-echo-crystal', 'relic-green-standard', 'relic-blood-coin',
     'relic-astral-prism', 'relic-ashen-detonator', 'relic-plague-codex',
-    'relic-predator-crown', 'relic-red-hourglass', 'relic-kingwall-standard',
+    'relic-predator-crown', 'relic-attrition-ledger', 'relic-red-hourglass', 'relic-kingwall-standard',
     'relic-saint-chalice', 'relic-company-standard', 'relic-funeral-coin'
   ].sort();
   const actual = [...relicDefinitions.matchAll(/new\("(relic-[a-z0-9-]+)"/g)]
@@ -133,6 +134,8 @@ test('new relic engines are connected to their shared battle events', () => {
   assert.match(gameEngine, /TriggerHpPaymentRelic[\s\S]*?relic-blood-coin/);
   assert.match(gameEngine, /packet\.ConsumedChant[\s\S]*?relic-astral-prism/);
   assert.match(gameEngine, /relic-ashen-detonator[\s\S]*?stacks \* 2/);
+  assert.match(gameEngine, /TriggerAttritionLedger[\s\S]*?GetAttritionLedgerDamage/);
+  assert.match(gameEngine, /return layers > 12 \? 2 : layers > 8 \? 1 : 0/);
   assert.match(gameEngine, /ApplyPredatorCrown[\s\S]*?relic-predator-crown/);
   assert.match(gameEngine, /PhysicalActiveAttacksTakenThisTurn != 2[\s\S]*?relic-red-hourglass/);
   assert.match(gameEngine, /highestPhysicalDefense[\s\S]*?highestMagicalDefense[\s\S]*?relic-kingwall-standard/);

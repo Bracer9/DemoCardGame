@@ -54,7 +54,8 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.match(engineSource, /state\.Players\.SelectMany\(player => player\.Characters\)/);
   assert.match(engineSource, /ThreadCutMoraleDamagePerMark = 2/);
   assert.match(engineSource, /var count = CountThreadCutMarks\(target\)/);
-  assert.match(engineSource, /DealMoraleDamage\(state, target, ThreadCutMoraleDamagePerMark \* count/);
+  assert.match(engineSource, /DealThreadCutDamage\(state, target, ThreadCutMoraleDamagePerMark \* count/);
+  assert.match(engineSource, /var hpDamage = totalDamage - moraleDamage/);
   assert.doesNotMatch(engineSource, /Math\.Clamp\(CountThreadCutMarks/);
   assert.match(engineSource, /\("attackMoraleDamage", L10n\.Raw\(attackPacket\.MoraleDamage\)\)/);
   assert.match(engineSource, /\("counterMoraleDamage", L10n\.Raw\(counterPacket\.MoraleDamage\)\)/);
@@ -70,6 +71,8 @@ test('common statuses and aura dispel rules are wired correctly', () => {
   assert.doesNotMatch(appSource, /force: true, label: 'HP'/);
   assert.equal(appSource.includes("attackMoraleDamage > 0 || attackDamage <= 0 ? null : `-${attackDamage}`"), true);
   assert.equal(appSource.includes("moraleAmount > 0 || totalAmount <= 0 ? null : `-${totalAmount}`"), true);
+  assert.match(appSource, /case 'log\.threadCutDamage'/);
+  assert.match(appSource, /playLayeredDamageFloats\(target, \{ moraleAmount, hpAmount, type: 'Magical' \}\)/);
   assert.match(harvestStatus, /IsAttackBuff => true/);
   assert.doesNotMatch(harvestStatus, /IsDispellable => false/);
   assert.doesNotMatch(pendingHarvestStatus, /IsDispellable => false/);

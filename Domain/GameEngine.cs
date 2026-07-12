@@ -556,6 +556,7 @@ public sealed class GameEngine
                 "shieldmaiden" => "aegis-formation",
                 "duelist" => "crimson-lunge",
                 "arcanist" => "astral-focus",
+                "jester" => "mocking-curtain-call",
                 _ => null
             };
             if (actionId is not null && !soldier.RoleActionIds.Contains(actionId, StringComparer.OrdinalIgnoreCase))
@@ -692,6 +693,7 @@ public sealed class GameEngine
             TriggerDeputyArcanist(state, attacker, fromRoleAction: false);
         }
         TriggerDeputyDuelistAfterActiveAttack(state, attacker, actualAttackTarget, attackPacket.Amount);
+        TriggerDeputyJesterAfterEnemyAction(state, attacker, actualAttackTarget);
 
         var exchange = new AttackExchange(
             attacker,
@@ -973,6 +975,7 @@ public sealed class GameEngine
             "shieldmaiden" when character.SoldierRank >= 1 => character.Definition.MaxHp + 2,
             "duelist" when character.SoldierRank >= 1 => character.Definition.MaxHp + 1,
             "arcanist" when character.SoldierRank >= 1 => character.Definition.MaxHp + 2,
+            "jester" when character.SoldierRank >= 1 => character.Definition.MaxHp + 2,
             _ => character.Definition.MaxHp
         };
         maxHp += growth.MaxHp;
@@ -1245,6 +1248,8 @@ public sealed class GameEngine
             _traits.Get(traitOwner.Definition.TraitId).ModifyOutgoingDamage(
                 new GameEngineContext(this, state), traitOwner, packet);
 
+        ApplyJesterAura(state, packet);
+
         var targetOwner = state.FindOwner(packet.TargetCharacter);
         if (!packet.IgnoresSharedShield)
             ApplySharedShield(targetOwner, packet);
@@ -1272,6 +1277,26 @@ public sealed class GameEngine
             ApplyDirectHpDamage(packet);
         else
             ApplyMoraleDamage(packet.TargetCharacter, packet);
+    }
+
+    private static void ApplyJesterAura(GameState state, DamagePacket packet)
+    {
+        if (packet.Source != DamageSource.ActiveAttack
+            || packet.DamageType is not (DamageType.Physical or DamageType.Magical)
+            || packet.Amount <= 0
+            || packet.SourceCharacter.PlayerId == packet.TargetCharacter.PlayerId)
+            return;
+
+        var sourceOwner = state.FindOwner(packet.SourceCharacter);
+        if (!HasActiveRank1SoldierAura(sourceOwner, "jester")
+            || packet.TargetCharacter.Statuses.All(status => status.IsBuff || status.Expired))
+            return;
+
+        packet.Amount++;
+        packet.Notes.Add(L10n.Text("note.jesterAura",
+            ("target", L10n.Character(packet.TargetCharacter.Definition.Key)),
+            ("targetId", L10n.Raw(packet.TargetCharacter.Id)),
+            ("amount", L10n.Raw(1))));
     }
 
     private static void ApplyDirectHpDamage(DamagePacket packet)
@@ -1389,7 +1414,8 @@ public sealed class GameEngine
             ("character", L10n.Character(packet.TargetCharacter.Definition.Key)),
             ("characterId", L10n.Raw(packet.TargetCharacter.Id)),
             ("damageType", L10n.Damage(packet.DamageType)),
-            ("amount", L10n.Raw(absorbed))));
+            ("amount", L10n.Raw(absorbed)),
+            ("remaining", L10n.Raw(targetOwner.SharedShield))));
     }
 
     private static void ClearShieldLayerIfBroken(PlayerState player)
@@ -2071,6 +2097,9 @@ public sealed class GameEngine
             case "astral-focus":
                 UseAstralFocus(state, actor, targetCharacterId);
                 break;
+            case "mocking-curtain-call":
+                UseMockingCurtainCall(state, actor, RequireEnemyTarget(state, actor, targetCharacterId));
+                break;
             case "miracle-standard":
                 UseMiracleStandard(state, actor, RequireAllyTarget(state, actor, targetCharacterId));
                 break;
@@ -2122,6 +2151,10 @@ public sealed class GameEngine
             default:
                 throw new GameRuleException(L10n.Text("error.roleActionNotFound"));
         }
+
+        if (action.Metadata.ValidTargetKinds.Contains(RoleActionTargetKind.EnemyCard)
+            && targetCharacterId is { } enemyTargetId)
+            TriggerDeputyJesterAfterEnemyAction(state, actor, state.FindCharacter(enemyTargetId));
 
         TriggerRoleActionRelics(state, actor, action);
         if (!action.Metadata.IsRepeatable)
@@ -2540,6 +2573,22 @@ public sealed class GameEngine
         TriggerDeputyArcanist(state, actor, fromRoleAction: true);
     }
 
+    private void UseMockingCurtainCall(GameState state, CharacterState actor, CharacterState target)
+    {
+        ApplyVulnerable(state, actor, target);
+        ApplyVoid(state, actor, target);
+        Log(state, L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("vulnerable"))), "debuff");
+        Log(state, L10n.Text("log.statusApplied",
+            ("character", L10n.Character(target.Definition.Key)),
+            ("characterId", L10n.Raw(target.Id)),
+            ("status", L10n.Status("void"))), "debuff");
+        TriggerArcaneResonance(state, actor, fromRoleAction: true);
+        TriggerDeputyArcanist(state, actor, fromRoleAction: true);
+    }
+
     private void UseMiracleStandard(GameState state, CharacterState actor, CharacterState target)
     {
         var owner = state.FindOwner(actor);
@@ -2624,7 +2673,7 @@ public sealed class GameEngine
             return;
         }
 
-        DealMoraleDamage(state, target, ThreadCutMoraleDamagePerMark * count, actor.Id, "thread-cut");
+        DealThreadCutDamage(state, target, ThreadCutMoraleDamagePerMark * count, actor.Id);
         if (target.Morale <= 0 && target.IsAlive)
         {
             DealRoleActionDamage(state, target, GetActiveAttack(state, actor), DamageType.Magical, actor.Id, "thread-cut");
@@ -2849,6 +2898,18 @@ public sealed class GameEngine
     private static int CountCommonDebuffs(CharacterState target) =>
         target.Statuses.Count(status => !status.Expired && !status.IsBuff
             && status.Id is "burning" or "void" or "exhaustion" or "erosion" or "trembling" or "vulnerable");
+
+    public static int CountCommonDebuffLayers(CharacterState target) =>
+        target.Statuses
+            .Where(status => !status.Expired && !status.IsBuff
+                && status.Id is "burning" or "void" or "exhaustion" or "erosion" or "trembling" or "vulnerable")
+            .Sum(status => Math.Max(1, status.Magnitude));
+
+    public static int GetAttritionLedgerDamage(CharacterState target)
+    {
+        var layers = CountCommonDebuffLayers(target);
+        return layers > 12 ? 2 : layers > 8 ? 1 : 0;
+    }
 
     private void TriggerFieldMedic(GameState state, CharacterState source, CharacterState target, bool didHealOrCleanse, bool grantWard = true)
     {
@@ -3209,6 +3270,21 @@ public sealed class GameEngine
         LogDeputyTriggered(state, host, "deputy-arcanist", "magic-surge", host);
     }
 
+    private void TriggerDeputyJesterAfterEnemyAction(GameState state, CharacterState host, CharacterState target)
+    {
+        if (host.PlayerId == target.PlayerId
+            || !target.IsAlive
+            || !TryUseDeputyPassive(state, host, "deputy-jester"))
+            return;
+
+        var statusId = GetAttackType(target) == DamageType.Physical ? "exhaustion" : "erosion";
+        if (statusId == "exhaustion")
+            ApplyExhaustion(state, host, target);
+        else
+            ApplyErosion(state, host, target);
+        LogDeputyTriggered(state, host, "deputy-jester", statusId, target);
+    }
+
     private void TriggerDuelistTicket(GameState state, CharacterState attacker, PlayerState targetOwner)
     {
         var owner = state.FindOwner(attacker);
@@ -3276,6 +3352,7 @@ public sealed class GameEngine
     {
         var sourceOwner = state.FindOwner(packet.SourceCharacter);
         TriggerNightBaitAfterDamage(state, sourceOwner, packet);
+        TriggerAttritionLedger(state, sourceOwner, packet);
         if (packet.FinalCharacterDamage <= 0 || !packet.TargetCharacter.IsAlive)
             return;
 
@@ -3314,6 +3391,21 @@ public sealed class GameEngine
             DealRelicDamage(state, packet.TargetCharacter, stacks * 2, DamageType.Magical, packet.SourceCharacter.Id,
                 "relic-ashen-detonator", ignoreDefense: true);
         }
+    }
+
+    private void TriggerAttritionLedger(GameState state, PlayerState sourceOwner, DamagePacket packet)
+    {
+        if (packet.Source != DamageSource.ActiveAttack
+            || sourceOwner.Id == packet.TargetCharacter.PlayerId
+            || !packet.TargetCharacter.IsAlive
+            || !RelicEffects.HasRelic(sourceOwner, "relic-attrition-ledger")
+            || GetAttritionLedgerDamage(packet.TargetCharacter) <= 0)
+            return;
+
+        var bonus = GetAttritionLedgerDamage(packet.TargetCharacter);
+        LogRelicTriggered(state, sourceOwner, "relic-attrition-ledger", packet.TargetCharacter);
+        DealAbsoluteDamage(state, packet.TargetCharacter, bonus, packet.SourceCharacter.Id,
+            L10n.Reward("relic-attrition-ledger"));
     }
 
     private void TriggerNightBaitAfterDamage(GameState state, PlayerState sourceOwner, DamagePacket packet)
@@ -4089,20 +4181,28 @@ public sealed class GameEngine
         return packet.Amount;
     }
 
-    private void DealMoraleDamage(GameState state, CharacterState target, int amount, Guid sourceCharacterId, string roleActionId)
+    private void DealThreadCutDamage(GameState state, CharacterState target, int amount, Guid sourceCharacterId)
     {
-        var damage = Math.Min(Math.Max(0, target.Morale), Math.Max(0, amount));
-        if (damage <= 0)
+        var totalDamage = Math.Max(0, amount);
+        if (totalDamage <= 0)
             return;
-        target.Morale = Math.Max(0, target.Morale - damage);
+
+        var moraleDamage = Math.Min(Math.Max(0, target.Morale), totalDamage);
+        var hpDamage = totalDamage - moraleDamage;
+        target.Morale = Math.Max(0, target.Morale - moraleDamage);
+        target.CurrentHp = Math.Max(0, target.CurrentHp - hpDamage);
         var source = state.FindCharacter(sourceCharacterId);
-        Log(state, L10n.Text("log.moraleDamage",
-            ("effect", L10n.RoleAction(roleActionId)),
+        var sourceOwner = state.FindOwner(source);
+        var targetOwner = state.FindOwner(target);
+        Log(state, L10n.Text("log.threadCutDamage",
+            ("effect", L10n.RoleAction("thread-cut")),
             ("source", L10n.Character(source.Definition.Key)),
             ("sourceId", L10n.Raw(source.Id)),
             ("character", L10n.Character(target.Definition.Key)),
             ("characterId", L10n.Raw(target.Id)),
-                ("amount", L10n.Raw(damage))), "status");
+            ("moraleAmount", L10n.Raw(moraleDamage)),
+            ("hpAmount", L10n.Raw(hpDamage))), "magic");
+        TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, hpDamage);
     }
 
     private static IEnumerable<CharacterState> GetAlliesInArea(PlayerState owner, CharacterState center) =>

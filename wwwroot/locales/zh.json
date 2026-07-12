@@ -211,7 +211,8 @@
     "cleric": "修女",
     "shieldmaiden": "盾姬",
     "duelist": "决斗者",
-    "arcanist": "秘术师"
+    "arcanist": "秘术师",
+    "jester": "弄臣"
   },
   "damageTypes": {
     "Physical": "物理",
@@ -251,6 +252,11 @@
       "name": "秘术参谋",
       "stat": "魔攻 +2",
       "passive": "每己方回合1次，宿主造成魔法伤害或施加指定debuff后，获得魔涌，并可以再次主动攻击。"
+    },
+    "deputy-jester": {
+      "name": "幻戏辅佐",
+      "stat": "攻击 +1",
+      "passive": "每己方回合1次，宿主主动攻击敌人，或以职业行动指定敌人并成功结算后，若主目标仍存活，根据目标攻击类型赋予2回合力竭或磨损。"
     }
   },
   "rewards": {
@@ -342,6 +348,10 @@
       "name": "瘟疫法典",
       "description": "每回合首次使敌人新增第3种或更多debuff时，造成等同其debuff种类数的绝对伤害。"
     },
+    "relic-attrition-ledger": {
+      "name": "蚕食账簿",
+      "description": "目标身上所有常规debuff层数合计大于8时，该目标每次被我方主动攻击后额外受到1点绝对伤害；合计大于12时改为2点。不限次数。"
+    },
     "relic-predator-crown": {
       "name": "掠食者王冠",
       "description": "我方对猎物造成的绝对伤害×1.5，向上取整。"
@@ -380,7 +390,7 @@
     },
     "soldier-recruit": {
       "name": "士兵招募",
-      "description": "从4名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。Rank1回复50%最大HP并获得队伍光环，Rank2回满HP并最大HP+5。"
+      "description": "从5名士兵中选择1名加入队伍；已有同名士兵可作为升阶材料。Rank1回复50%最大HP并获得队伍光环，Rank2回满HP并最大HP+5。"
     }
   },
   "roleActions": {
@@ -484,6 +494,11 @@
       "description": "我方魔法单位获得咏唱：下一次魔法伤害×2。",
       "button": "聚焦"
     },
+    "mocking-curtain-call": {
+      "name": "虚假谢幕",
+      "description": "敌方1体获得2回合脆弱和空虚。",
+      "button": "谢幕"
+    },
     "miracle-standard": {
       "name": "奇迹军旗",
       "description": "目标净化全部debuff并回复圣职者最大HP的1/4（向上取整）；相邻我方各净化1个debuff并回复主治疗量的一半（至少1，向上取整）。本次每净化1个debuff，若总数大于0，额外增加共有盾：圣职者当前魔防+影响人数。",
@@ -501,7 +516,7 @@
     },
     "thread-cut": {
       "name": "断线",
-      "description": "统计目标身上的印记、猎物、猎群标记、燃烧、空虚、力竭、磨损、战栗和脆弱；每个状态造成2点士气伤害，没有数量上限。士气伤害溢出不穿透HP；若目标士气归零，再造成占卜师当前攻击力的魔法伤害并施加战栗。若计数为0，改为施加命运标记。",
+      "description": "统计目标身上的印记、猎物、猎群标记、燃烧、空虚、力竭、磨损、战栗和脆弱；每个状态造成2点士气伤害，没有数量上限，溢出部分穿透士气并扣除HP。若目标士气归零，再造成占卜师当前攻击力的魔法伤害并施加战栗。若计数为0，改为施加命运标记。",
       "button": "断线"
     },
     "field-rations": {
@@ -675,6 +690,11 @@
       "name": "秘术光环",
       "timing": "1阶秘术师在战场，或作为副官且宿主存活时",
       "description": "我方魔法攻击单位攻击+{magnitude}。同名光环不叠加。"
+    },
+    "malicious-jest-aura": {
+      "name": "幻戏光环",
+      "timing": "1阶弄臣在战场，或作为副官且宿主存活时",
+      "description": "我方主动攻击拥有Debuff的敌人时，伤害+{magnitude}。同名光环不叠加。"
     },
     "beast-rage": {
       "name": "野兽之怒",
@@ -920,6 +940,7 @@
     "log.heroRankUp": "{character}升至Rank {rank}，获得{roleAction}。",
     "log.rank3RoleAction": "{actor}发动{roleAction}。",
     "log.moraleDamage": "{effect}：{character}受到{amount}点士气伤害。",
+    "log.threadCutDamage": "{effect}：{character}受到士气伤害{moraleAmount}，HP伤害{hpAmount}。",
     "log.deputyAssigned": "{soldier}成为{hero}的副官：{deputy}。",
     "log.deputyTriggered": "副官「{deputy}」触发：{target}获得{status}。",
     "log.roleActionCleanse": "{character}的{status}被净化。",
@@ -952,12 +973,15 @@
     "note.mightyStrikePhysical": "{character}的猛击：物理伤害从{before}变为{after}。",
     "note.spellWardMagical": "{character}的护咒：魔法伤害从{before}变为{after}。",
     "note.vulnerablePhysical": "{character}的脆弱：物理伤害从{before}变为{after}。",
+    "note.jesterAura": "弄臣光环：目标已有Debuff，本次主动攻击伤害+1。",
     "preview.roleAction.arcaneChannel": "咏唱（魔法伤害翻倍）使魔法伤害×{value}。",
     "preview.roleAction.searingBrand": "空虚（受到魔法伤害增加）使目标受到的魔法伤害{value}。",
     "preview.roleAction.searingBrandCounter": "空虚（受到魔法伤害增加）使攻击方受到的魔法反击伤害{value}。",
     "preview.roleAction.darkPact": "契约附加{value}点绝对伤害。",
     "preview.roleAction.warCryShieldBreak": "战吼：击破共有盾时，额外造成{value}点绝对伤害。",
     "preview.trait.duelSenseBonus": "决斗嗅觉：额外造成{value}点绝对伤害。",
+    "preview.trait.jesterAura": "弄臣光环：对已有Debuff的目标主动攻击，伤害+1。",
+    "preview.trait.maliciousJest": "恶意戏谑：本次首次攻击前赋予{status}；扩散目标数：{spread}。",
     "log.arcaneChannel": "{character}开始秘术蓄能。",
     "log.starReading": "{actor}读出星象，{target}可以再次主动攻击。",
     "log.fateMark": "{actor}为{target}刻下命运标记。",
@@ -1228,6 +1252,17 @@
         "1": {
           "description": "每个己方回合1次，我方魔法伤害或魔法类状态链触发时，我方全体魔法单位获得魔涌；若由Role Action触发，魔涌持续时间额外+1回合。自身存活时，我方魔法攻击单位攻击+2。",
           "card": "魔法链触发时，全体魔法单位获得魔涌；Role Action触发更久；魔法单位攻击+2光环。"
+        }
+      }
+    },
+    "malicious-jest": {
+      "name": "恶意戏谑",
+      "description": "每个己方回合1次，首次主动攻击前，根据目标攻击类型赋予力竭或磨损。",
+      "card": "首次主动攻击前，按目标攻击类型赋予力竭或磨损。",
+      "ranks": {
+        "1": {
+          "description": "每个己方回合1次，首次主动攻击前，根据目标攻击类型赋予力竭或磨损。若主目标在触发前已有Debuff，同时对相邻敌人按其攻击类型赋予力竭或磨损。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
+          "card": "已有Debuff时扩散力竭/磨损；攻击Debuff目标伤害+1光环。"
         }
       }
     }

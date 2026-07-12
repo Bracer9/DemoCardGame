@@ -35,7 +35,9 @@ public static class CharacterCatalog
         new("duelist", CardType.Soldier, "New_Portraits/Duelist.png", "New_Portraits/Duelist.png", 1, 2, 12, DamageType.Physical, 0, -1, "duel-sense",
             Rank2ColoredAssetFile: "New_Portraits/CrimsonDuelist.png"),
         new("arcanist", CardType.Soldier, "New_Portraits/Arcanist.png", "New_Portraits/Arcanist.png", 2, 2, 12, DamageType.Magical, -1, 1, "arcane-resonance",
-            Rank2ColoredAssetFile: "New_Portraits/AstralArcanist.png")
+            Rank2ColoredAssetFile: "New_Portraits/AstralArcanist.png"),
+        new("jester", CardType.Soldier, "New_Portraits/Jester.png", "New_Portraits/Jester.png", 1, 2, 13, DamageType.Magical, -1, 0, "malicious-jest",
+            Rank2ColoredAssetFile: "New_Portraits/MasqueJester.png")
     ];
 
     public static IReadOnlyList<CharacterDefinition> Heroes { get; } =

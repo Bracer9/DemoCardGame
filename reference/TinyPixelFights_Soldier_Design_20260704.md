@@ -1,8 +1,8 @@
 # Tiny Pixel Fights - Soldier Design Baseline
 
-更新时间：2026-07-06
+更新时间：2026-07-12
 
-本文定义第一批 4 个士兵的基础属性、初始 Trait、成长终点 Role Action 与英雄联动。  
+本文定义当前 5 个士兵的基础属性、初始 Trait、成长终点 Role Action 与英雄联动。
 设计基准参考：
 
 - `reference/TinyPixelFights_Role_Action_Table.md`
@@ -42,6 +42,7 @@
 | `shieldmaiden` | 盾卫 | `aegis-shieldmaiden` | 2 | 1 | 20 | Physical | 1 | 0 | 共享盾 / 坚守响应，保护蓄力与低 HP 核心 |
 | `duelist` | 决斗士 | `crimson-duelist` | 1 | 3 | 12 | Physical | 0 | -1 | 标记 / Debuff 收割，低费物理爆发 |
 | `arcanist` | 秘术士 | `astral-arcanist` | 2 | 3 | 12 | Magical | -1 | 1 | 魔法 / 状态共鸣，放大魔法队 |
+| `jester` | 弄臣 | `masque-jester` | 1 | 2 | 13 | Magical | -1 | 0 | Debuff 启动 / 扩散，混合队伍控制 |
 
 ## 4. 成长阶段
 
@@ -262,7 +263,58 @@
 | Druid `weakening-spores-action` | 赋予力竭 / 磨损，触发 Arcanist 共鸣。 |
 | Princess `royal-command` | AP 前借让 Arcanist 有空间同时使用 `astral-focus` 与攻击。 |
 
-## 9. 开局组合参考
+## 9. Jester / Masque Jester
+
+### Rank0 属性
+
+| Cost | ATK | HP | 攻击类型 | 物防 | 魔防 |
+|---:|---:|---:|---|---:|---:|
+| 1 | 2 | 13 | Magical | -1 | 0 |
+
+### 初始 Trait：恶意戏谑
+
+每个己方 turn 第一次主动攻击前，根据目标当前攻击类型赋予2 turn力竭或磨损。该效果在攻击宣言时结算，不要求本次攻击造成 HP 伤害。
+
+### Rank1
+
+- Max HP +2。
+- 若主目标在触发前已经拥有任意 Debuff，同时对相邻敌人按各自攻击类型赋予力竭或磨损。
+- 持续光环：我方主动攻击拥有 Debuff 的敌人时，伤害 +1；同名光环不叠加。
+
+### Rank2
+
+- 在 Rank1 基础上最大 HP +5，升阶时当前 HP 全回复。
+- 解锁固定 Role Action：
+
+| Field | Value |
+|---|---|
+| ID | `mocking-curtain-call` |
+| 名称 | 虚假谢幕 |
+| Input | TargetSelect |
+| Target | EnemyCard |
+| Cost | 1 AP |
+| Repeatable | No |
+| Cooldown | 0 |
+| Tags | debuff, control, soldier |
+| Effect | 敌方1体获得2 turn脆弱和空虚。 |
+
+### 副官
+
+- `deputy-jester`：宿主攻击 +1。
+- 每个己方 turn 1 次，宿主主动攻击敌人，或以 Role Action 指定敌人并成功结算后，若主目标仍存活，根据目标攻击类型赋予2 turn力竭或磨损。
+- 副官只处理主目标，且在原行动完整结算后触发；不要求原目标已有 Debuff，不要求原行动造成 HP 伤害。
+- Rank1 光环在成为副官后继续生效。
+
+### 明确联动
+
+| 对象 | 联动点 |
+|---|---|
+| Fate Dealer `fate-mark` / `thread-cut` | 副官在敌方 Role Action 后补充输出削弱，帮助命运路线维持可计数 Debuff。 |
+| Arcane Archivist `archive-formula` | 弄臣负责早期挂力竭 / 磨损，Rank2 的脆弱 / 空虚提高归档术式的混合输出价值。 |
+| Wildspeaker `call-the-hunt` | 弄臣扩散 Debuff，猎群标记再由多名士兵转换成攻击压力。 |
+| Dragon Raider `dragon-breaker` | 战栗 / 脆弱与弄臣的输出削弱组成控制窗口。 |
+
+## 10. 开局组合参考
 
 | 开局英雄 | 推荐士兵 | 初期打法 |
 |---|---|---|
@@ -275,7 +327,7 @@
 | Monster | Cleric + Duelist | Cleric 修复献祭，Duelist 利用猎物 / Debuff 窗口收割。 |
 | Peasant | Shieldmaiden + Duelist | 低费多行动，补给 / 坚守保护 Duelist 斩杀窗口。 |
 
-## 10. 实装检查点
+## 11. 实装检查点
 
 1. Soldier 需要 `CardType.Soldier`，不要复用 Hero 成长路径。
 2. Rank0 Trait 不新增专属状态 ID。

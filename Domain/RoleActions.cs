@@ -191,6 +191,12 @@ public sealed class RoleActionRegistry
                 [RoleActionTargetKind.AllyCard],
                 1,
                 ["chant", "magic", "support"])),
+            new(new RoleActionMetadata(
+                "mocking-curtain-call",
+                RoleActionActivationMode.Targeted,
+                [RoleActionTargetKind.EnemyCard],
+                1,
+                ["debuff", "control", "soldier"])),
 
             new(new RoleActionMetadata("miracle-standard", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 2, ["heal", "cleanse", "shield", "rank3"], CooldownTurns: 1)),
             new(new RoleActionMetadata("edict-of-victory", RoleActionActivationMode.Targeted, [RoleActionTargetKind.AllyCard], 1, ["command", "extra-attack", "absolute", "rank3"], CooldownTurns: 1)),
