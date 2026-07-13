@@ -19,6 +19,7 @@ test('jester soldier is wired through rank, role action, deputy, aura, and previ
   assert.match(characterDefinitions, /New_Portraits\/Jester\.png/);
   assert.match(characterDefinitions, /New_Portraits\/MasqueJester\.png/);
   assert.match(traits, /class MaliciousJestTrait/);
+  assert.match(traits, /FindOwner\(target\)\.SharedShield > 0[\s\S]*?TraitsUsedThisTurn\.Add\(Metadata\.Id\)/);
   assert.match(traits, /Math\.Abs\(character\.Slot - target\.Slot\) ===? 1/);
   assert.match(roleActions, /"mocking-curtain-call"/);
   assert.match(engine, /"jester" => "mocking-curtain-call"/);
@@ -28,6 +29,7 @@ test('jester soldier is wired through rank, role action, deputy, aura, and previ
   assert.match(dtos, /malicious-jest-aura/);
   assert.match(preview, /jesterAuraBonus/);
   assert.match(preview, /ForecastJesterTrait/);
+  assert.match(preview, /defenderOwner\.SharedShield <= 0[\s\S]*?malicious-jest/);
 });
 
 test('jester localization and icon binding are complete in both languages', () => {

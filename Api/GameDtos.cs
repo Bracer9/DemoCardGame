@@ -28,7 +28,7 @@ public sealed record BattlePointView(
     string? LastReasonId);
 
 public sealed record CharacterView(
-    Guid Id, string Key, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack, int AttackAuraBonus,
+    Guid Id, string Key, string DisplayNameId, string AssetUrl, string ColoredAssetUrl, int Slot, int Cost, int Attack, int BaseAttack, int AttackAuraBonus,
     string CardType, int SoldierRank, int HeroRank, string? HeroPathRoleActionId, bool CanHeroRankUpgrade,
     string AttackType, int PhysicalDefense, int BasePhysicalDefense, int MagicalDefense, int BaseMagicalDefense,
     int CurrentHp, int MaxHp, int Morale, int MaxMorale,
@@ -61,6 +61,7 @@ public sealed record StatusView(string Id, bool IsBuff, int Magnitude, bool IsAu
 public sealed record DeputyView(
     Guid SoldierId,
     string SoldierKey,
+    string SoldierNameId,
     string AssetUrl,
     string ColoredAssetUrl,
     string EffectId,
@@ -137,6 +138,24 @@ public sealed record AttackPreview(
     bool IsValid, LocalizedText? Error, Guid AttackerId, Guid DefenderId, int Cost,
     DamageForecast Attack, DamageForecast Counter, string TraitId, bool TraitConditionPossible,
     LocalizedText TraitForecast, IReadOnlyList<LocalizedText> Notes);
+
+public sealed record RoleActionEffectForecast(
+    string Kind,
+    Guid? TargetId,
+    int Min,
+    int Max,
+    string? DetailId = null,
+    DamageForecast? Damage = null);
+
+public sealed record RoleActionPreview(
+    bool IsValid,
+    LocalizedText? Error,
+    Guid ActorId,
+    Guid? TargetId,
+    string RoleActionId,
+    int Cost,
+    IReadOnlyList<RoleActionEffectForecast> Effects,
+    IReadOnlyList<LocalizedText> Notes);
 
 public sealed class GameViewFactory
 {
@@ -362,6 +381,7 @@ public sealed class GameViewFactory
             : new DeputyView(
                 deputySoldier.Id,
                 deputySoldier.Definition.Key,
+                GetDisplayNameId(deputySoldier),
                 $"/assets/{deputySoldier.Definition.AssetFile}",
                 $"/assets/{GetColoredAssetFile(deputySoldier)}",
                 deputyDefinition.Id,
@@ -381,7 +401,7 @@ public sealed class GameViewFactory
             : "opponent-turn";
 
         return new CharacterView(
-            character.Id, character.Definition.Key, $"/assets/{character.Definition.AssetFile}",
+            character.Id, character.Definition.Key, GetDisplayNameId(character), $"/assets/{character.Definition.AssetFile}",
             $"/assets/{GetColoredAssetFile(character)}",
             character.Slot, character.Definition.Cost, currentAttack, _engine.GetBaseAttack(character), attackAuraBonus,
             character.Definition.CardType.ToString(), character.SoldierRank,
@@ -444,4 +464,19 @@ public sealed class GameViewFactory
         && character.Definition.Rank2ColoredAssetFile is not null
             ? character.Definition.Rank2ColoredAssetFile
             : character.Definition.ColoredAssetFile;
+
+    private static string GetDisplayNameId(CharacterState character)
+    {
+        if (character.Definition.CardType == CardType.Hero
+            && character.HeroRank >= 3
+            && HeroGrowthCatalog.Find(character) is { } path)
+            return path.PathId;
+
+        if (character.Definition.CardType == CardType.Soldier
+            && character.SoldierRank >= 2
+            && character.Definition.Rank2NameId is not null)
+            return character.Definition.Rank2NameId;
+
+        return character.Definition.Key;
+    }
 }

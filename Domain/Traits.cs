@@ -593,6 +593,7 @@ public sealed class MaliciousJestTrait : CharacterTrait
     public override void OnAttackDeclared(GameEngineContext context, CharacterState owner, CharacterState target)
     {
         if (owner.PlayerId != context.State.ActivePlayerId
+            || context.State.FindOwner(target).SharedShield > 0
             || !owner.TraitsUsedThisTurn.Add(Metadata.Id))
             return;
 

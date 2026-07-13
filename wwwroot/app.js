@@ -259,7 +259,7 @@ function endTouchDrag(event, cancelled = false) {
   if (target && state.mode === 'role-action' && pendingRoleAction) {
     const action = pendingRoleAction;
     finishAttackArrow(target);
-    useRoleAction(action.characterId, action.roleActionId, target.dataset.id);
+    previewRoleAction(action.characterId, action.roleActionId, target.dataset.id);
     return;
   }
   if (state.active) {
@@ -402,6 +402,7 @@ let selectedHeroDraftKey = null;
 let selectedHeroDraftKeys = [];
 let soldierUpgradeKey = null;
 let pendingRoleAction = null;
+let pendingRoleActionExecution = null;
 let pendingDeputy = null;
 let pendingDeputyConfirm = null;
 let preview = null;
@@ -492,6 +493,11 @@ function characterByKey(state, key) {
 }
 function characterByIdData(state, id) {
   return id ? state?.players.flatMap(player => player.characters).find(card => String(card.id) === String(id)) || null : null;
+}
+function characterDisplayName(characterOrKey) {
+  if (!characterOrKey) return '';
+  if (typeof characterOrKey === 'string') return i18n.characterName(characterOrKey);
+  return i18n.characterName(characterOrKey.displayNameId || characterOrKey.key);
 }
 function characterFromLogData(state, entry, name = 'character') {
   return characterByIdData(state, logArg(entry, `${name}Id`)) || characterByKey(state, logArg(entry, name));
@@ -636,14 +642,22 @@ function render() {
   const active = game.players.find(player => player.id === game.activePlayerId);
   const me = game.players.find(player => player.id === game.viewerPlayerId);
   const opponent = game.players.find(player => player.id !== game.viewerPlayerId);
+  const preserveMyShield = hasPendingShieldRemovalForPlayer(game, me);
+  const preserveOpponentShield = hasPendingShieldRemovalForPlayer(game, opponent);
+  const visibleMyShield = preserveMyShield
+    ? Number(ui.activeShieldDome.dataset.visualShieldValue || me.sharedShield || 0)
+    : Number(me.sharedShield || 0);
+  const visibleOpponentShield = preserveOpponentShield
+    ? Number(ui.opponentShieldDome.dataset.visualShieldValue || opponent.sharedShield || 0)
+    : Number(opponent.sharedShield || 0);
   ui.turn.textContent = String(game.turnNumber).padStart(2, '0');
   ui.round.textContent = String(game.roundNumber).padStart(2, '0');
   ui.hudCluster?.classList.toggle('reward-next', Boolean(game.nextRoundIsRewardRound && !game.rewardWindow));
   ui.activePlayer.textContent = i18n.playerName(active.name);
   ui.bottomName.textContent = i18n.playerName(me.name);
   ui.opponentName.textContent = i18n.playerName(opponent.name);
-  renderShieldBadge(ui.activeShield, me.sharedShield);
-  renderShieldBadge(ui.opponentShield, opponent.sharedShield);
+  renderShieldBadge(ui.activeShield, visibleMyShield);
+  renderShieldBadge(ui.opponentShield, visibleOpponentShield);
   renderBattlePoints(me);
   renderRelicOverview(me);
   renderRewardWindow();
@@ -701,8 +715,8 @@ function render() {
   ui.opponentCards.dataset.count = String(opponentCharacters.length);
   renderBattleCardRow(ui.activeCards, activeCharacters, true);
   renderBattleCardRow(ui.opponentCards, opponentCharacters, false);
-  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me, hasPendingShieldBreakForPlayer(game, me));
-  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent, hasPendingShieldBreakForPlayer(game, opponent));
+  renderPersistentShield(ui.activeShieldDome, ui.activeCards, me, preserveMyShield);
+  renderPersistentShield(ui.opponentShieldDome, ui.opponentCards, opponent, preserveOpponentShield);
   bindCards();
   renderLog();
   updateInstruction();
@@ -881,8 +895,12 @@ function renderHeroDraftWindow() {
     return `<div class="hero-draft-choice ${selected ? 'selected' : ''}" data-hero-key="${escapeHtml(candidate.key)}">
       <button class="hero-draft-card" type="button" data-hero-key="${escapeHtml(candidate.key)}" data-card-type="${escapeHtml(candidate.cardType || '')}" ${draft.canChoose ? '' : 'disabled'}>
         <img src="${escapeHtml(candidate.coloredAssetUrl || candidate.assetUrl)}" alt="${escapeHtml(i18n.characterName(candidate.key))}">
+        <div class="hero-draft-card-attack" aria-label="${escapeHtml(`${i18n.damageType(candidate.attackType)} ${candidate.attack}`)}">
+          <span aria-hidden="true">ATK</span>
+          <strong>${Number(candidate.attack || 0)}</strong>
+          <em class="attack-type-label">${escapeHtml(damageTypeGlyph(candidate.attackType))}</em>
+        </div>
         <strong>${escapeHtml(i18n.characterName(candidate.key))}</strong>
-        <em>${escapeHtml(i18n.damageType(candidate.attackType))}</em>
       </button>
       ${ownedSoldier ? `<small class="hero-draft-owned">${escapeHtml(i18n.t(ownedSoldier.soldierRank >= 2 ? 'soldierDraftMaxRank' : 'soldierDraftOwnedHint'))}</small>` : ''}
       ${!isSoldierDraft && selected && draft.canChoose ? `<button class="hero-draft-recruit-confirm" type="button" data-hero-key="${escapeHtml(candidate.key)}">${escapeHtml(i18n.t('heroDraftConfirm'))}</button>` : ''}
@@ -1126,14 +1144,20 @@ function setRelicOverviewOpen(open) {
   ui.relicOverviewDetail.setAttribute('aria-hidden', String(!open));
 }
 
-function hasPendingShieldBreakForPlayer(state, player) {
+function hasPendingShieldRemovalForPlayer(state, player) {
   if (!state || !player || Number(player.sharedShield || 0) > 0) return false;
-  const characterKeys = new Set((player.characters || []).map(character => character.key));
-  return (state.log || []).some(entry =>
-    entry.sequence > lastAnimatedLogSequence
-    && entry.message?.key === 'note.shieldAbsorb'
-    && characterKeys.has(String(logArg(entry, 'character') || ''))
-    && (logArg(entry, 'remaining') === undefined || Number(logArg(entry, 'remaining')) <= 0));
+  const characterIds = new Set((player.characters || []).map(character => String(character.id)));
+  return (state.log || []).some(entry => {
+    if (entry.sequence <= lastAnimatedLogSequence) return false;
+    if (entry.message?.key === 'note.shieldAbsorb') {
+      const characterId = String(logArg(entry, 'characterId') || '');
+      return characterIds.has(characterId)
+        && (logArg(entry, 'remaining') === undefined || Number(logArg(entry, 'remaining')) <= 0);
+    }
+    if (entry.message?.key !== 'log.shieldExpired') return false;
+    const playerId = String(logArg(entry, 'playerId') || '');
+    return playerId ? playerId === String(player.id) : logArg(entry, 'player') === player.name;
+  });
 }
 
 const shieldLayoutCache = new WeakMap();
@@ -1153,30 +1177,60 @@ function stableShieldLayout(dome, cards, force = false) {
   return layout;
 }
 
-function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilBreak = false, forceLayout = false) {
+function cancelStaleShieldBreak(dome) {
+  dome.dataset.breakToken = String(Number(dome.dataset.breakToken || 0) + 1);
+  dome.classList.remove('breaking', 'pending-break');
+  delete dome.dataset.pendingBreak;
+}
+
+function shieldBadgeForDome(dome) {
+  return dome === ui.activeShieldDome ? ui.activeShield : ui.opponentShield;
+}
+
+function updateShieldVisualValue(dome, badge, value) {
+  const remaining = Math.max(0, Number(value || 0));
+  renderShieldBadge(badge, remaining);
+  dome.dataset.shield = String(remaining);
+  if (remaining <= 0) return remaining;
+
+  cancelStaleShieldBreak(dome);
+  dome.dataset.visualShieldValue = String(remaining);
+  dome.setAttribute('aria-hidden', 'false');
+  dome.classList.add('active');
+  dome.classList.toggle('reinforced', remaining > 2);
+  return remaining;
+}
+
+function expireShieldVisual(dome, badge = shieldBadgeForDome(dome)) {
+  cancelStaleShieldBreak(dome);
+  renderShieldBadge(badge, 0);
+  dome.dataset.shield = '0';
+  dome.classList.remove('active', 'forming', 'hit', 'reinforced');
+  delete dome.dataset.visualShieldValue;
+  dome.setAttribute('aria-hidden', 'true');
+}
+
+function renderPersistentShield(dome, row, playerOrShieldValue, preserveUntilRemoval = false, forceLayout = false) {
   const player = typeof playerOrShieldValue === 'object' && playerOrShieldValue !== null ? playerOrShieldValue : null;
-  const value = player ? Number(player.sharedShield || 0) : Number(playerOrShieldValue || 0);
+  const authoritativeValue = player ? Number(player.sharedShield || 0) : Number(playerOrShieldValue || 0);
+  let value = authoritativeValue;
   const cards = [...row.querySelectorAll('.fighter-card')];
   const layout = cards.length > 0 ? stableShieldLayout(dome, cards, forceLayout) : null;
   if (!layout) shieldLayoutCache.delete(dome);
   const isOpponentShield = dome === ui.opponentShieldDome;
   dome.classList.toggle('opponent-facing', isOpponentShield);
-  dome.dataset.shield = String(value);
   dome.dataset.pdef = String(player?.sharedShieldPhysicalDefense || 0);
   dome.dataset.mdef = String(player?.sharedShieldMagicalDefense || 0);
   if (value <= 0 || cards.length === 0) {
-    if (preserveUntilBreak && cards.length > 0 && dome.classList.contains('active')) {
-      dome.dataset.pendingBreak = 'true';
-      dome.classList.add('pending-break');
-      renderPersistentShield(dome, row, Number(dome.dataset.visualShieldValue || 1), false, forceLayout);
+    if (preserveUntilRemoval && cards.length > 0 && dome.classList.contains('active')) {
+      value = Math.max(1, Number(dome.dataset.visualShieldValue || 1));
+    } else {
+      expireShieldVisual(dome);
       return;
     }
-    dome.classList.remove('active', 'forming', 'breaking', 'pending-break');
-    delete dome.dataset.pendingBreak;
-    delete dome.dataset.visualShieldValue;
-    dome.setAttribute('aria-hidden', 'true');
-    return;
   }
+  if (authoritativeValue > 0) cancelStaleShieldBreak(dome);
+  dome.dataset.shield = String(value);
   dome.dataset.visualShieldValue = String(value);
   dome.setAttribute('aria-hidden', 'false');
   const { first, last } = layout;
@@ -1414,7 +1468,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
   const displayedAttack = effectiveCardAttack(card);
   const cardDescription = truncateCardText(localizedTrait.card, 28);
   const portraitUrl = card.coloredAssetUrl || card.assetUrl;
-  const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(i18n.characterName(card.key))}">`;
+  const portraitMarkup = `<img class="portrait" src="${portraitUrl}" alt="${escapeHtml(characterDisplayName(card))}">`;
   const costCrystals = Array.from({ length: Math.max(0, card.cost) }, () => '<i class="cost-crystal" aria-hidden="true"></i>').join('');
   const deputyBadge = card.deputy
     ? `<span class="deputy-badge" title="${escapeHtml(i18n.deputy(card.deputy.effectId).name)}">${escapeHtml(i18n.t('deputyShort'))}</span>`
@@ -1422,7 +1476,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
   const deputyStack = card.deputy
     ? `<div class="deputy-stack-card" aria-hidden="true">
         <img src="${escapeHtml(card.deputy.coloredAssetUrl || card.deputy.assetUrl)}" alt="">
-        <span>${escapeHtml(i18n.characterName(card.deputy.soldierKey))}</span>
+        <span>${escapeHtml(i18n.characterName(card.deputy.soldierNameId || card.deputy.soldierKey))}</span>
       </div>`
     : '';
   const draftConfirm = includeInteractionState && (game?.heroDraft?.kind === 'Opening' || game?.heroDraft?.kind === 'TestOpening') && game.heroDraft.canChoose
@@ -1434,7 +1488,7 @@ function cardMarkup(card, isActiveSide, index = 0, count = 1, options = {}) {
     <div class="card-front">
       ${draftConfirm}
       ${deputyBadge}
-      <div class="card-name">${escapeHtml(i18n.characterName(card.key))}</div><div class="cost-orb" aria-label="Cost ${card.cost}">${costCrystals}</div>
+      <div class="card-name">${escapeHtml(characterDisplayName(card))}</div><div class="cost-orb" aria-label="Cost ${card.cost}">${costCrystals}</div>
       <div class="type-rune ${card.attackType === 'Magical' ? 'magic' : ''}">${escapeHtml(i18n.damageType(card.attackType))}</div>
       <div class="portrait-wrap">${portraitMarkup}</div>
       <div class="status-stack">${statuses}</div>
@@ -1553,7 +1607,7 @@ function bindCards() {
       card.classList.remove('drop-ready');
       const action = pendingRoleAction;
       finishAttackArrow(card);
-      useRoleAction(action.characterId, action.roleActionId, card.dataset.id);
+      previewRoleAction(action.characterId, action.roleActionId, card.dataset.id);
     });
   });
 }
@@ -1746,7 +1800,7 @@ function showCharacterInspector(element) {
         </button>`;
       }).join('')
     : `<p class="role-action-empty">${escapeHtml(i18n.t('roleActionLocked'))}</p>`;
-  ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><div class="inspector-name-row"><strong>${escapeHtml(i18n.characterName(card.key))}</strong><b class="inspector-morale">${escapeHtml(i18n.t('moraleDamageShort'))} ${morale}/${maxMorale}</b></div></header>
+  ui.inspector.innerHTML = `<header><span>${i18n.t('unitDossier')}</span><div class="inspector-name-row"><strong>${escapeHtml(characterDisplayName(card))}</strong><b class="inspector-morale">${escapeHtml(i18n.t('moraleDamageShort'))} ${morale}/${maxMorale}</b></div></header>
     <div class="inspector-stats">
       <div class="stat-card stat-attack"><span>ATK</span><b>${escapeHtml(attackDisplay)}</b></div>
       <div class="stat-card stat-hp"><span>HP</span><b>${card.currentHp}/${card.maxHp}</b></div>
@@ -1832,7 +1886,7 @@ function deputyInspectorMarkup(card) {
       <div class="inspector-section-label">${escapeHtml(i18n.t('deputyTitle'))}</div>
       <div class="deputy-current">
         <b>${escapeHtml(deputy.name)}</b>
-        <small>${escapeHtml(i18n.characterName(card.deputy.soldierKey))} / ${escapeHtml(deputyStatText(card.deputy.statKind, card.deputy.statValue))}</small>
+        <small>${escapeHtml(i18n.characterName(card.deputy.soldierNameId || card.deputy.soldierKey))} / ${escapeHtml(deputyStatText(card.deputy.statKind, card.deputy.statValue))}</small>
         <p>${escapeHtml(deputy.passive)}</p>
       </div>
     </section>`;
@@ -2203,8 +2257,8 @@ async function assignDeputy(soldierId, heroId) {
 
 function openDeputyConfirm({ soldierId, heroId, soldier, hero, deputy }) {
   pendingDeputyConfirm = { soldierId, heroId };
-  const soldierName = i18n.characterName(soldier?.key);
-  const heroName = i18n.characterName(hero?.key);
+  const soldierName = characterDisplayName(soldier);
+  const heroName = characterDisplayName(hero);
   ui.deputyConfirmTitle.textContent = i18n.t('deputyConfirmTitle');
   ui.deputyConfirmSoldier.textContent = soldierName;
   ui.deputyConfirmHero.textContent = heroName;
@@ -2308,7 +2362,7 @@ function onCardClick(element) {
       return;
     }
     finishAttackArrow(element);
-    useRoleAction(pendingRoleAction.characterId, pendingRoleAction.roleActionId, id);
+    previewRoleAction(pendingRoleAction.characterId, pendingRoleAction.roleActionId, id);
     return;
   }
   if (element.dataset.side === 'active') {
@@ -2350,7 +2404,7 @@ async function chooseDefender(id) {
   selectedDefender = id;
   try {
     const payload = await gameApi(`/game/preview?attackerId=${selectedAttacker}&defenderId=${id}`);
-    preview = payload.data;
+    preview = { ...payload.data, previewKind: 'attack' };
     if (!preview.isValid) throw new Error(i18n.message(preview.error));
     syncCombatInteractionUi({ syncInspector: false });
     renderPreview();
@@ -2363,10 +2417,45 @@ async function chooseDefender(id) {
   }
 }
 
+async function previewRoleAction(characterId, roleActionId, targetCharacterId = null) {
+  const params = new URLSearchParams({ actorId: characterId, roleActionId });
+  if (targetCharacterId) params.set('targetCharacterId', targetCharacterId);
+  pendingRoleAction = null;
+  roleActionDragActive = false;
+  hideRoleActionInspector();
+  try {
+    const payload = await gameApi(`/game/role-action/preview?${params}`);
+    const rolePreview = payload.data;
+    if (!rolePreview.isValid) throw new Error(i18n.message(rolePreview.error));
+    pendingRoleActionExecution = { characterId, roleActionId, targetCharacterId };
+    preview = { ...rolePreview, previewKind: 'role-action' };
+    selectedAttacker = null;
+    selectedDefender = null;
+    syncCombatInteractionUi({ syncInspector: false });
+    renderPreview();
+  } catch (error) {
+    pendingRoleActionExecution = null;
+    sound.emit('ui.invalid-action');
+    showToast(error.message);
+    syncCombatInteractionUi({ syncInspector: false });
+  }
+}
+
 function renderPreview() {
+  if (preview?.previewKind === 'role-action') {
+    renderRoleActionPreview();
+    return;
+  }
   const attacker = findCard(selectedAttacker), defender = findCard(selectedDefender);
-  ui.previewAttacker.textContent = attacker ? i18n.characterName(attacker.key) : '—';
-  ui.previewDefender.textContent = defender ? i18n.characterName(defender.key) : '—';
+  ui.preview.classList.remove('role-action-preview');
+  ui.preview.querySelector('.preview-header span').textContent = i18n.t('combatForecastKicker');
+  ui.preview.querySelector('.preview-header strong').textContent = i18n.t('combatForecast');
+  ui.previewAttacker.textContent = attacker ? characterDisplayName(attacker) : '—';
+  ui.previewDefender.textContent = defender ? characterDisplayName(defender) : '—';
+  ui.previewDamage.hidden = false;
+  ui.previewCounter.hidden = false;
+  ui.previewTrait.hidden = false;
+  ui.confirm.setAttribute('aria-label', i18n.t('executeAttack'));
   setForecast(ui.previewDamage, preview.attack, i18n.t('damageDealt'), art.forDamageType(preview.attack.damageType));
   setForecast(ui.previewCounter, preview.counter, i18n.t('counterTaken'), 'event.counter');
   ui.previewTrait.className = `preview-trait ${preview.traitConditionPossible ? '' : 'inactive'}`;
@@ -2376,6 +2465,94 @@ function renderPreview() {
   art.hydrate(ui.preview);
   ui.preview.classList.add('open'); ui.preview.setAttribute('aria-hidden', 'false');
   hideCharacterInspector();
+}
+
+function renderRoleActionPreview() {
+  const actor = findCard(preview.actorId);
+  const target = findCard(preview.targetId) || actor;
+  const localized = i18n.roleAction(preview.roleActionId);
+  const effects = Array.isArray(preview.effects)
+    ? [...preview.effects].sort((left, right) => roleActionEffectPriority(left) - roleActionEffectPriority(right))
+    : [];
+  const boxes = [ui.previewDamage, ui.previewCounter];
+  ui.preview.classList.add('role-action-preview');
+  ui.preview.querySelector('.preview-header span').textContent = i18n.t('roleActionForecastKicker');
+  ui.preview.querySelector('.preview-header strong').textContent = localized.name;
+  ui.previewAttacker.textContent = actor ? characterDisplayName(actor) : '—';
+  ui.previewDefender.textContent = target ? characterDisplayName(target) : i18n.t('roleActionNoTarget');
+  boxes.forEach((box, index) => {
+    const effect = effects[index];
+    box.hidden = !effect;
+    if (effect) setRoleActionEffect(box, effect);
+  });
+  ui.previewTrait.hidden = true;
+  const effectNotes = effects.slice(2).map(roleActionEffectText);
+  const serverNotes = (preview.notes || []).map(note => i18n.message(note));
+  const notes = [i18n.t('roleActionForecastCost', { cost: preview.cost }), ...effectNotes, ...serverNotes];
+  if (effects.length === 0) notes.unshift(i18n.t('roleActionNoImmediateEffect'));
+  ui.previewNotes.innerHTML = notes.map(note => `<li>${escapeHtml(note)}</li>`).join('');
+  ui.confirm.setAttribute('aria-label', i18n.t('executeRoleAction'));
+  art.hydrate(ui.preview);
+  ui.preview.classList.add('open');
+  ui.preview.setAttribute('aria-hidden', 'false');
+  hideCharacterInspector();
+}
+
+function roleActionEffectPriority(effect) {
+  if (effect.kind === 'damage') return 0;
+  if (effect.kind === 'morale-damage' || effect.kind === 'hp-damage') return 1;
+  if (effect.kind === 'healing' || effect.kind === 'morale-healing' || effect.kind === 'shared-shield' || effect.kind === 'shared-shield-damage') return 2;
+  return 3;
+}
+
+function setRoleActionEffect(element, effect) {
+  const label = roleActionEffectLabel(effect);
+  if (effect.damage) {
+    setForecast(element, effect.damage, label, art.forDamageType(effect.damage.damageType));
+    return;
+  }
+
+  const value = forecastRange(effect.min, effect.max);
+  const iconId = effect.kind.includes('shield') ? 'event.shield'
+    : effect.kind === 'healing' ? 'event.heal'
+      : art.forRoleAction(preview.roleActionId);
+  element.className = `forecast-box role-action-effect ${escapeHtml(effect.kind)}`;
+  element.innerHTML = `<div class="forecast-heading">${art.icon(iconId, { size: 'sm', label })}<small>${escapeHtml(label)}</small></div><div class="forecast-values"><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function roleActionEffectLabel(effect) {
+  const labels = {
+    damage: 'roleActionEffectDamage', healing: 'roleActionEffectHealing', 'morale-healing': 'roleActionEffectMoraleHealing',
+    'shared-shield': 'roleActionEffectShieldGain', 'shared-shield-damage': 'roleActionEffectShieldDamage',
+    'shared-shield-cost': 'roleActionEffectShieldCost', 'shield-defense': 'roleActionEffectShieldDefense',
+    'hp-cost': 'roleActionEffectHpCost', 'hp-damage': 'roleActionEffectHpDamage',
+    'morale-damage': 'roleActionEffectMoraleDamage', 'action-points': 'roleActionEffectActionPoints',
+    'action-point-debt': 'roleActionEffectActionPointDebt', 'bonus-attacks': 'roleActionEffectBonusAttacks',
+    'status-layers': 'roleActionEffectStatusLayers', 'status-turns': 'roleActionEffectStatusTurns',
+    'status-damage': 'roleActionEffectStatusDamage'
+  };
+  const base = i18n.t(labels[effect.kind] || 'roleActionEffectValue');
+  const detail = roleActionEffectDetail(effect);
+  return detail ? `${base} / ${detail}` : base;
+}
+
+function roleActionEffectDetail(effect) {
+  if (!effect.detailId) return '';
+  if (['status-layers', 'status-turns', 'status-damage'].includes(effect.kind))
+    return i18n.status({ id: effect.detailId, magnitude: effect.max }).name;
+  if (effect.kind === 'damage') return i18n.damageType(effect.detailId);
+  if (effect.kind === 'shield-defense') return i18n.damageType(effect.detailId);
+  return i18n.t(`roleActionEffectDetail.${effect.detailId}`);
+}
+
+function roleActionEffectText(effect) {
+  const target = findCard(effect.targetId);
+  const targetName = target ? characterDisplayName(target) : i18n.t('roleActionNoTarget');
+  return i18n.t('roleActionEffectLine', {
+    target: targetName,
+    effect: roleActionEffectLabel(effect),
+    value: forecastRange(effect.min, effect.max)
+  });
 }
 
 function setForecast(element, forecast, label, iconId) {
@@ -2407,6 +2584,17 @@ async function executeAttack() {
     await playNewLogEvents(game);
   } catch (error) { showToast(error.message); }
   finally { busy = false; ui.confirm.disabled = false; }
+}
+
+async function executePreview() {
+  if (pendingRoleActionExecution) {
+    const action = pendingRoleActionExecution;
+    pendingRoleActionExecution = null;
+    closePreview();
+    await useRoleAction(action.characterId, action.roleActionId, action.targetCharacterId);
+    return;
+  }
+  await executeAttack();
 }
 
 async function endTurn() {
@@ -3218,6 +3406,11 @@ function playerForCharacterFromLog(state, entry, name = 'character') {
 }
 
 function playerFromLog(state, entry) {
+  const playerId = logArg(entry, 'playerId');
+  if (playerId) {
+    const player = state?.players.find(item => String(item.id) === String(playerId));
+    if (player) return player;
+  }
   const playerName = logArg(entry, 'player');
   return state?.players.find(player => player.name === playerName) || null;
 }
@@ -3548,7 +3741,9 @@ async function playLogEntry(entry, state) {
     case 'log.shieldExpired': {
       sound.emit('shield.expire');
       const visual = teamVisual(playerFromLog(state, entry));
-      await eventBurst(visual?.point, eventIcon.shield, { amount: '×', tone: 'shield' }); break;
+      await eventBurst(visual?.point, eventIcon.shield, { amount: '×', tone: 'shield' });
+      if (visual?.dome) expireShieldVisual(visual.dome);
+      break;
     }
   }
 }
@@ -3736,11 +3931,13 @@ function playShieldFormationAnimation(dome) {
 }
 function shieldBlock(target, amount, remaining) {
   const dome = target.dataset.side === 'active' ? ui.activeShieldDome : ui.opponentShieldDome;
+  const badge = target.dataset.side === 'active' ? ui.activeShield : ui.opponentShield;
+  const visualRemaining = updateShieldVisualValue(dome, badge, remaining);
   // render() owns shield geometry; hit playback must never re-anchor against moving cards.
   const p = center(target), text = document.createElement('b');
   target.classList.add('shield-block'); setTimeout(() => target.classList.remove('shield-block'), 520);
   text.className = 'shield-float'; text.textContent = `SHIELD -${amount}`; text.style.left = `${p.x}px`; text.style.top = `${p.y}px`; ui.fx.appendChild(text);
-  if (remaining <= 0) {
+  if (visualRemaining <= 0) {
     dome.dataset.pendingBreak = 'true';
     dome.classList.add('pending-break');
     breakShieldDome(dome);
@@ -3882,6 +4079,8 @@ function animateMoraleRingLoss(card, amount) {
 function breakShieldDome(dome) {
   const wasActive = dome.classList.contains('active');
   const shouldHideAfterBreak = dome.dataset.pendingBreak === 'true' || !wasActive;
+  const breakToken = String(Number(dome.dataset.breakToken || 0) + 1);
+  dome.dataset.breakToken = breakToken;
   // State polling/rendering may already contain the post-hit shield value. Briefly
   // restore the visual shell so both the acting and observing client still see it break.
   if (!wasActive) dome.classList.add('active');
@@ -3898,7 +4097,9 @@ function breakShieldDome(dome) {
   }).join('');
   ui.fx.appendChild(particles);
   setTimeout(() => {
-    particles.remove(); dome.classList.remove('breaking', 'pending-break');
+    particles.remove();
+    if (dome.dataset.breakToken !== breakToken) return;
+    dome.classList.remove('breaking', 'pending-break');
     if (shouldHideAfterBreak) dome.classList.remove('active', 'reinforced');
     delete dome.dataset.pendingBreak;
     delete dome.dataset.visualShieldValue;
@@ -3947,17 +4148,22 @@ function updateInstruction() {
     return;
   }
   const card = findCard(selectedAttacker);
-  const name = card ? i18n.characterName(card.key) : '';
+  const name = card ? characterDisplayName(card) : '';
   ui.instruction.innerHTML = card ? `<span class="instruction-icon">◆</span><div><strong>${escapeHtml(i18n.t('currentSelected', { name }))}</strong><small>${i18n.t('selectUpperEnemy')}</small></div>` : `<span class="instruction-icon">◆</span><div><strong>${i18n.t('selectCard')}</strong><small>${i18n.t('selectTarget')}</small></div>`;
 }
 function findCard(id) { return game?.players.flatMap(player => player.characters).find(card => card.id === id); }
-function closePreview() { ui.preview.classList.remove('open'); ui.preview.setAttribute('aria-hidden', 'true'); }
+function closePreview() {
+  ui.preview.classList.remove('open', 'role-action-preview');
+  ui.preview.setAttribute('aria-hidden', 'true');
+  pendingRoleActionExecution = null;
+}
 
 function cancelAttackPreview() {
   if (ui.preview.classList.contains('open')) sound.emit('ui.preview-cancel');
   selectedAttacker = null;
   selectedDefender = null;
   inspectedCardId = null;
+  preview = null;
   hideAttackArrow();
   closePreview();
   syncCombatInteractionUi({ syncInspector: false });
@@ -4247,7 +4453,7 @@ async function bootstrapModes() {
   catch { clearOnlineIdentity(); if (!joinCode) showModeSelect(); }
 }
 
-document.querySelector('#confirm-attack').addEventListener('click', executeAttack);
+document.querySelector('#confirm-attack').addEventListener('click', executePreview);
 ui.cancelPreview.addEventListener('click', cancelAttackPreview);
 ui.endTurn.addEventListener('click', endTurn);
 ui.shieldButton.addEventListener('click', deployShield);
@@ -4410,7 +4616,7 @@ ui.inspector.addEventListener('click', event => {
     return;
   }
 
-  useRoleAction(characterId, roleActionId);
+  previewRoleAction(characterId, roleActionId);
 });
 ui.inspector.addEventListener('pointerdown', event => {
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id][draggable="true"]') : null;
@@ -4445,7 +4651,7 @@ ui.roleActionInspector?.addEventListener('click', event => {
     showToast(i18n.t(roleActionTargetInstructionKey(targets)));
     return;
   }
-  useRoleAction(characterId, roleActionId);
+  previewRoleAction(characterId, roleActionId);
 });
 ui.inspector.addEventListener('focusin', event => {
   const button = event.target instanceof Element ? event.target.closest('.role-action-button[data-role-action-id]') : null;
@@ -4594,7 +4800,7 @@ document.addEventListener('drop', event => {
   if (roleActionDragActive && pendingRoleAction) {
     const action = pendingRoleAction;
     finishAttackArrow(target);
-    useRoleAction(action.characterId, action.roleActionId, target.dataset.id);
+    previewRoleAction(action.characterId, action.roleActionId, target.dataset.id);
     return;
   }
   if (!roleActionDragActive && selectedAttacker) {

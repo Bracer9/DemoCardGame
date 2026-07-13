@@ -634,6 +634,8 @@ public sealed class HuntedStatus(Guid sourceCharacterId, Guid ownerPlayerId, int
     public Guid OwnerPlayerId { get; } = ownerPlayerId;
     public override int Magnitude => Math.Max(0, bonusDamage);
 
+    public bool HasTriggeredFor(Guid soldierId) => _usedSoldiers.Contains(soldierId);
+
     public override void OnTurnEnd(GameEngineContext context, CharacterState owner)
     {
         if (context.State.ActivePlayerId == OwnerPlayerId)

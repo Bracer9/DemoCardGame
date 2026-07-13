@@ -272,7 +272,8 @@ public sealed class GameEngine
 
     private IReadOnlyList<CharacterDefinition> CreateSoldierDraftCandidates(PlayerState player) =>
         CharacterCatalog.Soldiers
-            .OrderBy(definition => definition.Key)
+            .OrderBy(definition => definition.Key == "jester" ? 1 : 0)
+            .ThenBy(definition => definition.Key)
             .ToList();
 
     public void SelectHeroDraft(GameState state, Guid playerId, string characterKey)
@@ -802,7 +803,9 @@ public sealed class GameEngine
         state.ActivePlayer.RelicsUsedThisTurn.Clear();
 
         if (state.ActivePlayer.SharedShield > 0)
-            Log(state, L10n.Text("log.shieldExpired", ("player", L10n.Player(state.ActivePlayer.Name))), "shield");
+            Log(state, L10n.Text("log.shieldExpired",
+                ("player", L10n.Player(state.ActivePlayer.Name)),
+                ("playerId", L10n.Raw(state.ActivePlayer.Id))), "shield");
         state.ActivePlayer.SharedShield = 0;
         state.ActivePlayer.SharedShieldPhysicalDefense = 0;
         state.ActivePlayer.SharedShieldMagicalDefense = 0;
@@ -1380,7 +1383,8 @@ public sealed class GameEngine
             TargetCharacter = collateral.Target,
             DamageType = collateral.DamageType,
             Source = DamageSource.Trait,
-            Amount = collateral.Amount
+            Amount = collateral.Amount,
+            CanConsumeChargeStatuses = false
         };
         ModifyDamage(state, packet);
         collateral.Target.CurrentHp = Math.Max(0, collateral.Target.CurrentHp - packet.Amount);
@@ -1405,8 +1409,8 @@ public sealed class GameEngine
         }
 
         var absorbed = Math.Min(packet.Amount, targetOwner.SharedShield);
-        packet.Amount = 0;
-        packet.BlockedBySharedShield = true;
+        packet.Amount -= absorbed;
+        packet.BlockedBySharedShield = packet.Amount <= 0;
         packet.ShieldAbsorbed += absorbed;
         targetOwner.SharedShield -= absorbed;
         ClearShieldLayerIfBroken(targetOwner);
@@ -2032,7 +2036,7 @@ public sealed class GameEngine
         var unavailable = action.UnavailableReason(state, actor);
         if (unavailable is not null)
             throw new GameRuleException(unavailable);
-        EnsureRoleActionTargetIsValidBeforePayment(state, actor, roleActionId, targetCharacterId);
+        EnsureRoleActionTargetIsValid(state, actor, roleActionId, targetCharacterId);
 
         SpendRoleActionCost(state, action);
         switch (roleActionId)
@@ -3981,7 +3985,7 @@ public sealed class GameEngine
         }
     }
 
-    private static void EnsureRoleActionTargetIsValidBeforePayment(
+    internal static void EnsureRoleActionTargetIsValid(
         GameState state,
         CharacterState actor,
         string roleActionId,
@@ -4004,6 +4008,7 @@ public sealed class GameEngine
                 RequireAllyTarget(state, actor, targetCharacterId);
                 break;
             case "weakening-spores-action":
+            case "mocking-curtain-call":
                 RequireEnemyTarget(state, actor, targetCharacterId);
                 break;
             case "challenge":
@@ -4115,15 +4120,37 @@ public sealed class GameEngine
             ReceivesMagicPowerBonus = damageType == DamageType.Magical
         };
         ModifyDamage(state, packet);
+        var shieldRemainingAfterMainPacket = targetOwner.SharedShield;
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
         ResolvePreyZeroDamage(state, packet);
         TriggerRelicsAfterDamageResolved(state, packet);
-        foreach (var note in packet.Notes)
+
+        var resolvedCollateral = packet.Collateral
+            .Where(collateral => !IsDeploying(collateral.Target))
+            .Select(collateral => (Collateral: collateral, Packet: ResolveCollateralDamage(state, collateral)))
+            .ToArray();
+
+        ResolveEchoCrystalAfterDamageSequence(state, packet);
+        foreach (var item in resolvedCollateral)
+            ResolveEchoCrystalAfterDamageSequence(state, item.Packet);
+
+        foreach (var note in packet.Notes.Concat(resolvedCollateral.SelectMany(item => item.Packet.Notes)))
             Log(state, note, "status");
         LogEffectDamage(state, packet, L10n.RoleAction(roleActionId), damageType == DamageType.Physical ? "physical" : "magic");
-        TryAwardEnemyShieldBreakBp(state, source, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed);
+        foreach (var item in resolvedCollateral)
+            Log(state, L10n.Text("log.collateralDamage",
+                ("effect", L10n.Status(item.Collateral.EffectId)),
+                ("source", L10n.Character(item.Collateral.Source.Definition.Key)),
+                ("sourceId", L10n.Raw(item.Collateral.Source.Id)),
+                ("character", L10n.Character(item.Packet.TargetCharacter.Definition.Key)),
+                ("characterId", L10n.Raw(item.Packet.TargetCharacter.Id)),
+                ("amount", L10n.Raw(item.Packet.Amount))),
+                item.Packet.DamageType == DamageType.Magical ? "magic" : "physical");
+
+        TryAwardEnemyShieldBreakBp(state, source, sourceOwner, targetOwner, shieldBefore, packet.ShieldAbsorbed,
+            shieldRemainingAfterDamage: shieldRemainingAfterMainPacket);
         TryAwardEnemyDamageBp(state, sourceOwner, targetOwner, packet.Amount);
-        ResolveEchoCrystalAfterDamageSequence(state, packet);
+        ApplyPendingRelicActionPointRefunds(state, source);
         return packet.Amount;
     }
 
@@ -4259,9 +4286,13 @@ public sealed class GameEngine
     {
         foreach (var status in attacker.Statuses.OfType<VictoryEdictStatus>().Where(status => !status.Expired).ToArray())
         {
+            var followUpDefeatedTarget = false;
             if (target.IsAlive)
+            {
                 DealAbsoluteDamage(state, target, status.Magnitude, status.SourceCharacterId, L10n.RoleAction("edict-of-victory"));
-            if (target.CurrentHp <= 0)
+                followUpDefeatedTarget = !target.IsAlive;
+            }
+            if (followUpDefeatedTarget)
             {
                 TryGainBp(state, state.ActivePlayer, 1, BpReasonRank3Kill);
                 state.ActivePlayer.PendingActionPointDebt = Math.Max(0, state.ActivePlayer.PendingActionPointDebt - 1);
@@ -4284,9 +4315,13 @@ public sealed class GameEngine
     {
         foreach (var status in attacker.Statuses.OfType<AbyssalBargainStatus>().Where(status => !status.Expired).ToArray())
         {
+            var followUpDefeatedTarget = false;
             if (target.IsAlive)
+            {
                 DealAbsoluteDamage(state, target, status.Magnitude, status.SourceCharacterId, L10n.RoleAction("abyssal-bargain"));
-            if (target.CurrentHp <= 0)
+                followUpDefeatedTarget = !target.IsAlive;
+            }
+            if (followUpDefeatedTarget)
             {
                 TryGainBp(state, state.ActivePlayer, 1, BpReasonRank3Kill);
                 var source = state.FindCharacter(status.SourceCharacterId);

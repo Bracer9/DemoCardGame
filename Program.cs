@@ -12,6 +12,7 @@ builder.Services.AddSingleton<GameSession>();
 builder.Services.AddSingleton<OnlineGameSession>();
 builder.Services.AddSingleton<GameViewFactory>();
 builder.Services.AddSingleton<AttackPreviewService>();
+builder.Services.AddSingleton<RoleActionPreviewService>();
 builder.Services.AddSingleton<SimpleAiService>();
 
 var app = builder.Build();
@@ -61,6 +62,16 @@ app.MapGet("/api/online/game/preview", (Guid attackerId, Guid defenderId, HttpRe
         if (state.Players[index].Id != state.ActivePlayerId)
             throw new OnlineSessionException(L10n.Text("error.opponentTurn"), 403);
         return previews.Create(state, attackerId, defenderId);
+    })))));
+
+app.MapGet("/api/online/game/role-action/preview", (Guid actorId, string roleActionId,
+    Guid? targetCharacterId, HttpRequest request, OnlineGameSession session,
+    RoleActionPreviewService previews) =>
+    Online(() => Results.Ok(new ApiEnvelope<RoleActionPreview>(session.ReadGame(Token(request), (state, _, index) =>
+    {
+        if (state.Players[index].Id != state.ActivePlayerId)
+            throw new OnlineSessionException(L10n.Text("error.opponentTurn"), 403);
+        return previews.Create(state, actorId, roleActionId, targetCharacterId);
     })))));
 
 app.MapPost("/api/online/game/attack", (AttackRequest attack, HttpRequest request,
@@ -227,6 +238,11 @@ app.MapPost("/api/game/ai/advance", (GameSession session, SimpleAiService ai, Ga
 
 app.MapGet("/api/game/preview", (Guid attackerId, Guid defenderId, GameSession session, AttackPreviewService previews) =>
     Results.Ok(new ApiEnvelope<AttackPreview>(session.Read(state => previews.Create(state, attackerId, defenderId)))));
+
+app.MapGet("/api/game/role-action/preview", (Guid actorId, string roleActionId, Guid? targetCharacterId,
+    GameSession session, RoleActionPreviewService previews) =>
+    Results.Ok(new ApiEnvelope<RoleActionPreview>(session.Read(state =>
+        previews.Create(state, actorId, roleActionId, targetCharacterId)))));
 
 app.MapGet("/api/audio/voice-index", (IWebHostEnvironment environment) =>
 {

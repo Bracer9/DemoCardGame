@@ -7,7 +7,12 @@ public sealed class AttackPreviewService
     private sealed record RelicDamageForecast(
         DamageForecast Forecast,
         bool AstralPrism,
-        bool AshenDetonator);
+        bool AshenDetonator,
+        int RemainingSharedShield);
+
+    private sealed record CollateralForecast(
+        CharacterState Target,
+        DamageForecast Forecast);
 
     private readonly GameEngine _engine;
     public AttackPreviewService(GameEngine engine) => _engine = engine;
@@ -50,6 +55,14 @@ public sealed class AttackPreviewService
         var attackPacketBase = _engine.GetEffectiveActiveAttack(state, attacker)
             + companyStandardBonus
             + redHourglassBonus;
+        var astralAlignment = attacker.Statuses.OfType<AstralAlignmentStatus>()
+            .FirstOrDefault(status => !status.Expired && attackerAttackType == DamageType.Magical);
+        var militiaCall = attacker.Statuses.OfType<MilitiaCallStatus>()
+            .FirstOrDefault(status => !status.Expired);
+        var hunted = defender.Statuses.OfType<HuntedStatus>()
+            .FirstOrDefault(status => !status.Expired
+                && attacker.Definition.CardType == CardType.Soldier
+                && !status.HasTriggeredFor(attacker.Id));
         var attackBase = monsterPrincessAttack
             ? ForecastAbsoluteDamage(state, attacker, defender, attackPacketBase)
             : ForecastOutgoingDamage(attacker, attackPacketBase,
@@ -58,7 +71,7 @@ public sealed class AttackPreviewService
                 receivesMagicPowerBonus: true,
                 grantStrongAttack: duelistTicketWillTrigger);
         var jesterTraitWillApply = attacker.Definition.Key == "jester"
-            && attacker.SoldierRank >= 1
+            && defenderOwner.SharedShield <= 0
             && !attacker.TraitsUsedThisTurn.Contains("malicious-jest");
         var jesterAuraBonus = !monsterPrincessAttack
             && attackerAttackType is DamageType.Physical or DamageType.Magical
@@ -67,14 +80,13 @@ public sealed class AttackPreviewService
             ? 1
             : 0;
         attackBase += jesterAuraBonus;
-        var attack = monsterPrincessAttack
+        var attackPacket = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
-        attack = ForecastDamageLanding(defender, attack);
-        var attackHp = attack;
-        var chantRelicForecast = ForecastChantAndBurningRelics(state, attacker, defender, attackHp);
-        attack = chantRelicForecast.Forecast;
-        attack = ApplyPreyForecast(state, attacker, defender, attack);
+        attackPacket = ForecastDamageLanding(defender, attackPacket);
+        var attackHp = attackPacket;
+        var attack = ApplyZeroHpTriggerForecast(state, defender, attackPacket);
+        var remainingDefenderShield = Math.Max(0, defenderOwner.SharedShield - attackPacket.ShieldAbsorb);
         var attritionLedgerBonus = ForecastAttritionLedgerBonus(state, attacker, defender);
         var attritionLedgerBefore = attack;
         if (attritionLedgerBonus > 0)
@@ -82,14 +94,31 @@ public sealed class AttackPreviewService
         var attritionLedgerWillTrigger = attritionLedgerBonus > 0
             && (attack.HpDamageMin != attritionLedgerBefore.HpDamageMin
                 || attack.HpDamageMax != attritionLedgerBefore.HpDamageMax);
-        var pactBonus = attacker.Statuses.Any(status => status.Id == "pact" && !status.Expired)
-            ? PactStatus.AbsoluteDamage
-            : 0;
-        if (pactBonus > 0)
-            attack = AddDirectHpDamage(attack, ForecastAbsoluteDamage(state, attacker, defender, pactBonus));
+        var chantRelicForecast = ForecastChantAndBurningRelics(
+            state, attacker, defender, attackPacket, attack, remainingDefenderShield);
+        attack = chantRelicForecast.Forecast;
+
+        var victoryEdict = attacker.Statuses.OfType<VictoryEdictStatus>().FirstOrDefault(status => !status.Expired);
+        var victoryEdictWillTrigger = victoryEdict is not null && attack.HpDamageMin < defender.CurrentHp;
+        if (victoryEdictWillTrigger)
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack,
+                ForecastStatusAbsoluteDamage(state, victoryEdict!, defender));
+
+        var pact = attacker.Statuses.OfType<PactStatus>().FirstOrDefault(status => !status.Expired);
+        var pactWillTrigger = pact is not null && attack.HpDamageMin < defender.CurrentHp;
+        if (pactWillTrigger)
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack,
+                ForecastStatusAbsoluteDamage(state, pact!, defender));
+
+        var abyssalBargain = attacker.Statuses.OfType<AbyssalBargainStatus>().FirstOrDefault(status => !status.Expired);
+        var abyssalBargainWillTrigger = abyssalBargain is not null && attack.HpDamageMin < defender.CurrentHp;
+        if (abyssalBargainWillTrigger)
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack,
+                ForecastStatusAbsoluteDamage(state, abyssalBargain!, defender));
         var rageShieldBreakBonus = ForecastRageShieldBreakBonus(state, attacker, defender, attack);
         if (rageShieldBreakBonus > 0)
-            attack = AddDirectHpDamage(attack, ForecastAbsoluteDamage(state, attacker, defender, rageShieldBreakBonus));
+            attack = AddDirectHpDamageIfTargetSurvives(defender, attack,
+                ForecastAbsoluteDamage(state, attacker, defender, rageShieldBreakBonus));
         var duelSenseBonus = ForecastDuelSenseAbsoluteBonus(state, attacker);
         var duelSenseBefore = attack;
         if (duelSenseBonus > 0)
@@ -97,6 +126,19 @@ public sealed class AttackPreviewService
                 ForecastAbsoluteDamage(state, attacker, defender, duelSenseBonus));
         var duelSenseWillTrigger = duelSenseBonus > 0
             && (attack.HpDamageMin != duelSenseBefore.HpDamageMin || attack.HpDamageMax != duelSenseBefore.HpDamageMax);
+        var monsterFollowUpDamage = ForecastMonsterFollowUpDamage(state, attacker, defender);
+        var monsterFollowUpPossible = monsterFollowUpDamage > 0
+            && attackHp.HpDamageMin == 0
+            && attack.HpDamageMin < defender.CurrentHp;
+        if (monsterFollowUpPossible)
+        {
+            var followUpDamage = ForecastAbsoluteDamage(state, attacker, defender, monsterFollowUpDamage);
+            attack = attackHp.HpDamageMax == 0
+                ? AddDirectHpDamageIfTargetSurvives(defender, attack, followUpDamage)
+                : AddPossibleDirectHpDamageIfTargetSurvives(defender, attack, followUpDamage);
+        }
+        var astralSplashForecasts = ForecastAstralSplash(
+            state, attacker, defender, astralAlignment, chantRelicForecast.RemainingSharedShield);
         var nightBaitWillTrigger = attackHp.HpDamageMax == 0
             && (attackHp.Max > 0 || attackHp.ShieldWillAbsorb)
             && RelicEffects.HasRelic(attackerOwner, "relic-night-bait")
@@ -112,10 +154,16 @@ public sealed class AttackPreviewService
             && !attackerOwner.RelicsUsedThisTurn.Contains("relic-echo-crystal");
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defenderAttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
-        var counter = ForecastDamage(state, attacker, counterBase, defenderAttackType, DamageSource.CounterAttack);
+        if (counterBase > 0
+            && jesterTraitWillApply
+            && defender.Statuses.All(status => status.Expired || status.Id !=
+                (defenderAttackType == DamageType.Physical ? "exhaustion" : "erosion")))
+            counterBase = Math.Max(1, counterBase / 2);
+        var counter = ForecastDamage(state, defender, attacker, counterBase,
+            defenderAttackType, DamageSource.CounterAttack);
         counter = ForecastDamageLanding(attacker, counter);
         var counterHp = counter;
-        counter = ApplyPreyForecast(state, defender, attacker, counter);
+        counter = ApplyZeroHpTriggerForecast(state, attacker, counter);
         var trait = _engine.GetTrait(attacker);
         var (possible, traitText) = ForecastTrait(state, attacker, defender, attackHp);
 
@@ -135,6 +183,23 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-red-hourglass"))));
         if (jesterAuraBonus > 0)
             notes.Add(L10n.Text("preview.trait.jesterAura"));
+        if (astralAlignment is not null)
+            notes.Add(L10n.Text("preview.roleAction.damageBonus",
+                ("roleAction", L10n.RoleAction("astral-alignment")),
+                ("value", L10n.Raw(astralAlignment.Magnitude))));
+        if (militiaCall is not null)
+            notes.Add(L10n.Text("preview.roleAction.damageBonus",
+                ("roleAction", L10n.RoleAction("militia-call")),
+                ("value", L10n.Raw(militiaCall.Magnitude))));
+        if (hunted is not null)
+            notes.Add(L10n.Text("preview.roleAction.damageBonus",
+                ("roleAction", L10n.RoleAction("call-the-hunt")),
+                ("value", L10n.Raw(hunted.Magnitude))));
+        foreach (var splash in astralSplashForecasts)
+            notes.Add(L10n.Text("preview.roleAction.astralAlignmentSplash",
+                ("character", L10n.Character(splash.Target.Definition.Key)),
+                ("min", L10n.Raw(splash.Forecast.Min)),
+                ("max", L10n.Raw(splash.Forecast.Max))));
         if (chantRelicForecast.AstralPrism)
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-astral-prism"))));
         if (chantRelicForecast.AshenDetonator)
@@ -210,12 +275,24 @@ public sealed class AttackPreviewService
                 ("value", L10n.Raw(duelSenseBonus))));
         if (attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired))
             notes.Add(L10n.Text("preview.roleAction.fateMark"));
-        if (pactBonus > 0)
+        if (victoryEdictWillTrigger)
+            notes.Add(L10n.Text("preview.roleAction.absoluteFollowUp",
+                ("roleAction", L10n.RoleAction("edict-of-victory")),
+                ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, victoryEdict!, defender)))));
+        if (pactWillTrigger)
             notes.Add(L10n.Text("preview.roleAction.darkPact",
-                ("value", L10n.Raw(pactBonus))));
+                ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, pact!, defender)))));
+        if (abyssalBargainWillTrigger)
+            notes.Add(L10n.Text("preview.roleAction.absoluteFollowUp",
+                ("roleAction", L10n.RoleAction("abyssal-bargain")),
+                ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, abyssalBargain!, defender)))));
         if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attackHp.HpDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGaze",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
+        var nightmarePrey = defender.Statuses.OfType<NightmarePreyStatus>().FirstOrDefault(status => !status.Expired);
+        if (nightmarePrey is not null && attackHp.HpDamageMin == 0)
+            notes.Add(L10n.Text("preview.roleAction.nightmareStare",
+                ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, nightmarePrey, defender)))));
         if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired) && counterHp.HpDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGazeCounter",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
@@ -224,22 +301,24 @@ public sealed class AttackPreviewService
             attack, counter, trait.Metadata.Id, possible, traitText, notes);
     }
 
-    private static DamageForecast ApplyPreyForecast(
+    private static DamageForecast ApplyZeroHpTriggerForecast(
         GameState state,
-        CharacterState source,
         CharacterState target,
         DamageForecast forecast)
     {
-        if (target.Statuses.All(status => status.Id != "prey" || status.Expired) || forecast.HpDamageMin > 0)
+        var zeroHpFollowUps = target.Statuses
+            .Where(status => !status.Expired && status is PreyStatus or NightmarePreyStatus)
+            .ToArray();
+        if (zeroHpFollowUps.Length == 0 || forecast.HpDamageMin > 0)
             return forecast;
 
-        var preyDamage = ForecastAbsoluteDamage(state, source, target, PreyStatus.AbsoluteDamage);
+        var followUpDamage = zeroHpFollowUps.Sum(status => ForecastStatusAbsoluteDamage(state, status, target));
 
         if (forecast.HpDamageMax == 0)
-            return AddDirectHpDamage(forecast, preyDamage);
+            return AddDirectHpDamage(forecast, followUpDamage);
 
-        var triggeredTotal = forecast.Min + preyDamage;
-        var triggeredHp = forecast.HpDamageMin + preyDamage;
+        var triggeredTotal = forecast.Min + followUpDamage;
+        var triggeredHp = forecast.HpDamageMin + followUpDamage;
         return forecast with
         {
             Min = Math.Min(triggeredTotal, forecast.Max),
@@ -249,16 +328,30 @@ public sealed class AttackPreviewService
         };
     }
 
+    private static int ForecastStatusAbsoluteDamage(
+        GameState state,
+        StatusEffect status,
+        CharacterState target)
+    {
+        var source = state.FindCharacter(status.SourceCharacterId);
+        return ForecastAbsoluteDamage(state, source, target, status.Magnitude);
+    }
+
     private RelicDamageForecast ForecastChantAndBurningRelics(
         GameState state,
         CharacterState attacker,
         CharacterState defender,
-        DamageForecast baseForecast)
+        DamageForecast baseForecast,
+        DamageForecast currentForecast,
+        int remainingSharedShield,
+        int? targetMoraleOverride = null,
+        int? targetHpOverride = null)
     {
         var owner = state.FindOwner(attacker);
-        var result = baseForecast;
-        var baseCanHit = baseForecast.Max > 0 && baseForecast.HpDamageMin < defender.CurrentHp;
-        var baseAlwaysHits = baseForecast.Min > 0 && baseForecast.HpDamageMin < defender.CurrentHp;
+        var result = currentForecast;
+        var targetHp = Math.Max(0, targetHpOverride ?? defender.CurrentHp);
+        var baseCanHit = baseForecast.Max > 0 && currentForecast.HpDamageMin < targetHp;
+        var baseAlwaysHits = baseForecast.Min > 0 && currentForecast.HpDamageMax < targetHp;
         var astralPrism = baseCanHit
             && GameEngine.GetAttackType(attacker) == DamageType.Magical
             && attacker.Statuses.Any(status => status.Id == "chant" && !status.Expired)
@@ -272,13 +365,21 @@ public sealed class AttackPreviewService
                 DamageType.Magical,
                 DamageSource.Trait,
                 receivesMagicPowerBonus: false,
-                canConsumeChargeStatuses: false);
-            var prism = ForecastDamage(state, defender, prismBase, DamageType.Magical, DamageSource.Trait);
-            result = AppendNormalDamage(defender, result, prism, baseAlwaysHits);
+                canConsumeChargeStatuses: false,
+                canApplyOneShotStatuses: false);
+            var prism = ForecastDamage(state, attacker, defender, prismBase,
+                DamageType.Magical, DamageSource.Trait,
+                canApplyHunted: baseForecast.Max <= 0,
+                sharedShieldOverride: remainingSharedShield);
+            result = AppendNormalDamage(
+                defender, result, prism, baseAlwaysHits, targetMoraleOverride, targetHp);
+            remainingSharedShield = Math.Max(0, remainingSharedShield - prism.ShieldAbsorb);
         }
 
         var burning = defender.Statuses.OfType<BurningStatus>().FirstOrDefault(status => !status.Expired);
-        var ashenDetonator = baseCanHit
+        var ashenCanTrigger = baseForecast.Max > 0 && result.HpDamageMin < targetHp;
+        var ashenAlwaysTriggers = baseAlwaysHits && result.HpDamageMax < targetHp;
+        var ashenDetonator = ashenCanTrigger
             && burning is { Stacks: >= 3 }
             && RelicEffects.HasRelic(owner, "relic-ashen-detonator")
             && !owner.RelicsUsedThisTurn.Contains("relic-ashen-detonator");
@@ -290,26 +391,36 @@ public sealed class AttackPreviewService
                 DamageType.Magical,
                 DamageSource.Trait,
                 receivesMagicPowerBonus: false,
-                canConsumeChargeStatuses: false);
-            var detonation = ForecastDamage(state, defender, detonationBase, DamageType.Magical,
-                DamageSource.Trait, ignoreDefense: true);
-            result = AppendNormalDamage(defender, result, detonation, baseAlwaysHits);
+                canConsumeChargeStatuses: false,
+                canApplyOneShotStatuses: false);
+            var detonation = ForecastDamage(state, attacker, defender, detonationBase, DamageType.Magical,
+                DamageSource.Trait,
+                ignoreDefense: true,
+                canApplyHunted: baseForecast.Max <= 0,
+                sharedShieldOverride: remainingSharedShield);
+            result = AppendNormalDamage(
+                defender, result, detonation, ashenAlwaysTriggers, targetMoraleOverride, targetHp);
+            remainingSharedShield = Math.Max(0, remainingSharedShield - detonation.ShieldAbsorb);
         }
 
-        return new RelicDamageForecast(result, astralPrism, ashenDetonator);
+        return new RelicDamageForecast(result, astralPrism, ashenDetonator, remainingSharedShield);
     }
 
     private static DamageForecast AppendNormalDamage(
         CharacterState target,
         DamageForecast current,
         DamageForecast extra,
-        bool guaranteed)
+        bool guaranteed,
+        int? targetMoraleOverride = null,
+        int? targetHpOverride = null)
     {
+        var targetHp = Math.Max(0, targetHpOverride ?? target.CurrentHp);
+        var targetMorale = Math.Max(0, targetMoraleOverride ?? target.Morale);
         if (Enum.TryParse<DamageType>(current.DamageType, out var currentType)
             && currentType == DamageType.Absolute)
         {
-            var landedExtra = ForecastDamageLanding(target, extra);
-            var survivingBaseMax = Math.Min(current.Max, Math.Max(0, target.CurrentHp - 1));
+            var landedExtra = ForecastDamageLanding(target, extra, targetMorale);
+            var survivingBaseMax = Math.Min(current.Max, Math.Max(0, targetHp - 1));
             return current with
             {
                 Min = current.Min + (guaranteed ? landedExtra.Min : 0),
@@ -323,13 +434,15 @@ public sealed class AttackPreviewService
 
         var survivingNormalBaseMax = Math.Min(
             current.Max,
-            Math.Max(0, target.Morale + target.CurrentHp - 1));
+            Math.Max(0, targetMorale + targetHp - 1));
         var combined = current with
         {
             Min = current.Min + (guaranteed ? extra.Min : 0),
-            Max = Math.Max(current.Max, survivingNormalBaseMax + extra.Max)
+            Max = Math.Max(current.Max, survivingNormalBaseMax + extra.Max),
+            ShieldWillAbsorb = current.ShieldWillAbsorb || extra.ShieldWillAbsorb,
+            ShieldAbsorb = current.ShieldAbsorb + extra.ShieldAbsorb
         };
-        return ForecastDamageLanding(target, combined);
+        return ForecastDamageLanding(target, combined, targetMorale);
     }
 
     private static int ForecastAbsoluteDamage(
@@ -395,7 +508,70 @@ public sealed class AttackPreviewService
         };
     }
 
-    private static DamageForecast ForecastDamageLanding(CharacterState target, DamageForecast forecast)
+    private static DamageForecast AddPossibleDirectHpDamageIfTargetSurvives(
+        CharacterState target,
+        DamageForecast forecast,
+        int amount)
+    {
+        var triggered = AddDirectHpDamageIfTargetSurvives(target, forecast, amount);
+        return forecast with
+        {
+            Max = Math.Max(forecast.Max, triggered.Max),
+            HpDamageMax = Math.Max(forecast.HpDamageMax, triggered.HpDamageMax)
+        };
+    }
+
+    private int ForecastMonsterFollowUpDamage(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender)
+    {
+        if (attacker.Definition.Key != "monster" || defender.Definition.Key == "princess")
+            return 0;
+
+        var hasPrincess = state.FindOwner(attacker).Characters.Any(character =>
+            character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
+        var preyBonus = HeroRankRules.HasRank2Path(attacker, "predatory-gaze")
+            && defender.Statuses.Any(status => status.Id is "prey" or "nightmare-prey" && !status.Expired)
+                ? 1
+                : 0;
+        return _engine.GetActiveAttack(state, attacker)
+            + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0)
+            + preyBonus;
+    }
+
+    private IReadOnlyList<CollateralForecast> ForecastAstralSplash(
+        GameState state,
+        CharacterState attacker,
+        CharacterState defender,
+        AstralAlignmentStatus? alignment,
+        int remainingShield)
+    {
+        if (alignment is null)
+            return [];
+
+        var targetOwner = state.FindOwner(defender);
+        var splashBase = Math.Max(1, (int)Math.Ceiling(alignment.Magnitude / 2.0));
+
+        var forecasts = new List<CollateralForecast>();
+        foreach (var character in targetOwner.Characters
+            .Where(character => character.IsAlive
+                && !GameEngine.IsDeploying(character)
+                && Math.Abs(character.Slot - defender.Slot) == 1))
+        {
+            var forecast = ForecastCollateralDamage(
+                state, attacker, character, splashBase, DamageType.Magical, remainingShield);
+            forecasts.Add(new CollateralForecast(character, forecast));
+            remainingShield = Math.Max(0, remainingShield - forecast.ShieldAbsorb);
+        }
+
+        return forecasts;
+    }
+
+    private static DamageForecast ForecastDamageLanding(
+        CharacterState target,
+        DamageForecast forecast,
+        int? moraleOverride = null)
     {
         if (Enum.TryParse<DamageType>(forecast.DamageType, out var damageType) && damageType == DamageType.Absolute)
             return forecast with
@@ -406,7 +582,7 @@ public sealed class AttackPreviewService
                 HpDamageMax = forecast.Max
             };
 
-        var morale = Math.Max(0, target.Morale);
+        var morale = Math.Max(0, moraleOverride ?? target.Morale);
         return forecast with
         {
             MoraleDamageMin = Math.Min(morale, forecast.Min),
@@ -426,14 +602,14 @@ public sealed class AttackPreviewService
         var marked = attacker.Statuses.Any(status => status.Id == "marked" && !status.Expired);
         var attackerAttackType = GameEngine.GetAttackType(attacker);
         if (!marked)
-            return ForecastDamage(state, defender, attackBase, attackerAttackType, DamageSource.ActiveAttack,
+            return ForecastDamage(state, attacker, defender, attackBase, attackerAttackType, DamageSource.ActiveAttack,
                 ignoreShield: ignoreShield,
                 ignoreDefense: false);
 
-        var reduced = ForecastDamage(state, defender, attackBase / 2, attackerAttackType, DamageSource.ActiveAttack,
+        var reduced = ForecastDamage(state, attacker, defender, attackBase / 2, attackerAttackType, DamageSource.ActiveAttack,
             ignoreShield: ignoreShield,
             ignoreDefense: false);
-        var amplified = ForecastDamage(state, defender, attackBase + FateMarkedStatus.DamageBonus, attackerAttackType, DamageSource.ActiveAttack,
+        var amplified = ForecastDamage(state, attacker, defender, attackBase + FateMarkedStatus.DamageBonus, attackerAttackType, DamageSource.ActiveAttack,
             ignoreShield: ignoreShield,
             ignoreDefense: false);
         return CombineForecasts(reduced, amplified);
@@ -456,13 +632,15 @@ public sealed class AttackPreviewService
         GuardDamage = Math.Max(first.GuardDamage, second.GuardDamage)
     };
 
-    private DamageForecast ForecastDamage(GameState state, CharacterState target, int baseDamage,
-        DamageType type, DamageSource source, bool ignoreShield = false, bool ignoreDefense = false)
+    private DamageForecast ForecastDamage(GameState state, CharacterState sourceCharacter, CharacterState target, int baseDamage,
+        DamageType type, DamageSource source, bool ignoreShield = false, bool ignoreDefense = false,
+        bool canApplyHunted = true, int? sharedShieldOverride = null)
     {
         var owner = state.FindOwner(target);
+        var sharedShield = ignoreShield ? 0 : Math.Max(0, sharedShieldOverride ?? owner.SharedShield);
         var shieldDefense = 0;
         var damageAfterShieldDefense = baseDamage;
-        if (!ignoreShield && owner.SharedShield > 0 && damageAfterShieldDefense > 0)
+        if (sharedShield > 0 && damageAfterShieldDefense > 0)
         {
             var effectiveShieldDefense = GameEngine.GetSharedShieldDefense(owner, type);
             shieldDefense = effectiveShieldDefense > 0
@@ -475,11 +653,9 @@ public sealed class AttackPreviewService
                 : damageAfterShieldDefense + Math.Abs(shieldDefense);
         }
 
-        var shield = !ignoreShield && owner.SharedShield > 0 && damageAfterShieldDefense > 0;
-        var shieldAbsorb = shield ? Math.Min(owner.SharedShield, damageAfterShieldDefense) : 0;
-        var damageAfterShield = shield
-            ? 0
-            : damageAfterShieldDefense;
+        var shield = sharedShield > 0 && damageAfterShieldDefense > 0;
+        var shieldAbsorb = shield ? Math.Min(sharedShield, damageAfterShieldDefense) : 0;
+        var damageAfterShield = Math.Max(0, damageAfterShieldDefense - shieldAbsorb);
 
         var effectiveDefense = ignoreDefense ? 0 : _engine.GetDefense(state, target, type);
         var defense = effectiveDefense > 0
@@ -490,7 +666,8 @@ public sealed class AttackPreviewService
         var damageAfterDefense = defense >= 0
             ? Math.Max(0, damageAfterShield - defense)
             : damageAfterShield + Math.Abs(defense);
-        damageAfterDefense = ForecastIncomingStatusDamage(target, damageAfterDefense, type, source);
+        damageAfterDefense = ForecastIncomingStatusDamage(
+            sourceCharacter, target, damageAfterDefense, type, source, canApplyHunted);
         var max = Math.Max(0, damageAfterDefense);
         var oracleReduced = Math.Max(0, (int)Math.Ceiling(damageAfterDefense * 0.5));
         var hasOracle = owner.Characters.Any(character =>
@@ -518,7 +695,8 @@ public sealed class AttackPreviewService
         DamageSource damageSource,
         bool receivesMagicPowerBonus,
         bool grantStrongAttack = false,
-        bool canConsumeChargeStatuses = true)
+        bool canConsumeChargeStatuses = true,
+        bool canApplyOneShotStatuses = true)
     {
         var damage = Math.Max(0, amount);
         foreach (var status in source.Statuses.Where(status => !status.Expired))
@@ -534,6 +712,8 @@ public sealed class AttackPreviewService
                     Math.Max(1, (int)Math.Ceiling(damage * 1.5)),
                 "magic-surge" when damageSource == DamageSource.ActiveAttack && type == DamageType.Magical =>
                     Math.Max(1, (int)Math.Ceiling(damage * 1.5)),
+                "astral-alignment" when canApplyOneShotStatuses && type == DamageType.Magical => damage + status.Magnitude,
+                "militia-call" when canApplyOneShotStatuses && damageSource == DamageSource.ActiveAttack => damage + status.Magnitude,
                 "exhaustion" when type == DamageType.Physical => Math.Max(1, damage / 2),
                 "erosion" when type == DamageType.Magical => Math.Max(1, damage / 2),
                 _ => damage
@@ -576,10 +756,12 @@ public sealed class AttackPreviewService
         && status.Id is "burning" or "void" or "exhaustion" or "erosion" or "trembling" or "vulnerable";
 
     private static int ForecastIncomingStatusDamage(
+        CharacterState sourceCharacter,
         CharacterState target,
         int amount,
         DamageType type,
-        DamageSource source)
+        DamageSource source,
+        bool canApplyHunted)
     {
         var damage = Math.Max(0, amount);
         foreach (var status in target.Statuses.Where(status => !status.Expired))
@@ -594,6 +776,10 @@ public sealed class AttackPreviewService
                 "spell-ward" when type == DamageType.Magical => Math.Max(1, damage / 2),
                 "guard-oath" when source == DamageSource.ActiveAttack && type == DamageType.Physical =>
                     Math.Max(0, damage - GuardOathStatus.PhysicalReduction),
+                "hunted" when status is HuntedStatus hunted
+                    && canApplyHunted
+                    && sourceCharacter.Definition.CardType == CardType.Soldier
+                    && !hunted.HasTriggeredFor(sourceCharacter.Id) => damage + hunted.Magnitude,
                 _ => damage
             };
         }
@@ -616,7 +802,7 @@ public sealed class AttackPreviewService
             : 0;
     }
 
-    private static (bool, LocalizedText) ForecastTrait(GameState state, CharacterState attacker,
+    private (bool, LocalizedText) ForecastTrait(GameState state, CharacterState attacker,
         CharacterState defender, DamageForecast attack) => attacker.Definition.Key switch
     {
         "peasant" => attacker.Statuses.Any(status => status.Id == "harvest" && !status.Expired)
@@ -624,17 +810,28 @@ public sealed class AttackPreviewService
             : state.ActiveAttacksTakenThisTurn == 0
                 ? (true, L10n.Text("preview.trait.sowing"))
                 : (false, L10n.Text("preview.trait.notFirstAttack")),
-        "mage" => (true, L10n.Text(attacker.Statuses.Any(status =>
-            status.Id == "magic-power" && !status.Expired)
+        "mage" => (true, L10n.Text(HeroRankRules.HasRank2Path(attacker, "arcane-channel")
             ? "preview.trait.burningBoosted" : "preview.trait.burning")),
         "druid" => ForecastDruidTrait(defender, attack),
-        "barbarian" => (attack.HpDamageMax >= AftershockAxeTrait.TriggerDamage,
-            L10n.Text(attack.HpDamageMin >= AftershockAxeTrait.TriggerDamage
-                ? "preview.trait.aftershockGuaranteed" : "preview.trait.aftershockPossible")),
+        "barbarian" => ForecastBarbarianTrait(attacker, attack),
         "monster" => ForecastMonsterTrait(state, attacker, defender, attack),
         "jester" => ForecastJesterTrait(state, attacker, defender),
         _ => (false, L10n.Text("preview.trait.none"))
     };
+
+    private static (bool, LocalizedText) ForecastBarbarianTrait(
+        CharacterState attacker,
+        DamageForecast attack)
+    {
+        var ragingRank2 = HeroRankRules.HasRank2Path(attacker, "war-cry")
+            && attacker.Statuses.Any(status => status.Id == "rage" && !status.Expired);
+        if (ragingRank2)
+            return (true, L10n.Text("preview.trait.aftershockRage"));
+
+        return (attack.HpDamageMax >= AftershockAxeTrait.TriggerDamage,
+            L10n.Text(attack.HpDamageMin >= AftershockAxeTrait.TriggerDamage
+                ? "preview.trait.aftershockGuaranteed" : "preview.trait.aftershockPossible"));
+    }
 
     private static (bool, LocalizedText) ForecastJesterTrait(
         GameState state,
@@ -643,11 +840,82 @@ public sealed class AttackPreviewService
     {
         if (attacker.TraitsUsedThisTurn.Contains("malicious-jest"))
             return (false, L10n.Text("preview.trait.none"));
+        if (state.FindOwner(defender).SharedShield > 0)
+            return (false, L10n.Text("preview.trait.maliciousJestShielded"));
 
         var targetAlreadyHadDebuff = defender.Statuses.Any(status => !status.IsBuff && !status.Expired);
         return (true, L10n.Text("preview.trait.maliciousJest",
             ("status", L10n.Status(GameEngine.GetAttackType(defender) == DamageType.Physical ? "exhaustion" : "erosion")),
             ("spread", L10n.Raw(attacker.SoldierRank >= 1 && targetAlreadyHadDebuff ? 1 : 0))));
+    }
+
+    internal DamageForecast ForecastRoleActionDamage(
+        GameState state,
+        CharacterState actor,
+        CharacterState target,
+        int amount,
+        DamageType damageType,
+        out int remainingSharedShield,
+        int? targetMoraleOverride = null,
+        int? targetHpOverride = null)
+    {
+        var packet = ForecastRoleActionPrimaryDamage(
+            state, actor, target, amount, damageType, targetMoraleOverride);
+        var result = ApplyZeroHpTriggerForecast(state, target, packet);
+        var targetOwner = state.FindOwner(target);
+        var relics = ForecastChantAndBurningRelics(
+            state,
+            actor,
+            target,
+            packet,
+            result,
+            Math.Max(0, targetOwner.SharedShield - packet.ShieldAbsorb),
+            targetMoraleOverride,
+            targetHpOverride);
+        remainingSharedShield = relics.RemainingSharedShield;
+        return relics.Forecast;
+    }
+
+    internal DamageForecast ForecastRoleActionPrimaryDamage(
+        GameState state,
+        CharacterState actor,
+        CharacterState target,
+        int amount,
+        DamageType damageType,
+        int? targetMoraleOverride = null)
+    {
+        var outgoing = ForecastOutgoingDamage(
+            actor,
+            Math.Max(0, amount),
+            damageType,
+            DamageSource.RoleAction,
+            receivesMagicPowerBonus: damageType == DamageType.Magical);
+        return ForecastDamageLanding(
+            target,
+            ForecastDamage(state, actor, target, outgoing, damageType, DamageSource.RoleAction),
+            targetMoraleOverride);
+    }
+
+    internal DamageForecast ForecastCollateralDamage(
+        GameState state,
+        CharacterState actor,
+        CharacterState target,
+        int amount,
+        DamageType damageType,
+        int? sharedShieldOverride = null)
+    {
+        var outgoing = ForecastOutgoingDamage(
+            actor,
+            Math.Max(0, amount),
+            damageType,
+            DamageSource.Trait,
+            receivesMagicPowerBonus: false,
+            canConsumeChargeStatuses: false,
+            canApplyOneShotStatuses: false);
+        var packet = ForecastDamageLanding(target,
+            ForecastDamage(state, actor, target, outgoing, damageType, DamageSource.Trait,
+                sharedShieldOverride: sharedShieldOverride));
+        return ApplyZeroHpTriggerForecast(state, target, packet);
     }
 
     private static (bool, LocalizedText) ForecastDruidTrait(CharacterState defender, DamageForecast attack)
@@ -663,7 +931,7 @@ public sealed class AttackPreviewService
         return (true, L10n.Text(key));
     }
 
-    private static (bool, LocalizedText) ForecastMonsterTrait(GameState state, CharacterState attacker,
+    private (bool, LocalizedText) ForecastMonsterTrait(GameState state, CharacterState attacker,
         CharacterState defender, DamageForecast attack)
     {
         if (defender.Definition.Key == "princess")
@@ -671,8 +939,13 @@ public sealed class AttackPreviewService
 
         var hasPrincess = state.FindOwner(attacker).Characters.Any(character =>
             character.IsAlive && !GameEngine.IsDeploying(character) && character.Definition.Key == "princess");
-        var damage = attacker.Definition.Attack
-            + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0);
+        var preyBonus = HeroRankRules.HasRank2Path(attacker, "predatory-gaze")
+            && defender.Statuses.Any(status => status.Id is "prey" or "nightmare-prey" && !status.Expired)
+                ? 1
+                : 0;
+        var damage = _engine.GetActiveAttack(state, attacker)
+            + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0)
+            + preyBonus;
         var key = attack.HpDamageMax == 0 ? "preview.trait.beautyGuaranteed"
             : attack.HpDamageMin == 0 ? "preview.trait.beautyPossible"
             : "preview.trait.beautyUnavailable";

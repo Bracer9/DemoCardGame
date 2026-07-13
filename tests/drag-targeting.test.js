@@ -39,7 +39,7 @@ test('persistent team shield does not intercept attack drag targeting', () => {
 });
 
 test('shield hit animation does not re-anchor persistent shield geometry', () => {
-  assert.match(appSource, /shieldBlock\(target, amount, player\?\.sharedShield \|\| 0\)/);
+  assert.match(appSource, /shieldBlock\(target, amount, remaining\)/);
   assert.match(appSource, /function shieldBlock\(target, amount, remaining\)/);
   const shieldBlockSource = appSource.slice(
     appSource.indexOf('function shieldBlock('),
@@ -49,6 +49,10 @@ test('shield hit animation does not re-anchor persistent shield geometry', () =>
   assert.doesNotMatch(shieldBlockSource, /renderPersistentShield/);
   assert.doesNotMatch(shieldBlockSource, /playerId|expectedPlayerId|teamShieldVisualForPlayer/);
   assert.match(appSource, /dome\.dataset\.pendingBreak = 'true'/);
+  assert.match(appSource, /function updateShieldVisualValue\(dome, badge, value\)/);
+  assert.match(appSource, /function expireShieldVisual\(dome, badge = shieldBadgeForDome\(dome\)\)/);
+  assert.match(appSource, /dome\.dataset\.breakToken/);
+  assert.match(appSource, /dome\.dataset\.breakToken !== breakToken/);
 });
 
 test('persistent shield geometry reuses stable card bounds during card transitions', () => {

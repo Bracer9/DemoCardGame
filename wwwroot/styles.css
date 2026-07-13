@@ -1414,6 +1414,57 @@ body.ios-low-motion .battlefield-atmosphere-top::after {
   background:linear-gradient(180deg, rgba(255,240,198,.16), transparent 44%, rgba(29,15,8,.32));
   pointer-events:none;
 }
+.hero-draft-card-attack {
+  position:absolute;
+  z-index:3;
+  left:var(--card-attack-left);
+  top:var(--card-attack-top);
+  height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--card-attack-gap);
+  pointer-events:none;
+}
+.hero-draft-card-attack>span {
+  position:static;
+  font-size:0;
+  letter-spacing:0;
+}
+.hero-draft-card-attack>span::before {
+  content:"⚔";
+  color:var(--card-attack-icon-color);
+  font-size:var(--card-attack-icon-size);
+  line-height:1;
+  text-shadow:var(--card-attack-icon-shadow);
+}
+.hero-draft-card .hero-draft-card-attack>strong {
+  position:static;
+  margin:0;
+  color:var(--card-attack-color);
+  font-family:var(--card-attack-font-family);
+  font-size:var(--card-attack-font-size);
+  font-weight:900;
+  line-height:1;
+  text-shadow:var(--card-attack-text-shadow);
+}
+.hero-draft-card .hero-draft-card-attack>.attack-type-label {
+  position:absolute;
+  left:var(--card-attack-type-left);
+  right:auto;
+  top:var(--card-attack-type-top);
+  bottom:auto;
+  z-index:3;
+  margin:0;
+  color:var(--card-attack-color);
+  font-family:var(--card-attack-font-family);
+  font-size:var(--card-attack-type-size);
+  font-style:normal;
+  font-weight:900;
+  line-height:1;
+  letter-spacing:0;
+  text-shadow:var(--card-attack-text-shadow);
+}
 .hero-draft-card strong {
   position:absolute;
   left:18px;
@@ -3335,6 +3386,8 @@ body.dragging-attack, body.dragging-attack *, #app.dragging-attack, #app.draggin
   transition: opacity .18s ease, transform .2s ease, visibility .18s;
 }
 .preview-panel.open { opacity: 1; visibility: visible; transform: translate(-50%,-50%) scale(1); }
+.preview-panel [hidden] { display:none !important; }
+.preview-panel.role-action-preview .preview-notes { margin-top:12px; }
 .preview-panel::before {
   content:"";
   position:absolute;

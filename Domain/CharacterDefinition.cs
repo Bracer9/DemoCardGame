@@ -13,7 +13,8 @@ public sealed record CharacterDefinition(
     int MagicalDefense,
     string TraitId,
     IReadOnlyList<string>? RoleActionIds = null,
-    string? Rank2ColoredAssetFile = null);
+    string? Rank2ColoredAssetFile = null,
+    string? Rank2NameId = null);
 
 public static class CharacterCatalog
 {
@@ -29,15 +30,15 @@ public static class CharacterCatalog
         new("monster", CardType.Hero, "Monster.png", "New_Portraits/Monster2.png", 3, 4, 22, DamageType.Physical, 1, -1, "predatory-instinct"),
 
         new("cleric", CardType.Soldier, "New_Portraits/Cleric.png", "New_Portraits/Cleric.png", 1, 1, 14, DamageType.Magical, 0, 1, "field-medic",
-            Rank2ColoredAssetFile: "New_Portraits/SaintCleric.png"),
+            Rank2ColoredAssetFile: "New_Portraits/SaintCleric.png", Rank2NameId: "saint-cleric"),
         new("shieldmaiden", CardType.Soldier, "New_Portraits/Shieldmaiden.png", "New_Portraits/Shieldmaiden.png", 2, 1, 20, DamageType.Physical, 1, 0, "shield-drill",
-            Rank2ColoredAssetFile: "New_Portraits/AegisShieldmaiden.png"),
+            Rank2ColoredAssetFile: "New_Portraits/AegisShieldmaiden.png", Rank2NameId: "aegis-shieldmaiden"),
         new("duelist", CardType.Soldier, "New_Portraits/Duelist.png", "New_Portraits/Duelist.png", 1, 2, 12, DamageType.Physical, 0, -1, "duel-sense",
-            Rank2ColoredAssetFile: "New_Portraits/CrimsonDuelist.png"),
+            Rank2ColoredAssetFile: "New_Portraits/CrimsonDuelist.png", Rank2NameId: "crimson-duelist"),
         new("arcanist", CardType.Soldier, "New_Portraits/Arcanist.png", "New_Portraits/Arcanist.png", 2, 2, 12, DamageType.Magical, -1, 1, "arcane-resonance",
-            Rank2ColoredAssetFile: "New_Portraits/AstralArcanist.png"),
+            Rank2ColoredAssetFile: "New_Portraits/AstralArcanist.png", Rank2NameId: "astral-arcanist"),
         new("jester", CardType.Soldier, "New_Portraits/Jester.png", "New_Portraits/Jester.png", 1, 2, 13, DamageType.Magical, -1, 0, "malicious-jest",
-            Rank2ColoredAssetFile: "New_Portraits/MasqueJester.png")
+            Rank2ColoredAssetFile: "New_Portraits/MasqueJester.png", Rank2NameId: "masque-jester")
     ];
 
     public static IReadOnlyList<CharacterDefinition> Heroes { get; } =
