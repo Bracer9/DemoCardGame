@@ -73,16 +73,28 @@ public sealed class AttackPreviewService
         var jesterTraitWillApply = attacker.Definition.Key == "jester"
             && defenderOwner.SharedShield <= 0
             && !attacker.TraitsUsedThisTurn.Contains("malicious-jest");
-        var jesterAuraBonus = !monsterPrincessAttack
+        var jesterTraitGuaranteed = jesterTraitWillApply && attacker.SoldierRank >= 2;
+        var defenderAlreadyHasDebuff = defender.Statuses.Any(status => !status.IsBuff && !status.Expired);
+        var hasJesterAura = !monsterPrincessAttack
             && attackerAttackType is DamageType.Physical or DamageType.Magical
-            && GameEngine.HasActiveRank1SoldierAura(attackerOwner, "jester")
-            && (jesterTraitWillApply || defender.Statuses.Any(status => !status.IsBuff && !status.Expired))
-            ? 1
-            : 0;
-        attackBase += jesterAuraBonus;
+            && GameEngine.HasActiveRank1SoldierAura(attackerOwner, "jester");
+        var jesterAuraBonusGuaranteed = hasJesterAura
+            && (defenderAlreadyHasDebuff || jesterTraitGuaranteed);
+        var jesterAuraBonusPossible = hasJesterAura
+            && !defenderAlreadyHasDebuff
+            && jesterTraitWillApply
+            && !jesterTraitGuaranteed;
+        if (jesterAuraBonusGuaranteed)
+            attackBase++;
         var attackPacket = monsterPrincessAttack
             ? new DamageForecast(attackBase, attackBase, DamageType.Absolute.ToString(), 0, 0, 0, false, 0, false, 0)
             : ForecastActiveAttackDamage(state, attacker, defender, attackBase, monsterPrincessAttack);
+        if (jesterAuraBonusPossible)
+        {
+            var boostedAttackPacket = ForecastActiveAttackDamage(
+                state, attacker, defender, attackBase + 1, monsterPrincessAttack);
+            attackPacket = CombineForecasts(attackPacket, boostedAttackPacket);
+        }
         attackPacket = ForecastDamageLanding(defender, attackPacket);
         var attackHp = attackPacket;
         var attack = ApplyZeroHpTriggerForecast(state, defender, attackPacket);
@@ -154,13 +166,20 @@ public sealed class AttackPreviewService
             && !attackerOwner.RelicsUsedThisTurn.Contains("relic-echo-crystal");
         var counterBase = ForecastOutgoingDamage(defender, _engine.GetCounterAttack(state, defender),
             defenderAttackType, DamageSource.CounterAttack, receivesMagicPowerBonus: false);
+        var counterForecast = ForecastDamage(state, defender, attacker, counterBase,
+            defenderAttackType, DamageSource.CounterAttack);
+        var matchingJesterDebuff = MaliciousJestTrait.GetMatchingOutputDebuffId(defender);
         if (counterBase > 0
             && jesterTraitWillApply
-            && defender.Statuses.All(status => status.Expired || status.Id !=
-                (defenderAttackType == DamageType.Physical ? "exhaustion" : "erosion")))
-            counterBase = Math.Max(1, counterBase / 2);
-        var counter = ForecastDamage(state, defender, attacker, counterBase,
-            defenderAttackType, DamageSource.CounterAttack);
+            && defender.Statuses.All(status => status.Expired || status.Id != matchingJesterDebuff))
+        {
+            var reducedCounter = ForecastDamage(state, defender, attacker, Math.Max(1, counterBase / 2),
+                defenderAttackType, DamageSource.CounterAttack);
+            counterForecast = jesterTraitGuaranteed
+                ? reducedCounter
+                : CombineForecasts(reducedCounter, counterForecast);
+        }
+        var counter = counterForecast;
         counter = ForecastDamageLanding(attacker, counter);
         var counterHp = counter;
         counter = ApplyZeroHpTriggerForecast(state, attacker, counter);
@@ -181,8 +200,10 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-company-standard"))));
         if (redHourglassBonus > 0)
             notes.Add(L10n.Text("preview.relicTrigger", ("relic", L10n.Reward("relic-red-hourglass"))));
-        if (jesterAuraBonus > 0)
+        if (jesterAuraBonusGuaranteed)
             notes.Add(L10n.Text("preview.trait.jesterAura"));
+        else if (jesterAuraBonusPossible)
+            notes.Add(L10n.Text("preview.trait.jesterAuraPossible"));
         if (astralAlignment is not null)
             notes.Add(L10n.Text("preview.roleAction.damageBonus",
                 ("roleAction", L10n.RoleAction("astral-alignment")),
@@ -844,8 +865,9 @@ public sealed class AttackPreviewService
             return (false, L10n.Text("preview.trait.maliciousJestShielded"));
 
         var targetAlreadyHadDebuff = defender.Statuses.Any(status => !status.IsBuff && !status.Expired);
-        return (true, L10n.Text("preview.trait.maliciousJest",
-            ("status", L10n.Status(GameEngine.GetAttackType(defender) == DamageType.Physical ? "exhaustion" : "erosion")),
+        return (true, L10n.Text(attacker.SoldierRank >= 2
+                ? "preview.trait.maliciousJestGuaranteed"
+                : "preview.trait.maliciousJest",
             ("spread", L10n.Raw(attacker.SoldierRank >= 1 && targetAlreadyHadDebuff ? 1 : 0))));
     }
 

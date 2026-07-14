@@ -584,6 +584,8 @@ public sealed class ArcaneResonanceTrait : CharacterTrait
 
 public sealed class MaliciousJestTrait : CharacterTrait
 {
+    public const int DebuffApplicationChancePercent = 50;
+
     public override TraitMetadata Metadata { get; } = new(
         "malicious-jest",
         TraitTriggerKind.OnAttackDeclared,
@@ -613,9 +615,11 @@ public sealed class MaliciousJestTrait : CharacterTrait
 
     private static void ApplyOutputDebuff(GameEngineContext context, CharacterState source, CharacterState target)
     {
-        var statusId = GameEngine.GetAttackType(target) == DamageType.Physical
-            ? "exhaustion"
-            : "erosion";
+        if (source.SoldierRank < 2
+            && !context.Roll(DebuffApplicationChancePercent / 100.0))
+            return;
+
+        var statusId = GetMatchingOutputDebuffId(target);
         var wasNew = statusId == "exhaustion"
             ? GameEngine.AddExhaustion(target, source.Id)
             : GameEngine.AddErosion(target, source.Id);
@@ -625,6 +629,9 @@ public sealed class MaliciousJestTrait : CharacterTrait
             ("characterId", L10n.Raw(target.Id)),
             ("status", L10n.Status(statusId))), "debuff");
     }
+
+    public static string GetMatchingOutputDebuffId(CharacterState target) =>
+        GameEngine.GetAttackType(target) == DamageType.Physical ? "exhaustion" : "erosion";
 }
 
 public sealed class TraitRegistry

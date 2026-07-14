@@ -19,6 +19,9 @@ test('jester soldier is wired through rank, role action, deputy, aura, and previ
   assert.match(characterDefinitions, /New_Portraits\/Jester\.png/);
   assert.match(characterDefinitions, /New_Portraits\/MasqueJester\.png/);
   assert.match(traits, /class MaliciousJestTrait/);
+  assert.match(traits, /DebuffApplicationChancePercent = 50/);
+  assert.match(traits, /source\.SoldierRank < 2[\s\S]*?!context\.Roll\(DebuffApplicationChancePercent \/ 100\.0\)/);
+  assert.match(traits, /GetMatchingOutputDebuffId\(target\)/);
   assert.match(traits, /FindOwner\(target\)\.SharedShield > 0[\s\S]*?TraitsUsedThisTurn\.Add\(Metadata\.Id\)/);
   assert.match(traits, /Math\.Abs\(character\.Slot - target\.Slot\) ===? 1/);
   assert.match(roleActions, /"mocking-curtain-call"/);
@@ -29,6 +32,9 @@ test('jester soldier is wired through rank, role action, deputy, aura, and previ
   assert.match(dtos, /malicious-jest-aura/);
   assert.match(preview, /jesterAuraBonus/);
   assert.match(preview, /ForecastJesterTrait/);
+  assert.match(preview, /CombineForecasts\(reducedCounter, counterForecast\)/);
+  assert.match(preview, /jesterAuraBonusPossible[\s\S]*?CombineForecasts\(attackPacket, boostedAttackPacket\)/);
+  assert.match(preview, /jesterTraitGuaranteed[\s\S]*?\? reducedCounter/);
   assert.match(preview, /defenderOwner\.SharedShield <= 0[\s\S]*?malicious-jest/);
 });
 
@@ -38,6 +44,7 @@ test('jester localization and icon binding are complete in both languages', () =
     assert.ok(locale.deputies['deputy-jester']);
     assert.ok(locale.roleActions['mocking-curtain-call']);
     assert.ok(locale.traits['malicious-jest']);
+    assert.ok(locale.traits['malicious-jest'].ranks['2']);
     assert.ok(locale.statuses['malicious-jest-aura']);
     assert.ok(locale.messages['preview.trait.jesterAura']);
   }

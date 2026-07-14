@@ -1036,8 +1036,10 @@
     "preview.roleAction.warCryShieldBreak": "战吼：击破共有盾时，额外造成{value}点绝对伤害。",
     "preview.trait.duelSenseBonus": "决斗嗅觉：额外造成{value}点绝对伤害。",
     "preview.trait.jesterAura": "弄臣光环：对已有Debuff的目标主动攻击，伤害+1。",
-    "preview.trait.maliciousJest": "恶意戏谑：攻击前赋予{status}；扩散目标数：{spread}。",
+    "preview.trait.maliciousJest": "恶意戏谑：攻击前有50%概率赋予与目标攻击类型对应的Debuff；扩散目标数：{spread}。",
+    "preview.trait.maliciousJestGuaranteed": "恶意戏谑：攻击前确定赋予与目标攻击类型对应的Debuff；扩散目标数：{spread}。",
     "preview.trait.maliciousJestShielded": "敌方共有盾仍存在，恶意戏谑不会触发，也不会消耗本回合的触发机会。",
+    "preview.trait.jesterAuraPossible": "恶意戏谑成功赋予Debuff时，本次主动攻击伤害+1。",
     "log.arcaneChannel": "{character}开始秘术蓄能。",
     "log.starReading": "{actor}读出星象，{target}可以再次主动攻击。",
     "log.fateMark": "{actor}为{target}刻下命运标记。",
@@ -1313,12 +1315,16 @@
     },
     "malicious-jest": {
       "name": "恶意戏谑",
-      "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，根据目标攻击类型赋予力竭或磨损。",
-      "card": "每回合1次，攻击无共有盾保护的敌人前，按其攻击类型赋予力竭或磨损。",
+      "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，有50%概率根据目标攻击类型赋予力竭或磨损。",
+      "card": "每回合1次，攻击无共有盾保护的敌人前，50%赋予对应的力竭/磨损。",
       "ranks": {
         "1": {
-          "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，根据目标攻击类型赋予力竭或磨损。若主目标在触发前已有Debuff，同时对相邻敌人按其攻击类型赋予力竭或磨损。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
-          "card": "已有Debuff时扩散力竭/磨损；攻击Debuff目标伤害+1光环。"
+          "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，有50%概率根据目标攻击类型赋予力竭或磨损。若主目标在触发前已有Debuff，每个相邻敌人也分别独立进行一次50%判定。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
+          "card": "50%赋予对应的力竭/磨损；已有Debuff时各自以50%扩散；攻击Debuff目标伤害+1光环。"
+        },
+        "2": {
+          "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，根据目标攻击类型确定赋予力竭或磨损。若主目标在触发前已有Debuff，同时对每个相邻敌人确定赋予对应的力竭或磨损。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
+          "card": "确定赋予对应的力竭/磨损；已有Debuff时确定扩散；攻击Debuff目标伤害+1光环。"
         }
       }
     }

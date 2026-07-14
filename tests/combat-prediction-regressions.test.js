@@ -61,11 +61,13 @@ test('attack forecast includes current rank 3 damage statuses and actual orderin
 });
 
 test('jester and growth-path trait forecasts mirror declaration-time combat rules', () => {
-  assert.match(preview, /jesterTraitWillApply[\s\S]*counterBase = Math\.Max\(1, counterBase \/ 2\)/);
+  assert.match(preview, /jesterTraitWillApply[\s\S]*CombineForecasts\(reducedCounter, counterForecast\)/);
+  const jesterEligibility = preview.match(/var jesterTraitWillApply =[\s\S]*?;/)?.[0] || '';
   assert.doesNotMatch(
-    preview.slice(preview.indexOf('var jesterTraitWillApply'), preview.indexOf('var jesterAuraBonus')),
+    jesterEligibility,
     /SoldierRank/
   );
+  assert.match(preview, /jesterTraitGuaranteed = jesterTraitWillApply && attacker\.SoldierRank >= 2/);
   assert.match(preview, /HeroRankRules\.HasRank2Path\(attacker, "arcane-channel"\)/);
   assert.match(preview, /preview\.trait\.aftershockRage/);
   assert.match(preview, /_engine\.GetActiveAttack\(state, attacker\)/);
