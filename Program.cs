@@ -13,6 +13,7 @@ builder.Services.AddSingleton<OnlineGameSession>();
 builder.Services.AddSingleton<GameViewFactory>();
 builder.Services.AddSingleton<AttackPreviewService>();
 builder.Services.AddSingleton<RoleActionPreviewService>();
+builder.Services.AddSingleton<NormalAiService>();
 builder.Services.AddSingleton<SimpleAiService>();
 
 var app = builder.Build();
@@ -220,8 +221,15 @@ app.MapPost("/api/game/new", (GameSession session, GameViewFactory views) =>
 app.MapPost("/api/game/test/new", (GameSession session, GameViewFactory views) =>
     Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewTestGame()), Message: L10n.Text("message.newGame"))));
 
-app.MapPost("/api/game/ai/new", (GameSession session, GameViewFactory views) =>
-    Results.Ok(new ApiEnvelope<GameView>(views.Create(session.NewAiGame()), Message: L10n.Text("message.newGame"))));
+app.MapPost("/api/game/ai/new", (NewAiGameRequest request, GameSession session, GameViewFactory views) =>
+{
+    var difficulty = string.Equals(request.Difficulty, "normal", StringComparison.OrdinalIgnoreCase)
+        ? AiDifficulty.Normal
+        : AiDifficulty.Easy;
+    return Results.Ok(new ApiEnvelope<GameView>(
+        views.Create(session.NewAiGame(difficulty)),
+        Message: L10n.Text("message.newGame")));
+});
 
 app.MapPost("/api/game/ai/advance", (GameSession session, SimpleAiService ai, GameViewFactory views) =>
 {

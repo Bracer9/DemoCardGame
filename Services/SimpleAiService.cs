@@ -10,6 +10,7 @@ public sealed class SimpleAiService
     private const int MaxSteps = 80;
     private readonly GameEngine _engine;
     private readonly AttackPreviewService _previews;
+    private readonly NormalAiService _normal;
 
     private static readonly IReadOnlyDictionary<string, int> HeroPreference = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
     {
@@ -44,10 +45,11 @@ public sealed class SimpleAiService
         ["knight"] = "guard-oath"
     };
 
-    public SimpleAiService(GameEngine engine, AttackPreviewService previews)
+    public SimpleAiService(GameEngine engine, AttackPreviewService previews, NormalAiService normal)
     {
         _engine = engine;
         _previews = previews;
+        _normal = normal;
     }
 
     public SimpleAiAdvanceResult Advance(GameState state)
@@ -96,35 +98,35 @@ public sealed class SimpleAiService
         if (draft is null || draft.PlayerId != aiPlayerId)
             return false;
 
+        var owner = state.Players.Single(player => player.Id == aiPlayerId);
+
         if (draft.Kind is HeroDraftKind.SoldierOpening or HeroDraftKind.SoldierRecruit)
         {
-            var key = ChooseByPreference(draft.CandidateKeys, SoldierPreference);
-            if (key is null)
+            var choice = ChooseSoldierDraft(draft, owner);
+            if (choice.Key is null)
+            {
+                if (draft.Kind == HeroDraftKind.SoldierRecruit)
+                {
+                    _engine.CancelSoldierRecruitDraft(state, aiPlayerId);
+                    return true;
+                }
                 return false;
-
-            var owner = state.Players.Single(player => player.Id == aiPlayerId);
-            var upgradeTarget = owner.Characters
-                .Where(character => character.IsInBattle
-                    && character.Definition.CardType == CardType.Soldier
-                    && character.Definition.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
-                    && character.SoldierRank < 2)
-                .OrderByDescending(character => character.SoldierRank)
-                .FirstOrDefault();
+            }
 
             if (draft.Kind == HeroDraftKind.SoldierRecruit && owner.ActiveCharacterCount >= 4)
             {
-                if (upgradeTarget is null)
+                if (choice.UpgradeTarget is null)
                     _engine.CancelSoldierRecruitDraft(state, aiPlayerId);
                 else
-                    _engine.UpgradeSoldierFromDraft(state, aiPlayerId, key, upgradeTarget.Id);
+                    _engine.UpgradeSoldierFromDraft(state, aiPlayerId, choice.Key, choice.UpgradeTarget.Id);
                 return true;
             }
 
-            _engine.SelectSoldierDraft(state, aiPlayerId, [key]);
+            _engine.SelectSoldierDraft(state, aiPlayerId, [choice.Key]);
             return true;
         }
 
-        var heroKey = ChooseByPreference(draft.CandidateKeys, HeroPreference);
+        var heroKey = ChooseHeroDraft(draft.CandidateKeys, owner);
         if (heroKey is null)
             return false;
 
@@ -135,24 +137,42 @@ public sealed class SimpleAiService
     private bool HandleRoleActionUpgrade(GameState state, Guid aiPlayerId)
     {
         var owner = state.Players.Single(player => player.Id == aiPlayerId);
-        var hero = owner.Characters
+        var candidates = owner.Characters
             .Where(character => _engine.CanUpgradeHeroRank(character))
-            .OrderBy(character => character.HeroRank)
-            .ThenByDescending(character => HeroPreference.GetValueOrDefault(character.Definition.Key, 0))
-            .FirstOrDefault();
-        if (hero is null)
+            .Select(character => new
+            {
+                Hero = character,
+                Weight = 10
+                    + (3 - character.HeroRank) * 3
+                    + ScoreHeroBuildFit(owner, character) * 2
+                    + HeroPreference.GetValueOrDefault(character.Definition.Key, 0) / 30
+            })
+            .ToArray();
+        if (candidates.Length == 0)
             return false;
+        var hero = ChooseWeighted(candidates, candidate => candidate.Weight).Hero;
 
         var roleActionId = "";
         if (hero.HeroRank == 0)
         {
             var choices = _engine.GetRoleActionUpgradeChoices(hero);
-            roleActionId = choices.FirstOrDefault(action =>
-                    PreferredHeroPath.TryGetValue(hero.Definition.Key, out var preferred)
-                    && action.Metadata.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase))
-                ?.Metadata.Id
-                ?? choices.FirstOrDefault()?.Metadata.Id
-                ?? "";
+            var profile = AiBuildProfile.Create(owner, hero.Id);
+            var weightedChoices = choices
+                .Select(action => new
+                {
+                    Action = action,
+                    Path = HeroGrowthCatalog.FindByBaseRoleAction(action.Metadata.Id),
+                    IsPreferred = PreferredHeroPath.TryGetValue(hero.Definition.Key, out var preferred)
+                        && action.Metadata.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase)
+                })
+                .ToArray();
+            if (weightedChoices.Length > 0)
+            {
+                roleActionId = ChooseWeighted(weightedChoices, choice =>
+                    8
+                    + (choice.Path is null ? 0 : profile.Score(choice.Path.RelicTags) * 2)
+                    + (choice.IsPreferred ? 2 : 0)).Action.Metadata.Id;
+            }
         }
 
         _engine.SelectRoleActionUpgrade(state, hero.Id, roleActionId);
@@ -166,20 +186,26 @@ public sealed class SimpleAiService
             return false;
 
         var player = state.Players.Single(item => item.Id == reward.PlayerId);
+        var profile = AiBuildProfile.Create(player);
         if (state.PendingRelicReward is { PlayerId: var pendingRelicPlayerId } pendingRelic
             && pendingRelicPlayerId == player.Id)
         {
-            var relicOption = pendingRelic.Options
+            var relicChoices = pendingRelic.Options
                 .Where(option => player.BattlePoints.Current >= option.Cost)
-                .OrderByDescending(option => RewardScore(option, player))
-                .ThenBy(option => option.Cost)
-                .FirstOrDefault();
-            if (relicOption is null || RewardScore(relicOption, player) <= 0)
+                .Select(option => new
+                {
+                    Option = option,
+                    Weight = RewardScore(option, player, profile)
+                })
+                .Where(choice => choice.Weight > 0)
+                .ToArray();
+            if (relicChoices.Length == 0)
             {
                 _engine.ReturnToRewardWindow(state, player.Id);
                 return true;
             }
 
+            var relicOption = ChooseWeighted(relicChoices, choice => choice.Weight).Option;
             _engine.SelectReward(state, relicOption.InstanceId);
             return true;
         }
@@ -195,21 +221,41 @@ public sealed class SimpleAiService
             return true;
         }
 
-        var option = affordable
-            .OrderByDescending(option => RewardScore(option, player))
-            .ThenBy(option => option.Cost)
-            .FirstOrDefault();
-        if (option is null || RewardScore(option, player) <= 0)
+        var freeRoleActionUpgrade = affordable.FirstOrDefault(option =>
+            option.RewardId == RewardCatalog.HeroRoleActionUpgrade.Id && option.Cost == 0);
+        if (freeRoleActionUpgrade is not null)
+        {
+            _engine.SelectReward(state, freeRoleActionUpgrade.InstanceId);
+            return true;
+        }
+
+        if (state.AiDifficulty == AiDifficulty.Normal
+            && _normal.ShouldBankBattlePoints(state, reward, affordable))
         {
             _engine.SkipRewardWindow(state);
             return true;
         }
 
+        var rewardChoices = affordable
+            .Select(option => new
+            {
+                Option = option,
+                Weight = RewardScore(option, player, profile)
+            })
+            .Where(choice => choice.Weight > 0)
+            .ToArray();
+        if (rewardChoices.Length == 0)
+        {
+            _engine.SkipRewardWindow(state);
+            return true;
+        }
+
+        var option = ChooseWeighted(rewardChoices, choice => choice.Weight).Option;
         _engine.SelectReward(state, option.InstanceId);
         return true;
     }
 
-    private static int RewardScore(RewardOptionState option, PlayerState player)
+    private static int RewardScore(RewardOptionState option, PlayerState player, AiBuildProfile profile)
     {
         if (option.RewardId == "soldier-recruit"
             && player.ActiveCharacterCount >= 4
@@ -217,6 +263,19 @@ public sealed class SimpleAiService
                 && character.Definition.CardType == CardType.Soldier
                 && character.SoldierRank < 2))
             return -100;
+
+        var relic = RelicCatalog.Find(option.RewardId);
+        if (relic is not null)
+        {
+            var rarityBonus = relic.Rarity.ToLowerInvariant() switch
+            {
+                "epic" => 4,
+                "rare" => 2,
+                _ => 0
+            };
+            return 20 + profile.Score(relic.BuildTags) * 2 + rarityBonus - option.Cost;
+        }
+
         return option.RewardId switch
     {
         "hero-role-action-upgrade" => 100,
@@ -232,6 +291,12 @@ public sealed class SimpleAiService
 
     private bool HandleBattleAction(GameState state)
     {
+        if (TryAssignDeputy(state))
+            return true;
+
+        if (state.AiDifficulty == AiDifficulty.Normal && _normal.TryUseRoleAction(state))
+            return true;
+
         if (TryAttack(state))
             return true;
 
@@ -258,15 +323,14 @@ public sealed class SimpleAiService
             .SelectMany(attacker => enemy.Characters
                 .Where(target => target.IsAlive && target.IsInBattle && !GameEngine.IsDeploying(target))
                 .Select(target => ScoreAttack(state, attacker, target)))
-            .Where(item => item.Score > int.MinValue)
-            .OrderByDescending(item => item.Score)
+            .Where(item => item.Score >= 8)
             .ToList();
 
-        var best = candidates.FirstOrDefault();
-        if (best.Attacker is null || best.Target is null || best.Score < 8)
+        if (candidates.Count == 0)
             return false;
 
-        _engine.Attack(state, best.Attacker.Id, best.Target.Id);
+        var selected = ChooseWeighted(candidates, candidate => Math.Clamp(candidate.Score, 1, 120));
+        _engine.Attack(state, selected.Attacker!.Id, selected.Target!.Id);
         return true;
     }
 
@@ -312,6 +376,163 @@ public sealed class SimpleAiService
         return owner.SharedShield <= 2 || owner.Characters.Any(character => character.IsAlive && character.CurrentHp * 2 <= _engine.GetMaxHp(character));
     }
 
-    private static string? ChooseByPreference(IEnumerable<string> keys, IReadOnlyDictionary<string, int> preference) =>
-        keys.OrderByDescending(key => preference.GetValueOrDefault(key, 0)).FirstOrDefault();
+    private string? ChooseHeroDraft(IEnumerable<string> keys, PlayerState owner)
+    {
+        var profile = AiBuildProfile.Create(owner);
+        var activeAttackTypes = owner.Characters
+            .Where(character => character.IsAlive && character.IsInBattle)
+            .Select(character => character.Definition.AttackType)
+            .ToHashSet();
+
+        var candidates = keys
+            .Select(key => CharacterCatalog.Heroes.FirstOrDefault(definition =>
+                definition.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            .Where(definition => definition is not null)
+            .Select(definition => new
+            {
+                Definition = definition!,
+                Weight = 10
+                    + profile.Score(AiBuildProfile.GetHeroTags(definition!.Key)) * 2
+                    + HeroPreference.GetValueOrDefault(definition.Key, 0) / 25
+                    + (activeAttackTypes.Contains(definition.AttackType) ? 0 : 2)
+            })
+            .ToArray();
+        return candidates.Length == 0
+            ? null
+            : ChooseWeighted(candidates, candidate => candidate.Weight).Definition.Key;
+    }
+
+    private (string? Key, CharacterState? UpgradeTarget) ChooseSoldierDraft(
+        PendingHeroDraftState draft,
+        PlayerState owner)
+    {
+        var profile = AiBuildProfile.Create(owner);
+        var teamIsFull = draft.Kind == HeroDraftKind.SoldierRecruit && owner.ActiveCharacterCount >= 4;
+        var activeAttackTypes = owner.Characters
+            .Where(character => character.IsAlive && character.IsInBattle)
+            .Select(character => character.Definition.AttackType)
+            .ToHashSet();
+
+        var candidates = draft.CandidateKeys
+            .Select(key => new
+            {
+                Key = key,
+                Definition = CharacterCatalog.Soldiers.FirstOrDefault(definition =>
+                    definition.Key.Equals(key, StringComparison.OrdinalIgnoreCase)),
+                UpgradeTarget = FindSoldierUpgradeTarget(owner, key)
+            })
+            .Where(choice => choice.Definition is not null && (!teamIsFull || choice.UpgradeTarget is not null))
+            .Select(choice => new
+            {
+                choice.Key,
+                choice.UpgradeTarget,
+                Weight = 10
+                    + profile.Score(AiBuildProfile.GetSoldierTags(choice.Key)) * 2
+                    + SoldierPreference.GetValueOrDefault(choice.Key, 0) / 25
+                    + (activeAttackTypes.Contains(choice.Definition!.AttackType) ? 0 : 2)
+                    + (choice.UpgradeTarget?.SoldierRank ?? 0) * 3
+                    - owner.Characters.Count(character => character.IsInBattle
+                        && character.Definition.Key.Equals(choice.Key, StringComparison.OrdinalIgnoreCase)) * 4
+            })
+            .ToArray();
+        if (candidates.Length == 0)
+            return default;
+
+        var selected = ChooseWeighted(candidates, choice => Math.Max(1, choice.Weight));
+        return (selected.Key, selected.UpgradeTarget);
+    }
+
+    private static CharacterState? FindSoldierUpgradeTarget(PlayerState owner, string key) =>
+        owner.Characters
+            .Where(character => character.IsInBattle
+                && character.Definition.CardType == CardType.Soldier
+                && character.Definition.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
+                && character.SoldierRank < 2)
+            .OrderByDescending(character => character.SoldierRank)
+            .ThenByDescending(character => character.CurrentHp)
+            .FirstOrDefault();
+
+    private static int ScoreHeroBuildFit(PlayerState owner, CharacterState hero) =>
+        AiBuildProfile.Create(owner, hero.Id).Score(AiBuildProfile.GetHeroTags(hero));
+
+    private bool TryAssignDeputy(GameState state)
+    {
+        var owner = state.ActivePlayer;
+        if (owner.ActiveCharacterCount < 4)
+            return false;
+
+        var soldiers = owner.Characters
+            .Where(soldier => _engine.GetAssignDeputyDisabledReason(state, soldier) is null)
+            .ToArray();
+        var heroes = owner.Characters
+            .Where(hero => hero.Definition.CardType == CardType.Hero
+                && hero.IsAlive
+                && hero.IsInBattle
+                && !GameEngine.IsDeploying(hero)
+                && hero.DeputySoldierId is null
+                && hero.DeputyEffectId is null)
+            .ToArray();
+
+        var choices = soldiers
+            .SelectMany(soldier => heroes.Select(hero => new
+            {
+                Soldier = soldier,
+                Hero = hero,
+                Score = ScoreDeputyAssignment(owner, soldier, hero)
+            }))
+            .Where(choice => choice.Score >= 10)
+            .ToArray();
+
+        if (choices.Length == 0)
+            return false;
+
+        var selected = ChooseWeighted(choices, choice => choice.Score);
+        _engine.AssignDeputy(state, selected.Soldier.Id, selected.Hero.Id);
+        return true;
+    }
+
+    private int ScoreDeputyAssignment(PlayerState owner, CharacterState soldier, CharacterState hero)
+    {
+        var deputy = DeputyCatalog.FindBySoldierKey(soldier.Definition.Key);
+        if (deputy is null)
+            return int.MinValue;
+
+        var attackType = GameEngine.GetAttackType(hero);
+        var statScore = deputy.StatKind switch
+        {
+            DeputyStatKind.PhysicalAttack when attackType == DamageType.Physical => 18,
+            DeputyStatKind.MagicalAttack when attackType == DamageType.Magical => 18,
+            DeputyStatKind.PhysicalAttack or DeputyStatKind.MagicalAttack => -100,
+            DeputyStatKind.Attack => 12,
+            DeputyStatKind.PhysicalDefense => 10 + Math.Max(0, 1 - _engine.GetPhysicalDefense(hero)),
+            DeputyStatKind.MagicalDefense => 10 + Math.Max(0, 1 - _engine.GetMagicalDefense(hero)),
+            _ => 8
+        };
+        if (statScore < 0)
+            return statScore;
+
+        var profile = AiBuildProfile.Create(owner, soldier.Id);
+        var hostTags = AiBuildProfile.GetHeroTags(hero);
+        var directMatches = deputy.BuildTags.Intersect(hostTags, StringComparer.OrdinalIgnoreCase).Count();
+        var lostUnitValue = soldier.Definition.Attack * 3 + soldier.Definition.Cost * 2 + 4;
+        return statScore
+            + profile.Score(deputy.BuildTags) * 2
+            + directMatches * 6
+            - lostUnitValue;
+    }
+
+    private T ChooseWeighted<T>(IReadOnlyList<T> choices, Func<T, int> weightSelector)
+    {
+        var weights = choices.Select(choice => Math.Max(1, weightSelector(choice))).ToArray();
+        var total = weights.Sum();
+        var roll = _engine.Next(total);
+        for (var index = 0; index < choices.Count; index++)
+        {
+            roll -= weights[index];
+            if (roll < 0)
+                return choices[index];
+        }
+
+        return choices[^1];
+    }
 }

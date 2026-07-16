@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const engine = fs.readFileSync('Domain/GameEngine.cs', 'utf8');
 const statuses = fs.readFileSync('Domain/StatusEffects.cs', 'utf8');
+const traits = fs.readFileSync('Domain/Traits.cs', 'utf8');
 const preview = fs.readFileSync('Api/AttackPreviewService.cs', 'utf8');
 const rolePreview = fs.readFileSync('Api/RoleActionPreviewService.cs', 'utf8');
 const program = fs.readFileSync('Program.cs', 'utf8');
@@ -50,14 +51,27 @@ test('attack forecast includes current rank 3 damage statuses and actual orderin
   assert.match(statuses, /bool HasTriggeredFor\(Guid soldierId\)/);
   assert.match(preview, /status is PreyStatus or NightmarePreyStatus/);
   assert.ok(
-    preview.indexOf('ApplyZeroHpTriggerForecast(state, defender, attackPacket)')
+    preview.indexOf('ApplyNoDamageTriggerForecast(state, defender, attackPacket)')
       < preview.indexOf('var chantRelicForecast = ForecastChantAndBurningRelics('),
-    'zero-HP prey effects must be forecast before post-damage relics'
+    'no-damage prey effects must be forecast before post-damage relics'
   );
   assert.match(preview, /VictoryEdictStatus/);
   assert.match(preview, /AbyssalBargainStatus/);
   assert.match(preview, /RemainingSharedShield/);
   assert.match(preview, /sharedShieldOverride: remainingSharedShield/);
+});
+
+test('monster and prey absolute follow-ups require both morale and HP damage to be zero', () => {
+  assert.match(traits, /AttackMoraleDamageDealt/);
+  assert.match(traits, /exchange\.AttackDamageDealt != 0\s*\|\| exchange\.AttackMoraleDamageDealt != 0/);
+  const prey = methodBody(engine, 'private void ResolvePreyNoDamage');
+  assert.match(prey, /packet\.HpDamage != 0 \|\| packet\.MoraleDamage != 0/);
+  const nightBait = methodBody(engine, 'private void TriggerNightBaitAfterDamage');
+  assert.match(nightBait, /packet\.HpDamage != 0[\s\S]*?packet\.MoraleDamage != 0/);
+  assert.match(preview, /forecast\.HpDamageMin > 0\s*\|\| forecast\.MoraleDamageMin > 0/);
+  assert.match(preview, /forecast\.HpDamageMax == 0\s*&& forecast\.MoraleDamageMax == 0/);
+  assert.match(zh.traits['predatory-instinct'].description, /士气与HP/);
+  assert.match(ja.traits['predatory-instinct'].description, /士気・HP/);
 });
 
 test('jester and growth-path trait forecasts mirror declaration-time combat rules', () => {

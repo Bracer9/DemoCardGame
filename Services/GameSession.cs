@@ -54,7 +54,7 @@ public sealed class GameSession
         }
     }
 
-    public GameState NewAiGame()
+    public GameState NewAiGame(AiDifficulty difficulty = AiDifficulty.Easy)
     {
         var slot = GetSlot();
         lock (slot.Sync)
@@ -63,6 +63,7 @@ public sealed class GameSession
             slot.State = _engine.CreateGame();
             slot.State.LocalViewerPlayerId = slot.State.Players[0].Id;
             slot.State.AiPlayerId = slot.State.Players[1].Id;
+            slot.State.AiDifficulty = difficulty;
             slot.State.Players[1].Name = "AI";
             return slot.State;
         }

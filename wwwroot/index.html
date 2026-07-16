@@ -38,12 +38,20 @@
         <button id="start-test" class="mode-choice test-choice" type="button">
           <b data-i18n="testPlay">テストモード</b><small data-i18n="testPlayHint">英雄とロールアクションを確認</small>
         </button>
-        <button id="start-ai" class="mode-choice ai-choice" type="button">
+        <button id="start-ai" class="mode-choice ai-choice" type="button" aria-expanded="false" aria-controls="ai-difficulty-menu">
           <b data-i18n="aiPlay">AI対戦</b><small data-i18n="aiPlayHint">シンプルAIと1人で遊ぶ</small>
         </button>
         <button id="open-online" class="mode-choice online-choice" type="button">
           <b data-i18n="onlinePlay">オンライン対戦</b><small data-i18n="onlinePlayHint">招待リンクで友達とプレイ</small>
         </button>
+        <div id="ai-difficulty-menu" class="ai-difficulty-menu" hidden aria-label="AI難易度" data-i18n-aria="aiDifficultyMenu">
+          <button class="mode-choice ai-difficulty-choice" type="button" data-ai-difficulty="easy">
+            <b data-i18n="aiEasy">EASY</b><small data-i18n="aiEasyHint">構築傾向はあるが、ロールアクションは使わない</small>
+          </button>
+          <button class="mode-choice ai-difficulty-choice" type="button" data-ai-difficulty="normal">
+            <b data-i18n="aiNormal">NORMAL</b><small data-i18n="aiNormalHint">状況を見てロールアクションとBPを活用</small>
+          </button>
+        </div>
       </div>
       <div id="online-lobby" class="online-lobby" hidden>
         <button id="lobby-back" class="lobby-back" type="button" data-i18n="backToModes">← モード選択へ</button>

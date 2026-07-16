@@ -12,7 +12,7 @@
 | `shieldmaiden` | `shield-drill` | HP+2，物防+1，强化坚守延长 | `aegis-formation` |
 | `duelist` | `duel-sense` | HP+1，首次主动 HP 伤害后追加绝对伤害 | `crimson-lunge` |
 | `arcanist` | `arcane-resonance` | HP+2，魔防+1，Role Action 触发时魔涌持续更久 | `astral-focus` |
-| `jester` | `malicious-jest` | Rank0/1每回合1次，攻击无共有盾保护的敌人前50%赋予对应力竭/磨损；Rank2改为确定赋予；HP+2，已有Debuff时向相邻敌人扩散，Debuff目标主动攻击伤害+1 | `mocking-curtain-call` |
+| `jester` | `malicious-jest` | Rank0/1每回合1次：无盾攻击前50%赋予对应力竭/磨损，造成HP伤害则必定赋予；Rank2改为确定赋予；HP+2，已有Debuff时向相邻敌人扩散，Debuff目标主动攻击伤害+1 | `mocking-curtain-call` |
 
 所有士兵效果复用既有通用状态，不新增士兵专属状态。
 

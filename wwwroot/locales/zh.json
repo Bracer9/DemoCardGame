@@ -7,7 +7,12 @@
     "testPlay": "测试模式",
     "testPlayHint": "自由选4名英雄，职业行动全解锁",
     "aiPlay": "单人对战",
-    "aiPlayHint": "和简单AI打一局",
+    "aiPlayHint": "选择AI难度开始对战",
+    "aiDifficultyMenu": "AI难度选择",
+    "aiEasy": "EASY",
+    "aiEasyHint": "有构筑倾向，但不会使用职业行动",
+    "aiNormal": "NORMAL",
+    "aiNormalHint": "会根据局势使用职业行动并经营BP",
     "onlinePlay": "在线对战",
     "onlinePlayHint": "通过邀请链接与朋友游玩",
     "backToModes": "← 返回模式选择",
@@ -366,7 +371,7 @@
     },
     "relic-night-bait": {
       "name": "夜饵",
-      "description": "每回合首次对敌人造成0点HP伤害时，赋予猎物。"
+      "description": "每回合首次未削减敌人士气与HP时，赋予猎物。"
     },
     "relic-command-table": {
       "name": "指挥桌",
@@ -504,7 +509,7 @@
     },
     "predatory-gaze": {
       "name": "捕食凝视",
-      "description": "敌方1体获得猎物：本回合每次受到0点HP伤害时，追加2点绝对伤害。",
+      "description": "敌方1体获得猎物：本回合每次士气与HP均未受损时，追加2点绝对伤害。",
       "button": "凝视"
     },
     "dark-pact": {
@@ -609,7 +614,7 @@
     },
     "nightmare-stare": {
       "name": "噩梦凝视",
-      "description": "目标及相邻敌人获得噩梦猎物，持续到本回合结束：每个目标第一次受到0点HP伤害时，追加怪物当前攻击力的绝对伤害并消耗该标记。主目标额外获得磨损。",
+      "description": "目标及相邻敌人获得噩梦猎物，持续到本回合结束：每个目标第一次士气与HP均未受损时，追加怪物当前攻击力的绝对伤害并消耗该标记。主目标额外获得磨损。",
       "button": "噩梦"
     },
     "abyssal-bargain": {
@@ -793,7 +798,7 @@
     "prey": {
       "name": "猎物",
       "timing": "本回合结束前",
-      "description": "每次受到0点HP伤害时，追加{magnitude}点绝对伤害。"
+      "description": "每次士气与HP均未受损时，追加{magnitude}点绝对伤害。"
     },
     "pact": {
       "name": "契约",
@@ -842,8 +847,8 @@
     },
     "nightmare-prey": {
       "name": "强化猎物",
-      "timing": "本回合第一次0点HP伤害",
-      "description": "受到0点HP伤害时，追加{magnitude}点绝对伤害。"
+      "timing": "本回合第一次士气与HP均未受损",
+      "description": "士气与HP均未受损时，追加{magnitude}点绝对伤害。"
     },
     "abyssal-bargain": {
       "name": "深渊契约",
@@ -924,9 +929,9 @@
     "preview.trait.aftershockPossible": "根据减伤结果，HP伤害达到3点时，相邻敌人受到该伤害1/3向上取整的物理伤害。",
     "preview.trait.aftershockRage": "战吼路线的狂怒生效中：无需达到3点HP伤害也会发动余震；相邻敌人至少受到2点物理伤害。",
     "preview.trait.beautyPrincessImmune": "无法对公主发动美女与野兽。",
-    "preview.trait.beautyGuaranteed": "主动进攻确定为0点HP伤害；追击造成{amount}点绝对伤害。",
-    "preview.trait.beautyPossible": "若减伤结果使HP伤害变为0，则追击造成{amount}点绝对伤害。",
-    "preview.trait.beautyUnavailable": "主动进攻会造成HP伤害，因此不会发动追击。",
+    "preview.trait.beautyGuaranteed": "主动进攻确定不会削减士气与HP；追击造成{amount}点绝对伤害。",
+    "preview.trait.beautyPossible": "若减伤结果未削减士气与HP，则追击造成{amount}点绝对伤害。",
+    "preview.trait.beautyUnavailable": "主动进攻会削减士气或HP，因此不会发动追击。",
     "preview.trait.none": "这次进攻没有主动触发的效果。",
     "log.firstPlayer": "{player}先攻。",
     "log.firstTurnNoStartEffects": "第一回合不发动回合开始效果。",
@@ -1030,15 +1035,17 @@
     "preview.roleAction.absoluteFollowUp": "{roleAction}：若目标在此前结算后仍存活，追加{value}点绝对伤害。",
     "preview.roleAction.damageBonus": "{roleAction}：本次伤害+{value}。",
     "preview.roleAction.astralAlignmentSplash": "星轨校准：对相邻的{character}造成{min}~{max}点魔法溅射伤害。",
-    "preview.roleAction.nightmareStare": "噩梦凝视：本次造成0点HP伤害时，追加{value}点绝对伤害。",
+    "preview.roleAction.nightmareStare": "噩梦凝视：本次未削减士气与HP时，追加{value}点绝对伤害。",
     "preview.roleAction.threadCutMark": "目标没有可计数状态，本次改为施加命运标记。",
     "preview.roleAction.dragonBreakerShield": "敌方当前有共有盾，本次只削减共有盾，不对角色造成HP伤害。",
     "preview.roleAction.warCryShieldBreak": "战吼：击破共有盾时，额外造成{value}点绝对伤害。",
     "preview.trait.duelSenseBonus": "决斗嗅觉：额外造成{value}点绝对伤害。",
     "preview.trait.jesterAura": "弄臣光环：对已有Debuff的目标主动攻击，伤害+1。",
-    "preview.trait.maliciousJest": "恶意戏谑：攻击前有50%概率赋予与目标攻击类型对应的Debuff；扩散目标数：{spread}。",
-    "preview.trait.maliciousJestGuaranteed": "恶意戏谑：攻击前确定赋予与目标攻击类型对应的Debuff；扩散目标数：{spread}。",
+    "preview.trait.maliciousJest": "恶意戏谑：攻击前有50%赋予力竭（物理目标）或磨损（魔法目标）；扩散目标数：{spread}。",
+    "preview.trait.maliciousJestGuaranteed": "恶意戏谑：攻击前必定赋予力竭（物理目标）或磨损（魔法目标）；扩散目标数：{spread}。",
     "preview.trait.maliciousJestShielded": "敌方共有盾仍存在，恶意戏谑不会触发，也不会消耗本回合的触发机会。",
+    "preview.trait.maliciousJestHpGuaranteed": "恶意戏谑：HP伤害后必定赋予主目标力竭（物理）或磨损（魔法）；扩散目标数：{spread}。",
+    "preview.trait.maliciousJestHpPossible": "恶意戏谑：若造成HP伤害，必定赋予主目标力竭（物理）或磨损（魔法）；扩散目标数：{spread}。",
     "preview.trait.jesterAuraPossible": "恶意戏谑成功赋予Debuff时，本次主动攻击伤害+1。",
     "log.arcaneChannel": "{character}开始秘术蓄能。",
     "log.starReading": "{actor}读出星象，{target}可以再次主动攻击。",
@@ -1048,8 +1055,8 @@
     "preview.roleAction.fateMark": "命运标记：本次主动攻击有50%伤害减半，50%伤害+1。",
     "log.predatoryGaze": "{actor}盯上了{target}。",
     "log.darkPact": "{actor}缔结黑暗契约，{target}失去{amount} HP。",
-    "preview.roleAction.predatoryGaze": "猎物：若本次攻击造成0点HP伤害，追加{value}点绝对伤害。",
-    "preview.roleAction.predatoryGazeCounter": "猎物：若本次反击造成0点HP伤害，追加{value}点绝对伤害。",
+    "preview.roleAction.predatoryGaze": "猎物：若本次攻击未削减士气与HP，追加{value}点绝对伤害。",
+    "preview.roleAction.predatoryGazeCounter": "猎物：若本次反击未削减士气与HP，追加{value}点绝对伤害。",
     "log.supplyBasket": "{actor}把补给交给{target}，恢复{amount} HP并赋予坚守（物理伤害减半）。",
     "log.fieldWorkDouble": "{character}趁着丰收势头，准备再次行动。",
     "log.fieldWorkRest": "{character}照料田地，恢复{amount} HP。",
@@ -1229,20 +1236,20 @@
     },
     "predatory-instinct": {
       "name": "美女与野兽",
-      "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
-      "card": "非公主0伤害时绝对追击；攻击公主会自伤。",
+      "description": "未削减非公主的士气与HP时绝对追击；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
+      "card": "未削减非公主的士气与HP时绝对追击；攻击公主会自伤。",
       "ranks": {
         "2": {
           "description": "根据路线强化。猎物路线：对拥有猎物的目标触发追击时，绝对伤害+1。契约路线：献祭后怪物获得更强续航窗口。",
           "card": "Rank2路线强化：猎物追击更痛，或契约路线更能续航。",
           "paths": {
             "predatory-gaze": {
-              "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1；若目标拥有猎物或强化猎物，再+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤但不会因此死亡。任意公主死亡后获得野兽之怒。",
-              "card": "非公主0伤害绝对追击；猎物目标追击+1；攻击公主会自伤。"
+              "description": "未削减非公主的士气与HP时绝对追击；我方公主存活则+1；目标拥有猎物或强化猎物时再+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤但不会因此死亡。任意公主死亡后获得野兽之怒。",
+              "card": "未削减士气与HP时绝对追击；猎物目标追击+1；攻击公主会自伤。"
             },
             "dark-pact": {
-              "description": "对非公主造成0点HP伤害时，追击当前攻击力点绝对伤害；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
-              "card": "非公主0伤害时绝对追击；攻击公主会自伤。"
+              "description": "未削减非公主的士气与HP时绝对追击；我方公主存活则+1。攻击公主时造成当前攻击力点绝对伤害，随后受到2倍自伤，但不会因此死亡。任意公主死亡后获得野兽之怒。",
+              "card": "未削减士气与HP时绝对追击；攻击公主会自伤。"
             }
           }
         }
@@ -1315,16 +1322,16 @@
     },
     "malicious-jest": {
       "name": "恶意戏谑",
-      "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，有50%概率根据目标攻击类型赋予力竭或磨损。",
-      "card": "每回合1次，攻击无共有盾保护的敌人前，50%赋予对应的力竭/磨损。",
+      "description": "每回合1次：攻击无盾敌人前有50%赋予力竭（物理目标）或磨损（魔法目标）；造成HP伤害则必定赋予。",
+      "card": "每回合1次：无盾前置50%，HP伤害必定赋予力竭（物理目标）/磨损（魔法目标）。",
       "ranks": {
         "1": {
-          "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，有50%概率根据目标攻击类型赋予力竭或磨损。若主目标在触发前已有Debuff，每个相邻敌人也分别独立进行一次50%判定。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
-          "card": "50%赋予对应的力竭/磨损；已有Debuff时各自以50%扩散；攻击Debuff目标伤害+1光环。"
+          "description": "每回合1次：无盾前置50%，HP伤害必定赋予力竭（物理目标）或磨损（魔法目标）；已有Debuff时50%扩散。攻击Debuff目标伤害+1。",
+          "card": "无盾前置50%；HP伤害必定赋予力竭/磨损；50%扩散；Debuff目标伤害+1。"
         },
         "2": {
-          "description": "每个己方回合1次，主动攻击没有共有盾保护的敌人前，根据目标攻击类型确定赋予力竭或磨损。若主目标在触发前已有Debuff，同时对每个相邻敌人确定赋予对应的力竭或磨损。自身存活时，我方主动攻击拥有Debuff的敌人时伤害+1。",
-          "card": "确定赋予对应的力竭/磨损；已有Debuff时确定扩散；攻击Debuff目标伤害+1光环。"
+          "description": "每回合1次：无盾时必定赋予主目标及扩散目标力竭（物理）或磨损（魔法）；HP伤害也必定赋予主目标。攻击Debuff目标伤害+1。",
+          "card": "无盾时必定赋予并扩散力竭/磨损；HP伤害必定赋予；Debuff目标伤害+1。"
         }
       }
     }

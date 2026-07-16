@@ -41,7 +41,9 @@ public sealed record AttackExchange(
     CharacterState Attacker,
     CharacterState Defender,
     int AttackDamageDealt,
-    int CounterDamageDealt);
+    int CounterDamageDealt,
+    int AttackMoraleDamageDealt,
+    int CounterMoraleDamageDealt);
 
 public abstract class CharacterTrait
 {
@@ -428,7 +430,8 @@ public sealed class PredatoryInstinctTrait : CharacterTrait
         }
 
         if (!exchange.Defender.IsAlive
-            || exchange.AttackDamageDealt != 0)
+            || exchange.AttackDamageDealt != 0
+            || exchange.AttackMoraleDamageDealt != 0)
             return;
 
         var hasPrincess = context.State.FindOwner(owner).Characters.Any(character =>
@@ -599,8 +602,9 @@ public sealed class MaliciousJestTrait : CharacterTrait
             || !owner.TraitsUsedThisTurn.Add(Metadata.Id))
             return;
 
+        owner.TraitsUsedThisTurn.Add(AttackMarker(context.State.ActionsTakenThisTurn, target.Id));
         var targetAlreadyHadDebuff = target.Statuses.Any(status => !status.IsBuff && !status.Expired);
-        ApplyOutputDebuff(context, owner, target);
+        ApplyOutputDebuff(context, owner, target, guaranteed: false);
 
         if (owner.SoldierRank < 1 || !targetAlreadyHadDebuff)
             return;
@@ -610,12 +614,39 @@ public sealed class MaliciousJestTrait : CharacterTrait
                      character.IsAlive
                      && !GameEngine.IsDeploying(character)
                      && Math.Abs(character.Slot - target.Slot) == 1))
-            ApplyOutputDebuff(context, owner, adjacent);
+            ApplyOutputDebuff(context, owner, adjacent, guaranteed: false);
     }
 
-    private static void ApplyOutputDebuff(GameEngineContext context, CharacterState source, CharacterState target)
+    public override void OnAfterExchange(GameEngineContext context, CharacterState owner, AttackExchange exchange)
     {
-        if (source.SoldierRank < 2
+        if (owner.PlayerId != context.State.ActivePlayerId
+            || exchange.Attacker.Id != owner.Id
+            || exchange.Defender.PlayerId == owner.PlayerId)
+            return;
+
+        var marker = AttackMarker(Math.Max(0, context.State.ActionsTakenThisTurn - 1), exchange.Defender.Id);
+        var triggeredOnThisAttack = owner.TraitsUsedThisTurn.Remove(marker);
+        if (exchange.AttackDamageDealt <= 0)
+            return;
+        if (!triggeredOnThisAttack && !owner.TraitsUsedThisTurn.Add(Metadata.Id))
+            return;
+        if (!exchange.Defender.IsAlive)
+            return;
+
+        var statusId = GetMatchingOutputDebuffId(exchange.Defender);
+        if (exchange.Defender.Statuses.Any(status => !status.Expired && status.Id == statusId))
+            return;
+        ApplyOutputDebuff(context, owner, exchange.Defender, guaranteed: true);
+    }
+
+    private static void ApplyOutputDebuff(
+        GameEngineContext context,
+        CharacterState source,
+        CharacterState target,
+        bool guaranteed)
+    {
+        if (!guaranteed
+            && source.SoldierRank < 2
             && !context.Roll(DebuffApplicationChancePercent / 100.0))
             return;
 
@@ -632,6 +663,9 @@ public sealed class MaliciousJestTrait : CharacterTrait
 
     public static string GetMatchingOutputDebuffId(CharacterState target) =>
         GameEngine.GetAttackType(target) == DamageType.Physical ? "exhaustion" : "erosion";
+
+    private static string AttackMarker(int actionIndex, Guid targetId) =>
+        $"malicious-jest-attack:{actionIndex}:{targetId:N}";
 }
 
 public sealed class TraitRegistry

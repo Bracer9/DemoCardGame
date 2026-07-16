@@ -1202,6 +1202,22 @@ const arcLift = Math.min(230, Math.max(80, distance * 0.22));
 
 注意：攻击确认红线也不再使用虚线、链条、旋转圆圈或 marker 箭头头。
 
+### 标题画面的 AI 难度二级菜单
+
+点击 AI 对战后，`#ai-difficulty-menu` 会作为 `#mode-select` 的第三行展开，Easy / Normal 继续复用 `.mode-choice` 的战术按钮素材，不另建弹窗。
+
+主要位置参数在 `wwwroot/styles.css`：
+
+```css
+.mode-select { bottom:130px; }
+.mode-select.ai-difficulty-open { bottom:70px; }
+.ai-difficulty-menu .mode-choice { min-height:96px; }
+```
+
+- 二级菜单与底部说明太近：增大展开状态的 `bottom`。
+- 二级菜单压到标题：减小展开状态的 `bottom`，或降低二级按钮 `min-height`。
+- 不要把难度选择改成常驻战斗 HUD；它只属于标题画面的按需二级选择。
+
 ---
 
 ## 14. 不要再改的东西

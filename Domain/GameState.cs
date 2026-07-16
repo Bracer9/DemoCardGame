@@ -154,6 +154,7 @@ public sealed class GameState
     public Guid? OpeningFirstPlayerId { get; set; }
     public Guid? LocalViewerPlayerId { get; set; }
     public Guid? AiPlayerId { get; set; }
+    public AiDifficulty AiDifficulty { get; set; } = AiDifficulty.Easy;
     public bool IsTestMode { get; set; }
     public HashSet<string> ResolvedRewardWindows { get; } = [];
 

@@ -626,14 +626,14 @@ public sealed class GameEngine
         attacker.CurrentHp = Math.Max(0, attacker.CurrentHp - counterPacket.Amount);
         var actualAttackTarget = attackPacket.TargetCharacter;
         actualAttackTarget.CurrentHp = Math.Max(0, actualAttackTarget.CurrentHp - attackPacket.Amount);
-        ResolvePreyZeroDamage(state, attackPacket);
+        ResolvePreyNoDamage(state, attackPacket);
         TriggerRelicsAfterDamageResolved(state, attackPacket);
         ResolveVictoryEdictAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolvePactAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolveAbyssalBargainAfterActiveAttack(state, attacker, actualAttackTarget);
         ResolveGloryRoarAfterActiveAttack(state, attacker);
         ResolveHuntedAfterActiveAttack(state, attacker, actualAttackTarget);
-        ResolvePreyZeroDamage(state, counterPacket);
+        ResolvePreyNoDamage(state, counterPacket);
         TriggerRelicsAfterDamageResolved(state, counterPacket);
 
         var resolvedCollateral = attackPacket.Collateral
@@ -700,7 +700,9 @@ public sealed class GameEngine
             attacker,
             actualAttackTarget,
             attackPacket.Amount,
-            counterPacket.Amount);
+            counterPacket.Amount,
+            attackPacket.MoraleDamage,
+            counterPacket.MoraleDamage);
         attackerTrait.OnAfterExchange(context, attacker, exchange);
 
         var defeated = ResolveDefeats(state);
@@ -1388,7 +1390,7 @@ public sealed class GameEngine
         };
         ModifyDamage(state, packet);
         collateral.Target.CurrentHp = Math.Max(0, collateral.Target.CurrentHp - packet.Amount);
-        ResolvePreyZeroDamage(state, packet);
+        ResolvePreyNoDamage(state, packet);
         TriggerRelicsAfterDamageResolved(state, packet);
         TryAwardEnemyShieldBreakBp(state, collateral.Source, sourceOwner, targetOwner, shieldBefore,
             packet.ShieldAbsorbed, deferActionPointRefund: true);
@@ -3420,6 +3422,7 @@ public sealed class GameEngine
             || packet.ShieldDefenseReduced != 0;
         if (!resolvedDamageEvent
             || packet.HpDamage != 0
+            || packet.MoraleDamage != 0
             || !packet.TargetCharacter.IsAlive
             || sourceOwner.Id == packet.TargetCharacter.PlayerId
             || !RelicEffects.TryUseTurnRelic(sourceOwner, "relic-night-bait"))
@@ -3819,7 +3822,7 @@ public sealed class GameEngine
         var shieldBefore = targetOwner.SharedShield;
         ModifyDamage(state, packet);
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
-        ResolvePreyZeroDamage(state, packet);
+        ResolvePreyNoDamage(state, packet);
         TriggerRelicsAfterDamageResolved(state, packet);
         foreach (var note in packet.Notes)
             Log(state, note, "status");
@@ -4122,7 +4125,7 @@ public sealed class GameEngine
         ModifyDamage(state, packet);
         var shieldRemainingAfterMainPacket = targetOwner.SharedShield;
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
-        ResolvePreyZeroDamage(state, packet);
+        ResolvePreyNoDamage(state, packet);
         TriggerRelicsAfterDamageResolved(state, packet);
 
         var resolvedCollateral = packet.Collateral
@@ -4198,7 +4201,7 @@ public sealed class GameEngine
         };
         ModifyDamage(state, packet);
         target.CurrentHp = Math.Max(0, target.CurrentHp - packet.Amount);
-        ResolvePreyZeroDamage(state, packet);
+        ResolvePreyNoDamage(state, packet);
         TriggerNightBaitAfterDamage(state, sourceOwner, packet);
         foreach (var note in packet.Notes)
             Log(state, note, "status");
@@ -4268,9 +4271,9 @@ public sealed class GameEngine
             ApplyVulnerable(state, actor, target);
     }
 
-    private void ResolvePreyZeroDamage(GameState state, DamagePacket packet)
+    private void ResolvePreyNoDamage(GameState state, DamagePacket packet)
     {
-        if (packet.Amount != 0 || !packet.TargetCharacter.IsAlive)
+        if (packet.HpDamage != 0 || packet.MoraleDamage != 0 || !packet.TargetCharacter.IsAlive)
             return;
 
         foreach (var prey in packet.TargetCharacter.Statuses.OfType<PreyStatus>().Where(status => !status.Expired).ToArray())

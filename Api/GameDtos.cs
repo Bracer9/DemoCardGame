@@ -7,7 +7,7 @@ public sealed record GameView(
     bool NextRoundIsRewardRound,
     bool CanDeployShield, int NextShieldCost, int ShieldDeploymentsThisTurn, Guid ActivePlayerId,
     string ActivePlayerName, string Phase, Guid? WinnerPlayerId, bool IsDraw,
-    Guid ViewerPlayerId, bool CanControl, bool IsHost, IReadOnlyList<PlayerView> Players,
+    string? AiDifficulty, Guid ViewerPlayerId, bool CanControl, bool IsHost, IReadOnlyList<PlayerView> Players,
     RewardWindowView? RewardWindow, PendingRoleActionUpgradeView? PendingRoleActionUpgrade,
     PendingRelicRewardView? PendingRelicReward,
     HeroDraftView? HeroDraft,
@@ -69,6 +69,7 @@ public sealed record DeputyView(
     int StatValue);
 public sealed record DeputyPreviewView(string EffectId, string StatKind, int StatValue);
 public sealed record AttackRequest(Guid AttackerId, Guid DefenderId);
+public sealed record NewAiGameRequest(string? Difficulty);
 public sealed record SelectRewardRequest(string InstanceId);
 public sealed record SelectHeroDraftRequest(string CharacterKey);
 public sealed record SelectSoldierDraftRequest(IReadOnlyList<string> CharacterKeys);
@@ -190,7 +191,8 @@ public sealed class GameViewFactory
                 && GameEngine.CanDeployShield(state),
             GameEngine.GetShieldCost(state.ActivePlayer),
             state.ActivePlayer.ShieldDeploymentsThisTurn, state.ActivePlayerId, state.ActivePlayer.Name,
-            state.Phase.ToString(), state.WinnerPlayerId, state.IsDraw, viewerPlayerId,
+            state.Phase.ToString(), state.WinnerPlayerId, state.IsDraw,
+            state.AiPlayerId is null ? null : state.AiDifficulty.ToString(), viewerPlayerId,
             state.Phase == GamePhase.Playing && state.ActivePlayerId == viewerPlayerId
                 && state.RewardWindow is null && state.PendingRoleActionUpgrade is null
                 && state.PendingHeroDraft is null && state.PendingRelicReward is null,

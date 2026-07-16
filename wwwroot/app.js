@@ -343,6 +343,8 @@ ui.startScreen = document.querySelector('#start-screen');
 ui.startTrigger = document.querySelector('#start-trigger');
 ui.startTest = document.querySelector('#start-test');
 ui.startAi = document.querySelector('#start-ai');
+ui.aiDifficultyMenu = document.querySelector('#ai-difficulty-menu');
+ui.aiDifficultyButtons = [...document.querySelectorAll('[data-ai-difficulty]')];
 ui.dealSequence = document.querySelector('#deal-sequence');
 ui.dealStatus = document.querySelector('#deal-status');
 ui.dealCaption = document.querySelector('.deal-caption strong');
@@ -377,7 +379,7 @@ ui.startMatch = document.querySelector('#start-match');
 
 const sound = new window.AudioDirector();
 const voice = new window.VoiceDirector(sound);
-const audioGateButtons = [ui.startTrigger, ui.startTest, ui.startAi, document.querySelector('#create-room'), document.querySelector('#join-room')].filter(Boolean);
+const audioGateButtons = [ui.startTrigger, ui.startTest, ui.startAi, ...ui.aiDifficultyButtons, document.querySelector('#create-room'), document.querySelector('#join-room')].filter(Boolean);
 audioGateButtons.forEach(button => { button.disabled = true; });
 const audioLoadPromise = sound.load('/config/audio.json')
   .catch(error => console.warn(error.message))
@@ -416,6 +418,7 @@ let roleActionDragActive = false;
 let touchDrag = null;
 let suppressTouchClickUntil = 0;
 let sessionMode = null;
+let aiDifficulty = 'easy';
 const LOCAL_SESSION_TOKEN_KEY = 'tpf-local-session-token';
 function createLocalSessionToken() {
   const bytes = new Uint8Array(16);
@@ -449,6 +452,8 @@ let pendingVisualBaselines = null;
 let rewardVisualHold = false;
 let aiAdvancing = false;
 let aiAdvanceTimer = null;
+let autoEndTurnTimer = null;
+let autoEndTurnPendingKey = null;
 let turnCurtainLock = false;
 const cardRenderSignatures = new WeakMap();
 const recentSoundEvents = new Map();
@@ -631,6 +636,74 @@ function canUseLocalControls() {
   return Boolean(game?.canControl && !turnCurtainLock);
 }
 
+function turnStateKey(state) {
+  return state ? `${state.gameId}:${state.turnNumber}:${state.activePlayerId}` : '';
+}
+
+function hasExecutableTurnAction(state) {
+  const player = state?.players?.find(item => item.id === state.viewerPlayerId);
+  if (!player) return false;
+  if (state.canDeployShield) return true;
+
+  return player.characters.some(character => {
+    const hasRoleAction = Array.isArray(character.roleActions)
+      && character.roleActions.some(action => action.enabled && Number(action.cost) <= Number(state.actionPoints));
+    return Boolean(character.canAct || character.canAssignAsDeputy || hasRoleAction);
+  });
+}
+
+function shouldAutoEndTurn() {
+  return Boolean(
+    hasStarted
+    && game
+    && game.phase === 'Playing'
+    && game.actionPoints === 0
+    && canUseLocalControls()
+    && !game.rewardWindow
+    && !game.pendingRoleActionUpgrade
+    && !game.heroDraft
+    && !game.pendingRelicReward
+    && !dealing
+    && !endTurnQueued
+    && !hasExecutableTurnAction(game)
+  );
+}
+
+function cancelScheduledAutoEndTurn() {
+  if (autoEndTurnTimer !== null) window.clearTimeout(autoEndTurnTimer);
+  autoEndTurnTimer = null;
+  autoEndTurnPendingKey = null;
+}
+
+async function runScheduledAutoEndTurn(turnKey) {
+  autoEndTurnTimer = null;
+  while ((busy || eventPlayback) && autoEndTurnPendingKey === turnKey) await wait(40);
+
+  if (autoEndTurnPendingKey !== turnKey
+    || turnStateKey(game) !== turnKey
+    || !shouldAutoEndTurn()) {
+    if (autoEndTurnPendingKey === turnKey) autoEndTurnPendingKey = null;
+    scheduleAutoEndTurn();
+    return;
+  }
+
+  autoEndTurnPendingKey = null;
+  await endTurn();
+}
+
+function scheduleAutoEndTurn() {
+  if (!shouldAutoEndTurn()) {
+    cancelScheduledAutoEndTurn();
+    return;
+  }
+
+  const turnKey = turnStateKey(game);
+  if (autoEndTurnPendingKey === turnKey) return;
+  cancelScheduledAutoEndTurn();
+  autoEndTurnPendingKey = turnKey;
+  autoEndTurnTimer = window.setTimeout(() => runScheduledAutoEndTurn(turnKey), 420);
+}
+
 function setTurnCurtainLock(locked) {
   if (turnCurtainLock === locked) return;
   turnCurtainLock = locked;
@@ -743,6 +816,7 @@ function render() {
   art.hydrate(document);
   syncCombatInteractionUi({ syncInspector: false });
   syncSelectedInspector();
+  scheduleAutoEndTurn();
   scheduleAiAdvance();
 }
 
@@ -3029,7 +3103,8 @@ async function newGame() {
   try {
     sound.emit('game.restart');
     const path = sessionMode === 'test' ? '/game/test/new' : sessionMode === 'ai' ? '/game/ai/new' : '/game/new';
-    const payload = await gameApi(path, { method: 'POST', body: '{}' });
+    const body = sessionMode === 'ai' ? JSON.stringify({ difficulty: aiDifficulty }) : '{}';
+    const payload = await gameApi(path, { method: 'POST', body });
     if (sessionMode === 'online' && room) room.dealStarted = false;
     game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
@@ -3117,15 +3192,19 @@ async function startLocalGame() {
   } finally { busy = false; }
 }
 
-async function startAiGame() {
+async function startAiGame(difficulty = 'easy') {
   if (hasStarted || busy) return;
   sessionMode = 'ai';
+  aiDifficulty = difficulty === 'normal' ? 'normal' : 'easy';
   hasStarted = true;
   busy = true;
   sound.emit('game.start');
   sound.unlock({ primeUnrequested: false });
   try {
-    const payload = await gameApi('/game/ai/new', { method: 'POST', body: '{}' });
+    const payload = await gameApi('/game/ai/new', {
+      method: 'POST',
+      body: JSON.stringify({ difficulty: aiDifficulty })
+    });
     game = payload.data; lastGameJson = JSON.stringify(game); lastApSnapshot = null; lastBpGainSnapshot = null; resetEventCursor(game); selectedAttacker = null; selectedDefender = null; inspectedCardId = null; pendingRoleAction = null; pendingDeputy = null; closePreview();
     dealing = true; render();
     openDealLayer();
@@ -4270,6 +4349,7 @@ function applyStaticTranslations() {
 }
 
 function showOnlineLobby() {
+  setAiDifficultyMenuOpen(false);
   sessionMode = 'online';
   ui.modeSelect.hidden = true;
   ui.onlineLobby.hidden = false;
@@ -4278,9 +4358,25 @@ function showOnlineLobby() {
 
 function showModeSelect() {
   if (room || playerToken) return;
+  setAiDifficultyMenuOpen(false);
   sessionMode = null;
   ui.onlineLobby.hidden = true;
   ui.modeSelect.hidden = false;
+}
+
+function setAiDifficultyMenuOpen(open) {
+  if (!ui.aiDifficultyMenu || !ui.startAi) return;
+  ui.aiDifficultyMenu.hidden = !open;
+  ui.startAi.setAttribute('aria-expanded', String(open));
+  ui.modeSelect.classList.toggle('ai-difficulty-open', open);
+}
+
+function showAiDifficultyMenu() {
+  if (hasStarted || busy) return;
+  sound.unlock({ primeUnrequested: false });
+  const open = Boolean(ui.aiDifficultyMenu?.hidden);
+  setAiDifficultyMenuOpen(open);
+  if (open) ui.aiDifficultyButtons[0]?.focus();
 }
 
 function saveOnlineIdentity(identity) {
@@ -4701,7 +4797,8 @@ document.querySelector('#new-game').addEventListener('click', newGame);
 document.querySelector('#play-again').addEventListener('click', newGame);
 ui.startTrigger.addEventListener('click', startLocalGame);
 ui.startTest?.addEventListener('click', startTestGame);
-ui.startAi?.addEventListener('click', startAiGame);
+ui.startAi?.addEventListener('click', showAiDifficultyMenu);
+ui.aiDifficultyButtons.forEach(button => button.addEventListener('click', () => startAiGame(button.dataset.aiDifficulty)));
 document.querySelector('#open-online').addEventListener('click', showOnlineLobby);
 ui.lobbyBack.addEventListener('click', showModeSelect);
 document.querySelector('#create-room').addEventListener('click', createRoom);

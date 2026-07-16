@@ -95,6 +95,12 @@ public enum GamePhase
     Finished
 }
 
+public enum AiDifficulty
+{
+    Easy,
+    Normal
+}
+
 public enum CharacterZone
 {
     Battlefield,

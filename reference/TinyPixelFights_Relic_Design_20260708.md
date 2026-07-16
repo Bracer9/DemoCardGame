@@ -92,7 +92,7 @@
 | 白百合香炉<br>`relic-white-lily-censer` | 5 BP | `healing` `shield` `spell-ward` | 每回合首次主动治疗 HP 时，目标获得护咒。 | 要求 Role Action 实际恢复 HP；群疗取实际治疗量最高的目标，平手按队伍顺序；自动治疗、吸血和升级回复不触发。 | 已接入 |
 | 决斗券<br>`relic-duelist-ticket` | 5 BP | `physical` `absolute` `soldier` | 每回合首次攻击无共有盾保护的敌人前，物理攻击者获得强攻。 | 只响应主动攻击；在攻击开始时检查目标方共有盾。 | 已接入 |
 | 军士指挥印<br>`relic-command-sergeant-seal` | 5 BP | `soldier` `role-action` `ap` | 每回合首次使用士兵 Role Action 后，返还 1 AP。 | 先支付完整成本，成功结算后返还；副官宿主行动不触发，AP 不超过上限。 | 已接入 |
-| 夜饵<br>`relic-night-bait` | 5 BP | `prey` `absolute` `debuff` | 每回合首次对敌人造成 0 点 HP 伤害时，赋予猎物。 | 共有盾完全吸收或只打士气都满足；要求发生伤害结算且目标存活。 | 已接入 |
+| 夜饵<br>`relic-night-bait` | 5 BP | `prey` `absolute` `debuff` | 每回合首次未削减敌人士气与 HP 时，赋予猎物。 | 共有盾完全吸收或双防归零满足；只打士气不满足；要求发生伤害结算且目标存活。 | 已接入 |
 | 指挥桌<br>`relic-command-table` | 6 BP | `role-action` `ap` `support` | 每回合首次使用 2 AP Role Action 后，返还 1 AP。 | 按最终实际支付成本判断；成功结算后返还，AP 不超过上限。 | 已接入 |
 | 回声水晶<br>`relic-echo-crystal` | 5 BP | `magic` `chant` | 每回合首次消耗咏唱后，重新获得 1 层咏唱。 | 在本次伤害及其追加段全部结算后赋予，不能回头放大刚刚结算的同一次伤害。 | 已接入 |
 | 绿旗<br>`relic-green-standard` | 5 BP | `physical` `shield` `ap` | 每回合首次击破敌方共有盾后，返还 1 AP。 | 共有盾只吸收当前盾值，溢出伤害继续结算；返还 AP 只用于后续行动，且不超过 AP 上限。 | 已按 AP 效果接入 |

@@ -111,10 +111,10 @@
 | Wildspeaker | `call-the-hunt`：范围猎群标记，士兵首次攻击获得 Druid 当前攻击力 | Militia Foreman、Nightmare Fiend、Fate Dealer、Arcane Archivist | 由在场士兵触发；猎物和 Debuff 可继续被 Monster / Oracle 转换 | 至少保留 1 名 Rank2 攻击型士兵在场；副官只是其余英雄的补件 |
 | Radiant Berserker | `glory-roar`：强攻 + 按攻击力增加额外攻击，每次攻击后失去 1 HP | War Queen、Saint Queen、Quartermaster、Abyssal Queen | War Queen 放大多段攻击；治疗英雄修复自伤；Abyssal Queen 增加绝对追击 | Duelist 提供物攻和追击；Cleric 修复并给护咒 |
 | Dragon Raider | `dragon-breaker`：破盾或造成物理伤害，并赋予范围战栗 / 脆弱 | Fate Dealer、Dread Cavalier、War Queen、Arcane Archivist | 战栗 / 脆弱进入 Thread Cut 与 Archive 计数，破盾后由物理队收尾 | Shieldmaiden 提供己方盾线；Duelist 放大破盾后的物理窗口 |
-| Nightmare Fiend | `nightmare-stare`：范围噩梦猎物，首次 0 HP 伤害追加绝对伤害 | Wildspeaker、War Queen、Fate Dealer、Dread Cavalier | 猎群 / 标记增加状态密度；额外攻击和只打士气的冲锋都能制造 0 HP 触发 | Duelist 追加绝对追击；防御副官帮助 Monster 存活到触发窗口 |
+| Nightmare Fiend | `nightmare-stare`：范围噩梦猎物，首次未削减士气与 HP 时追加绝对伤害 | Wildspeaker、War Queen、Fate Dealer、Dread Cavalier | 猎群 / 标记增加状态密度；额外攻击与高防目标能制造无伤触发 | Duelist 追加绝对追击；防御副官帮助 Monster 存活到触发窗口 |
 | Abyssal Queen | `abyssal-bargain`：支付友军 HP，获得额外攻击与攻击后绝对伤害 | Quartermaster、Saint Queen、War Queen、Radiant Berserker | 治疗英雄修复支付；War Queen / Berserker 把一次支付变成连续攻击 | Cleric 是稳定修复端；Duelist 增加攻击后的绝对伤害 |
 | Holy Paladin | `holy-bastion`：守护誓约、护咒、坚守和共享盾 | Saint Queen、Quartermaster、Grove Keeper、Fate Dealer | 三种防守接口保护全队，Fate Dealer 提供不依赖普通攻击的士气推进 | Shieldmaiden 与 Cleric 分别补物防 / 魔防和宿主被动 |
-| Dread Cavalier | `iron-charge`：消耗共享盾造成物理伤害；真实 HPDamage 时返盾 | War Queen、Fate Dealer、Nightmare Fiend、Dragon Raider | 战栗进入 Thread Cut；只打士气可触发噩梦猎物；War Queen 负责绝对收尾 | Shieldmaiden 提供盾值；Duelist 提供物攻与追击 |
+| Dread Cavalier | `iron-charge`：消耗共享盾造成物理伤害；真实 HPDamage 时返盾 | War Queen、Fate Dealer、Nightmare Fiend、Dragon Raider | 战栗进入 Thread Cut；高防完全挡下时可触发噩梦猎物；War Queen 负责绝对收尾 | Shieldmaiden 提供盾值；Duelist 提供物攻与追击 |
 
 ## 1.3 主要成型点与分流终局
 
@@ -136,7 +136,7 @@
 | 物理多段 / 绝对追击 | War Queen + Radiant Berserker | Duelist Rank2 在场或绑定主攻击手；Cleric 修复自伤 | 加入 Dread Cavalier、Abyssal Queen 或其他收割英雄 | 第三击、额外攻击 BP、攻击后绝对伤害 |
 | 圣疗盾墙 | Saint Queen + Holy Paladin / Quartermaster | Cleric、Shieldmaiden 至少一名达到 Rank2 | 可继续加入 Grove Keeper、Quartermaster 或 Fate Dealer | 治疗 / 净化转防护、共享盾或团队续航 |
 | 破盾士气收割 | Dread Cavalier / Dragon Raider + Fate Dealer | Shieldmaiden Rank2 提供盾；Duelist / Arcanist 补收割 | 加入 War Queen、Nightmare Fiend 或另一名防守英雄 | 破盾经济、战栗士气压制、HP / 绝对伤害收尾 |
-| 猎物绝对伤害 | Nightmare Fiend + Fate Dealer / War Queen | Duelist Rank2 提供追击；防守士兵制造安全窗口 | 加入 Dread Cavalier、Wildspeaker 或防守英雄 | 0 HP 触发扩张、猎物绝对伤害收束 |
+| 猎物绝对伤害 | Nightmare Fiend + Fate Dealer / War Queen | Duelist Rank2 提供追击；防守士兵制造安全窗口 | 加入 Dread Cavalier、Wildspeaker 或防守英雄 | 士气与 HP 均未受损时扩张、猎物绝对伤害收束 |
 | 献祭契约 / 绝对伤害 | Abyssal Queen + Quartermaster / Saint Queen | Cleric Rank2 优先；Duelist 绑定攻击核心 | 加入 Radiant Berserker 或 War Queen 扩大攻击次数 | 治疗组件修复 HP 代价，夜饵 + 掠食者王冠收束绝对伤害 |
 | 野兽继承：猎物 | Nightmare Fiend + Fate Dealer / Dread Cavalier | Princess 保持 Rank0 / Rank1 作为献祭组件；Duelist Rank2 绑定 Monster 或留场 | 公主死亡后再施放 `nightmare-stare`；可加入防守英雄保护低双防 Monster | 夜饵、掠食者王冠；丧仪金币完成公主献祭终局 |
 | 野兽继承：契约 | Abyssal Queen + Quartermaster | Princess 保持 Rank0 / Rank1；Cleric Rank2 修复剩余队伍，Duelist 绑定攻击核心 | `dark-pact` 将公主压到低 HP，死亡后再使用 `abyssal-bargain` | 白百合香炉、夜饵、掠食者王冠；丧仪金币完成公主献祭终局 |
@@ -522,13 +522,13 @@
 
 #### Nightmare Fiend
 
-成型方向：0 HPDamage、猎物、绝对伤害追击。
+成型方向：无士气 / HP 伤害、猎物、绝对伤害追击。
 
 路线内容：
 
-- Rank1 `predatory-gaze`：敌方 1 体获得猎物，本回合每次受到 0 HP 伤害时追加 2 绝对伤害。
+- Rank1 `predatory-gaze`：敌方 1 体获得猎物，本回合每次士气与 HP 均未受损时追加 2 绝对伤害。
 - Rank2：MaxHp +3、魔防 +1；Monster Trait 对猎物目标触发时追加绝对伤害 +1。
-- Rank3 `nightmare-stare`：目标及相邻敌人获得噩梦猎物；每个目标第一次受到 0 HP 伤害时，追加 Monster 当前 Attack 的绝对伤害并消耗；主目标额外获得磨损。
+- Rank3 `nightmare-stare`：目标及相邻敌人获得噩梦猎物；每个目标第一次士气与 HP 均未受损时，追加 Monster 当前 Attack 的绝对伤害并消耗；主目标额外获得磨损。
 
 推荐组合：
 
@@ -540,14 +540,14 @@
 
 成型方式：
 
-1. 用共享盾、士气或高防造成 0 HPDamage，反而触发猎物追击。
-2. `predatory-gaze` 适合挂给高防 / 有士气的目标。
-3. Rank3 后用范围噩梦猎物制造多个“只要没扣 HP 就直扣 HP”的反外壳窗口。
+1. 用共有盾完全吸收或双防挡下伤害，触发猎物追击；只削减士气不再触发。
+2. `predatory-gaze` 适合挂给共有盾或高双防目标。
+3. Rank3 后用范围噩梦猎物制造多个“士气与 HP 都没扣就直扣 HP”的反防御窗口。
 
 当前问题：
 
-- 夜饵与掠食者王冠已经接入；现在的主要门槛是玩家能否从预测中理解“0 HPDamage 反而触发追击”。
-- 这条线理解成本高，预测必须清楚显示 0 HPDamage 与绝对追击。
+- 夜饵与掠食者王冠已经接入；现在的主要门槛是玩家能否从预测中理解“士气与 HP 均未受损才追击”。
+- 这条线理解成本高，预测必须同时显示士气、HP 与绝对追击。
 
 #### Abyssal Queen
 
@@ -591,17 +591,17 @@
 
 成型流程：
 
-1. 公主存活阶段，Monster 的 0 HPDamage 追击获得 +1；先利用公主 Trait / Rank1 Role Action 和士兵能力完成过渡。
+1. 公主存活阶段，Monster 的无士气 / HP 伤害追击获得 +1；先利用公主 Trait / Rank1 Role Action 和士兵能力完成过渡。
 2. Abyssal Queen 可以用 HP 支付把公主压到 1 HP；Nightmare Fiend 方向则通过站位和防守优先级主动把公主暴露为敌方目标。现有 HP 支付不能直接击败公主。
 3. 公主死亡后，Monster 失去“公主存活追击 +1”，并永久获得野兽之怒：攻击 +3、物防 / 魔防 -2。对动态追击而言净收益是 +2 攻击力，但 Monster 更容易被反杀。
 4. `nightmare-stare` 与 `abyssal-bargain` 都在施放时记录 Monster 当前攻击力，因此应在野兽之怒触发后施放。
-5. 猎物方向由 Fate Dealer / Dread Cavalier 制造 Debuff、低士气和 0 HPDamage 窗口；契约方向由 Quartermaster / Cleric 修复剩余队伍并让高频攻击手兑现绝对伤害。
+5. 猎物方向由 Fate Dealer / Dread Cavalier 制造 Debuff 与高防无伤窗口；契约方向由 Quartermaster / Cleric 修复剩余队伍并让高频攻击手兑现绝对伤害。
 
 遗物地基：
 
 - 丧仪金币在公主阵亡且 Monster 存活时持续提供 AP 上限 +2；不是一次性 BP。
 - 血币把每 turn 第一次技能 HP 支付转为等量共有盾，帮助契约方向度过支付后的反击窗口。
-- 夜饵把 0 HPDamage 转成猎物入口。
+- 夜饵把士气与 HP 均未受损的伤害结算转成猎物入口。
 - 两个 Monster 方向都可借夜饵与掠食者王冠兑现绝对伤害；契约方向额外借慈悲杯等治疗组件修复 HP 代价。
 
 权重信号：
@@ -651,7 +651,7 @@
 
 推荐组合：
 
-- 搭配英雄：War Queen / Fate Dealer 是主要双 Rank3 收束搭档；Nightmare Fiend 利用 0 HPDamage 窗口，Dragon Raider 连接破盾、战栗与脆弱。
+- 搭配英雄：War Queen / Fate Dealer 是主要双 Rank3 收束搭档；Nightmare Fiend 利用双防无伤窗口，Dragon Raider 连接破盾、战栗与脆弱。
 - 士兵：Shieldmaiden 是核心，Duelist 提供物理 Aura。
 - 副官：Shieldmaiden 副官增强盾链；Duelist 副官提高铁壁冲锋后的收割。
 - 遗物：石匠令、王墙军旗；进攻侧使用红磨刀石、决斗券、绿旗和红沙漏。
@@ -773,7 +773,7 @@
 | 白百合香炉 | 5 | 每回合首次主动治疗实际回复 HP 时，最高治疗目标获得护咒。 | 治疗、护咒、盾墙。 |
 | 决斗券 | 5 | 每回合首次攻击无盾敌人前，物理攻击者获得强攻。 | 物理连击。 |
 | 军士指挥印 | 5 | 每回合首次使用士兵 Role Action 后返还 1 AP。 | 士兵团、行动经济。 |
-| 夜饵 | 5 | 每回合首次对敌人造成 0 HP 伤害时赋予猎物。 | 猎物、绝对伤害。 |
+| 夜饵 | 5 | 每回合首次未削减敌人士气与 HP 时赋予猎物。 | 猎物、绝对伤害。 |
 | 指挥桌 | 6 | 每回合首次使用 2 AP Role Action 后返还 1 AP。 | 各类 Rank3 终结技。 |
 | 回声水晶 | 5 | 每回合首次消耗咏唱后，在伤害结算完毕时返还 1 层。 | 魔法蓄力。 |
 | 绿旗 | 5 | 每回合首次击破敌方共有盾后返还 1 AP。 | 破盾、物理节奏。 |
@@ -837,7 +837,7 @@
 | 魔法蓄力 | Astral Oracle + Stellar Archmage | Arcanist Rank2 | 见习星墨、回声水晶、指挥桌 | 星界棱镜 | 先给咏唱 / 魔涌；每 turn 首次消耗咏唱后返还 1 层，并追加一段当前 Attack 魔法伤害。 |
 | 炎上结算 | Arcane Archivist + Astral Oracle / Fate Dealer | Arcanist Rank2 | 见习星墨、余烬星盘、空心彗镜 | 灰烬引爆器 | 用 Role Action 与 Debuff 把燃烧叠到 3 层以上，再一次结算层数 x2。 |
 | Debuff 收割 | Fate Dealer + Arcane Archivist / Wildspeaker / Dragon Raider | Arcanist 或 Duelist | 女巫铃、空心彗镜、夜饵 | 瘟疫法典 / 蚕食账簿 | 瘟疫法典奖励三种以上不同 Debuff；蚕食账簿在持续层数超过 8 / 12 后把每次主动攻击转成 1 / 2 点绝对伤害。 |
-| 绝对伤害 | Nightmare Fiend + War Queen / Fate Dealer | Duelist Rank2 | 红磨刀石、决斗券、夜饵 | 掠食者王冠 | 让共有盾、士气或高防制造 0 HPDamage，再把所有对猎物的既有绝对追击放大至 x1.5。 |
+| 绝对伤害 | Nightmare Fiend + War Queen / Fate Dealer | Duelist Rank2 | 红磨刀石、决斗券、夜饵 | 掠食者王冠 | 让共有盾完全吸收或双防制造无伤结算，再把对猎物的绝对追击放大至 x1.5。 |
 | 物理连击 | War Queen + Radiant Berserker / Dread Cavalier | Duelist Rank2 | 红磨刀石、决斗券、绿旗 / 指挥桌 | 红沙漏 | 破盾或 2 AP 行动返还 AP，用再行动与低 Cost 物理单位凑第三次主动攻击，再增加攻击者当前 Attack。 |
 | 共有盾 | Holy Paladin + Dread Cavalier / Quartermaster | Shieldmaiden Rank2 | 石匠令、慈悲杯、绿旗 / 指挥桌 | 王墙军旗 | 双防 Aura 提高每 turn 基础盾；治疗溢出继续补盾，Dread Cavalier 可把盾转伤害。 |
 | 治疗净化 | Saint Queen + Grove Keeper / Quartermaster | Cleric Rank2 | 慈悲杯、白百合香炉、石匠令 | 圣徒圣杯 | 慈悲杯把过量治疗转盾；圣杯让最高单体实际治疗同时恢复等量士气，并按实际恢复的 HP +士气增加共有盾。 |

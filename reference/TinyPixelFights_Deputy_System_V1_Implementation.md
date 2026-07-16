@@ -1,6 +1,6 @@
 # Tiny Pixel Fights — 副官系统 V1 实装记录
 
-更新时间：2026-07-12
+更新时间：2026-07-16
 
 ## 本次实装范围
 
@@ -10,6 +10,8 @@
 - 副官绑定不可撤销；V1 为本场战斗内永久。
 - Rank2 士兵成为副官后，Rank1 光环继续生效；光环来源跟随宿主英雄，宿主存活且在战场时有效。
 - 新增弄臣 / `deputy-jester`：宿主攻击 +1；每己方 turn 1 次，宿主敌方主动行动结算后，主目标根据攻击类型获得力竭或磨损。
+- 副官定义补充通用 `BuildTags`，供 AI 招募、遗物与副官宿主的轻量构筑评分复用。
+- AI 队伍满员时会尝试任命 Rank2 士兵为副官；只排除攻击类型完全不匹配的组合，其余合法组合按 Build Tags 加权随机选择。
 
 ## 任命条件
 
@@ -36,7 +38,9 @@
 
 ## 实装入口
 
-- 副官定义：`Domain/DeputyDefinitions.cs`
+- 副官定义与 Build Tags：`Domain/DeputyDefinitions.cs`
+- AI 构筑画像：`Services/AiBuildProfile.cs`
+- AI 加权选择与自动任命：`Services/SimpleAiService.cs`
 - 角色状态：`CharacterState.DeputySoldierId / DeputyHostHeroId / DeputyEffectId`
 - 副官 zone：`CharacterZone.Deputy`
 - 任命规则：`GameEngine.AssignDeputy`

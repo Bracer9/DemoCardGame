@@ -97,7 +97,7 @@ public sealed class AttackPreviewService
         }
         attackPacket = ForecastDamageLanding(defender, attackPacket);
         var attackHp = attackPacket;
-        var attack = ApplyZeroHpTriggerForecast(state, defender, attackPacket);
+        var attack = ApplyNoDamageTriggerForecast(state, defender, attackPacket);
         var remainingDefenderShield = Math.Max(0, defenderOwner.SharedShield - attackPacket.ShieldAbsorb);
         var attritionLedgerBonus = ForecastAttritionLedgerBonus(state, attacker, defender);
         var attritionLedgerBefore = attack;
@@ -141,17 +141,19 @@ public sealed class AttackPreviewService
         var monsterFollowUpDamage = ForecastMonsterFollowUpDamage(state, attacker, defender);
         var monsterFollowUpPossible = monsterFollowUpDamage > 0
             && attackHp.HpDamageMin == 0
+            && attackHp.MoraleDamageMin == 0
             && attack.HpDamageMin < defender.CurrentHp;
         if (monsterFollowUpPossible)
         {
             var followUpDamage = ForecastAbsoluteDamage(state, attacker, defender, monsterFollowUpDamage);
-            attack = attackHp.HpDamageMax == 0
+            attack = attackHp.HpDamageMax == 0 && attackHp.MoraleDamageMax == 0
                 ? AddDirectHpDamageIfTargetSurvives(defender, attack, followUpDamage)
                 : AddPossibleDirectHpDamageIfTargetSurvives(defender, attack, followUpDamage);
         }
         var astralSplashForecasts = ForecastAstralSplash(
             state, attacker, defender, astralAlignment, chantRelicForecast.RemainingSharedShield);
         var nightBaitWillTrigger = attackHp.HpDamageMax == 0
+            && attackHp.MoraleDamageMax == 0
             && (attackHp.Max > 0 || attackHp.ShieldWillAbsorb)
             && RelicEffects.HasRelic(attackerOwner, "relic-night-bait")
             && !attackerOwner.RelicsUsedThisTurn.Contains("relic-night-bait");
@@ -182,7 +184,7 @@ public sealed class AttackPreviewService
         var counter = counterForecast;
         counter = ForecastDamageLanding(attacker, counter);
         var counterHp = counter;
-        counter = ApplyZeroHpTriggerForecast(state, attacker, counter);
+        counter = ApplyNoDamageTriggerForecast(state, attacker, counter);
         var trait = _engine.GetTrait(attacker);
         var (possible, traitText) = ForecastTrait(state, attacker, defender, attackHp);
 
@@ -307,14 +309,16 @@ public sealed class AttackPreviewService
             notes.Add(L10n.Text("preview.roleAction.absoluteFollowUp",
                 ("roleAction", L10n.RoleAction("abyssal-bargain")),
                 ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, abyssalBargain!, defender)))));
-        if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired) && attackHp.HpDamageMin == 0)
+        if (defender.Statuses.Any(status => status.Id == "prey" && !status.Expired)
+            && attackHp.HpDamageMin == 0 && attackHp.MoraleDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGaze",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
         var nightmarePrey = defender.Statuses.OfType<NightmarePreyStatus>().FirstOrDefault(status => !status.Expired);
-        if (nightmarePrey is not null && attackHp.HpDamageMin == 0)
+        if (nightmarePrey is not null && attackHp.HpDamageMin == 0 && attackHp.MoraleDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.nightmareStare",
                 ("value", L10n.Raw(ForecastStatusAbsoluteDamage(state, nightmarePrey, defender)))));
-        if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired) && counterHp.HpDamageMin == 0)
+        if (attacker.Statuses.Any(status => status.Id == "prey" && !status.Expired)
+            && counterHp.HpDamageMin == 0 && counterHp.MoraleDamageMin == 0)
             notes.Add(L10n.Text("preview.roleAction.predatoryGazeCounter",
                 ("value", L10n.Raw(PreyStatus.AbsoluteDamage))));
 
@@ -322,20 +326,22 @@ public sealed class AttackPreviewService
             attack, counter, trait.Metadata.Id, possible, traitText, notes);
     }
 
-    private static DamageForecast ApplyZeroHpTriggerForecast(
+    private static DamageForecast ApplyNoDamageTriggerForecast(
         GameState state,
         CharacterState target,
         DamageForecast forecast)
     {
-        var zeroHpFollowUps = target.Statuses
+        var noDamageFollowUps = target.Statuses
             .Where(status => !status.Expired && status is PreyStatus or NightmarePreyStatus)
             .ToArray();
-        if (zeroHpFollowUps.Length == 0 || forecast.HpDamageMin > 0)
+        if (noDamageFollowUps.Length == 0
+            || forecast.HpDamageMin > 0
+            || forecast.MoraleDamageMin > 0)
             return forecast;
 
-        var followUpDamage = zeroHpFollowUps.Sum(status => ForecastStatusAbsoluteDamage(state, status, target));
+        var followUpDamage = noDamageFollowUps.Sum(status => ForecastStatusAbsoluteDamage(state, status, target));
 
-        if (forecast.HpDamageMax == 0)
+        if (forecast.HpDamageMax == 0 && forecast.MoraleDamageMax == 0)
             return AddDirectHpDamage(forecast, followUpDamage);
 
         var triggeredTotal = forecast.Min + followUpDamage;
@@ -836,7 +842,7 @@ public sealed class AttackPreviewService
         "druid" => ForecastDruidTrait(defender, attack),
         "barbarian" => ForecastBarbarianTrait(attacker, attack),
         "monster" => ForecastMonsterTrait(state, attacker, defender, attack),
-        "jester" => ForecastJesterTrait(state, attacker, defender),
+        "jester" => ForecastJesterTrait(state, attacker, defender, attack),
         _ => (false, L10n.Text("preview.trait.none"))
     };
 
@@ -857,17 +863,32 @@ public sealed class AttackPreviewService
     private static (bool, LocalizedText) ForecastJesterTrait(
         GameState state,
         CharacterState attacker,
-        CharacterState defender)
+        CharacterState defender,
+        DamageForecast attack)
     {
         if (attacker.TraitsUsedThisTurn.Contains("malicious-jest"))
             return (false, L10n.Text("preview.trait.none"));
+
+        var hpDamageGuaranteed = attack.HpDamageMin > 0;
+        var hpDamagePossible = attack.HpDamageMax > 0;
         if (state.FindOwner(defender).SharedShield > 0)
-            return (false, L10n.Text("preview.trait.maliciousJestShielded"));
+        {
+            if (hpDamageGuaranteed)
+                return (true, L10n.Text("preview.trait.maliciousJestHpGuaranteed", ("spread", L10n.Raw(0))));
+            return hpDamagePossible
+                ? (true, L10n.Text("preview.trait.maliciousJestHpPossible", ("spread", L10n.Raw(0))))
+                : (false, L10n.Text("preview.trait.maliciousJestShielded"));
+        }
 
         var targetAlreadyHadDebuff = defender.Statuses.Any(status => !status.IsBuff && !status.Expired);
-        return (true, L10n.Text(attacker.SoldierRank >= 2
-                ? "preview.trait.maliciousJestGuaranteed"
-                : "preview.trait.maliciousJest",
+        var key = attacker.SoldierRank >= 2
+            ? "preview.trait.maliciousJestGuaranteed"
+            : hpDamageGuaranteed
+                ? "preview.trait.maliciousJestHpGuaranteed"
+                : hpDamagePossible
+                    ? "preview.trait.maliciousJestHpPossible"
+                    : "preview.trait.maliciousJest";
+        return (true, L10n.Text(key,
             ("spread", L10n.Raw(attacker.SoldierRank >= 1 && targetAlreadyHadDebuff ? 1 : 0))));
     }
 
@@ -883,7 +904,7 @@ public sealed class AttackPreviewService
     {
         var packet = ForecastRoleActionPrimaryDamage(
             state, actor, target, amount, damageType, targetMoraleOverride);
-        var result = ApplyZeroHpTriggerForecast(state, target, packet);
+        var result = ApplyNoDamageTriggerForecast(state, target, packet);
         var targetOwner = state.FindOwner(target);
         var relics = ForecastChantAndBurningRelics(
             state,
@@ -937,7 +958,7 @@ public sealed class AttackPreviewService
         var packet = ForecastDamageLanding(target,
             ForecastDamage(state, actor, target, outgoing, damageType, DamageSource.Trait,
                 sharedShieldOverride: sharedShieldOverride));
-        return ApplyZeroHpTriggerForecast(state, target, packet);
+        return ApplyNoDamageTriggerForecast(state, target, packet);
     }
 
     private static (bool, LocalizedText) ForecastDruidTrait(CharacterState defender, DamageForecast attack)
@@ -968,10 +989,12 @@ public sealed class AttackPreviewService
         var damage = _engine.GetActiveAttack(state, attacker)
             + (hasPrincess ? PredatoryInstinctTrait.PrincessBonusDamage : 0)
             + preyBonus;
-        var key = attack.HpDamageMax == 0 ? "preview.trait.beautyGuaranteed"
-            : attack.HpDamageMin == 0 ? "preview.trait.beautyPossible"
+        var noDamageGuaranteed = attack.HpDamageMax == 0 && attack.MoraleDamageMax == 0;
+        var noDamagePossible = attack.HpDamageMin == 0 && attack.MoraleDamageMin == 0;
+        var key = noDamageGuaranteed ? "preview.trait.beautyGuaranteed"
+            : noDamagePossible ? "preview.trait.beautyPossible"
             : "preview.trait.beautyUnavailable";
-        return (attack.HpDamageMin == 0, L10n.Text(key, ("amount", L10n.Raw(damage))));
+        return (noDamagePossible, L10n.Text(key, ("amount", L10n.Raw(damage))));
     }
 
     private static LocalizedText? Validate(GameState state, CharacterState attacker, CharacterState defender)
